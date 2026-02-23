@@ -81,9 +81,9 @@ In real-world Flutter BLoC projects:
 
 ### 4.4 Compatibility
 
--   Fully compatible with `flutter_bloc` API
+-   Compatible with public `flutter_bloc` APIs in supported versions
 -   Can be used alongside existing `flutter_bloc` widgets
--   No breaking changes to `flutter_bloc` behavior
+-   Does not modify or monkey-patch `flutter_bloc` runtime behavior
 -   Backward compatible with existing BLoC patterns
 
 ------------------------------------------------------------------------
@@ -98,7 +98,7 @@ In real-world Flutter BLoC projects:
 2.  **Minimal Abstraction**: Thin wrappers around `flutter_bloc` widgets
 3.  **Type Safety**: Full compile-time type checking
 4.  **Composability**: All features can be used independently
-5.  **Performance**: No runtime overhead compared to `flutter_bloc`
+5.  **Performance**: Minimal overhead with benchmark-backed acceptance thresholds
 
 ### 5.2 Module Independence
 
@@ -199,6 +199,32 @@ sequenceDiagram
     Widget->>User: UI Update
 ```
 
+### 5.6 API Contract Before Code Generation
+
+The coding agent MUST treat this section as binding over illustrative snippets in the document.
+
+-   Public API changes require PRD update first.
+-   All APIs in this document are declarative contracts, not implementation inheritance requirements.
+-   The implementation MUST use only public APIs from `flutter_bloc`/`bloc` in supported versions.
+-   Any API that depends on private/undocumented framework internals is out of scope.
+-   If a required behavior is impossible with public APIs, implementation must fail fast with a clear TODO in PR and a PRD amendment request.
+
+**API Freeze Table (v0.x scope)**
+
+| Symbol                             | Status | Contract Notes                                                                    |
+|------------------------------------|--------|-----------------------------------------------------------------------------------|
+| `BlocBuilderWithBloc`              | stable | `builder(context, bloc, state)`; parity with `BlocBuilder` semantics              |
+| `BlocListenerWithBloc`             | stable | `listener(context, bloc, state)`; parity with `BlocListener` semantics            |
+| `BlocConsumerWithBloc`             | stable | Combines builder/listener with independent conditions                             |
+| `BlocSelectorWithBloc`             | stable | Selects `T` and rebuilds on selected value inequality by default                  |
+| `RebuildPolicy`                    | stable | Stateless predicate object                                                        |
+| `ListenPolicy`                     | stable | Stateless predicate object                                                        |
+| `BuildContext` nullable extensions | stable | Return `null` on missing provider, never throw provider-not-found                 |
+| `SafeEmitMixin`                    | stable | Silent no-op on closed bloc for `safeEmit`                                        |
+| `CancellationToken`                | stable | Cooperative cancellation marker (does not force interrupt)                        |
+| `RestartableTask`                  | stable | New run invalidates previous result; does not force interrupt underlying `Future` |
+| `HasEffects` + `EffectListener`    | stable | One-shot effect stream separated from state stream                                |
+
 ------------------------------------------------------------------------
 
 # MODULE A --- UI Layer Enhancements
@@ -210,16 +236,13 @@ Alternative widget to `BlocBuilder` that provides bloc instance directly in buil
 ### API Specification
 
 ```dart
-class BlocBuilderWithBloc<B extends BlocBase<S>, S> extends BlocBuilderBase<B, S> {
+class BlocBuilderWithBloc<B extends StateStreamable<S>, S> extends StatelessWidget {
   const BlocBuilderWithBloc({
     Key? key,
     B? bloc,
     BlocBuilderCondition<S>? buildWhen,
     required Widget Function(BuildContext context, B bloc, S state) builder,
-  }) : super(key: key, bloc: bloc, buildWhen: buildWhen);
-
-  @override
-  Widget build(BuildContext context, S state);
+  });
 }
 ```
 
@@ -669,7 +692,7 @@ if (result != null) {
 ### Edge Cases
 
 -   All methods return `null` if bloc is not in widget tree
--   All methods are safe to call even if context is disposed
+-   Methods are safe for missing providers, but must only be called with a valid live `BuildContext`
 -   `watchOrNull` and `selectOrNull` will stop rebuilding if bloc is removed from tree
 
 ------------------------------------------------------------------------
@@ -1646,6 +1669,19 @@ docs/
     └── policies.dart
 ```
 
+## 11.5 Pre-Implementation Checklist (Required)
+
+Before running a code-generation agent, all items below must be marked complete:
+
+-   API contracts verified against current `flutter_bloc` public API.
+-   Each module has explicit acceptance criteria with at least one negative test case.
+-   Error semantics are defined (`throw` vs `null` vs no-op) for every public method/widget.
+-   Effects lifecycle ownership is explicit (controller creation, close order, late emit behavior).
+-   Async cancellation semantics explicitly state cooperative model (no hard cancellation guarantees).
+-   Benchmarks are defined with pass/fail thresholds.
+-   Example app scenarios are mapped to modules A-E.
+-   Release gate is defined for each version (tests + docs + benchmark + changelog).
+
 ------------------------------------------------------------------------
 
 # Roadmap
@@ -1653,7 +1689,7 @@ docs/
 ## 12.1 Version Plan
 
 ### v0.1.0 - UI Widgets & Extensions (MVP)
-**Target**: Q1 2026
+**Target**: Milestone M1 (first shippable cut)
 
 **Features**:
 -   `BlocBuilderWithBloc`
@@ -1670,7 +1706,7 @@ docs/
 -   Example app demonstrates all features
 
 ### v0.2.0 - Policies
-**Target**: Q2 2026
+**Target**: Milestone M2
 
 **Features**:
 -   `RebuildPolicy` with built-ins (distinct, onChange, always, never)
@@ -1684,7 +1720,7 @@ docs/
 -   Documentation updated
 
 ### v0.3.0 - Async Safety
-**Target**: Q3 2026
+**Target**: Milestone M3
 
 **Features**:
 -   `SafeEmitMixin` with `safeEmit()` and `guarded()`
@@ -1699,7 +1735,7 @@ docs/
 -   Performance overhead < 1%
 
 ### v0.4.0 - Effects
-**Target**: Q4 2026
+**Target**: Milestone M4
 
 **Features**:
 -   `HasEffects` mixin
@@ -1713,7 +1749,7 @@ docs/
 -   Documentation complete
 
 ### v1.0.0 - API Freeze
-**Target**: Q1 2027
+**Target**: Milestone M5 (post-adoption stabilization)
 
 **Features**:
 -   API stability guarantee
@@ -1755,10 +1791,10 @@ docs/
 
 ## 13.4 Technical Metrics
 
--   **Bundle Size**: <50KB additional size
+-   **Bundle Size**: <50KB additional compressed size in a sample app build
 -   **Build Time**: No measurable impact on build times
 -   **Memory Usage**: No memory leaks in long-running apps
--   **Async Stability**: 100% prevention of post-close emit crashes
+-   **Async Stability**: Zero known post-close emit crashes in test suite and staged validation
 
 ## 13.5 Success Criteria Summary
 
