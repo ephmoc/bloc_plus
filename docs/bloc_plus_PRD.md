@@ -66,8 +66,8 @@ In real-world Flutter BLoC projects:
 
 ### 4.2 Dependencies
 
--   **flutter_bloc**: >=8.0.0, <9.0.0
--   **bloc**: >=8.0.0, <9.0.0
+-   **flutter_bloc**: >=9.0.0, <10.0.0
+-   **bloc**: >=9.0.0, <10.0.0
 -   No additional heavy dependencies
 
 ### 4.3 Platform Support

@@ -1,0 +1,5 @@
+AGENTS.md
+docs/
+.idea/
+build/
+*.iml
