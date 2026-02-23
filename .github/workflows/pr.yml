@@ -1,0 +1,60 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  pr-quality:
+    name: PR Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Enforce CHANGELOG update for code changes
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          CODE_CHANGED=false
+          CHANGELOG_CHANGED=false
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            if [ "$file" = "CHANGELOG.md" ]; then
+              CHANGELOG_CHANGED=true
+            fi
+            case "$file" in
+              lib/*|pubspec.yaml)
+                CODE_CHANGED=true
+                ;;
+            esac
+          done <<< "$CHANGED_FILES"
+
+          if [ "$CODE_CHANGED" = true ] && [ "$CHANGELOG_CHANGED" = false ]; then
+            echo "Code or public package metadata changed without CHANGELOG.md update."
+            exit 1
+          fi
