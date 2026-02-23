@@ -36,7 +36,7 @@ Add dependency:
 
 ```yaml
 dependencies:
-  bloc_plus: ^0.1.0
+  bloc_plus: ^0.1.1
 ```
 
 Run the example app:
@@ -148,12 +148,12 @@ Implemented modules:
 3. Create and push tag:
 
 ```bash
-git tag -a v0.1.0 -m "bloc_plus 0.1.0"
-git push origin v0.1.0
+git tag -a v0.1.1 -m "bloc_plus 0.1.1"
+git push origin v0.1.1
 ```
 
 4. Run workflow `Publish` manually in GitHub Actions:
-   - `ref`: `v0.1.0`
+   - `ref`: `v0.1.1`
    - `dry_run_only`: `false`
 5. Repository secret required for publish: `PUB_CREDENTIALS_JSON`
    (content of local `~/.pub-cache/credentials.json` from account with

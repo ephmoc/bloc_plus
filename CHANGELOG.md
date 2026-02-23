@@ -1,3 +1,23 @@
+## 0.1.1
+
+- CI improvements:
+  - Added dedicated coverage workflow with Codecov upload.
+  - Coverage upload now supports `CODECOV_TOKEN` via GitHub Actions secret.
+- Release process improvements:
+  - Added PR quality and release automation workflows.
+  - Added manual publish workflow for non-verified publisher setup.
+- Documentation improvements:
+  - Added status badges to README.
+  - Clarified release flow and publish steps.
+
+Migration impact:
+
+- No API changes. No migration required.
+
+Release type rationale:
+
+- `patch` bump for CI, release automation, and documentation improvements.
+
 ## 0.1.0
 
 - Added `ui_with_bloc` module:
