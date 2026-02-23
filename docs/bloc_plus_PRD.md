@@ -60,14 +60,14 @@ In real-world Flutter BLoC projects:
 
 ### 4.1 Environment Requirements
 
--   **Flutter**: >=3.0.0
--   **Dart**: >=3.0.0
+-   **Flutter**: >=3.10.0
+-   **Dart**: >=3.0.0 <4.0.0
 -   **Null Safety**: Required (sound null safety)
 
 ### 4.2 Dependencies
 
--   **flutter_bloc**: >=8.0.0, <9.0.0
--   **bloc**: >=8.0.0, <9.0.0
+-   **flutter_bloc**: >=9.0.0, <10.0.0
+-   **bloc**: >=9.0.0, <10.0.0
 -   No additional heavy dependencies
 
 ### 4.3 Platform Support
@@ -81,10 +81,46 @@ In real-world Flutter BLoC projects:
 
 ### 4.4 Compatibility
 
--   Fully compatible with `flutter_bloc` API
+-   Compatible with public `flutter_bloc` APIs in supported versions
 -   Can be used alongside existing `flutter_bloc` widgets
--   No breaking changes to `flutter_bloc` behavior
+-   Does not modify or monkey-patch `flutter_bloc` runtime behavior
 -   Backward compatible with existing BLoC patterns
+
+### 4.5 Package Bootstrap (Required)
+
+Before implementing any module, the agent MUST ensure the repository is a valid Flutter package scaffold.
+
+-   If package scaffold is missing, create it with:
+    -   `flutter create --template=package bloc_plus` (when running from parent directory)
+    -   `flutter create --template=package .` (when already in package root)
+-   For this repository layout, prefer `flutter create --template=package .` to avoid nested `bloc_plus/bloc_plus`.
+-   Do not start module implementation before scaffold exists.
+-   Required baseline artifacts after bootstrap:
+    -   `pubspec.yaml`
+    -   `lib/bloc_plus.dart`
+    -   `test/`
+    -   `example/`
+-   Immediately after scaffold creation:
+    -   Add `flutter_bloc` and `bloc` constraints from section 4.2
+    -   Run `flutter pub get`
+    -   Run `flutter analyze` once to validate clean baseline
+
+### 4.6 Package Metadata & Publish Readiness
+
+The agent should treat these as required package deliverables:
+
+-   `pubspec.yaml` includes:
+    -   `name: bloc_plus`
+    -   SDK constraints aligned with section 4.1
+    -   `flutter_bloc` and `bloc` dependency constraints from section 4.2
+    -   package metadata (`description`, `homepage` or `repository`, `issue_tracker`)
+-   Required top-level files:
+    -   `README.md`
+    -   `CHANGELOG.md`
+    -   `LICENSE`
+    -   `analysis_options.yaml`
+-   Public entrypoint:
+    -   `lib/bloc_plus.dart` exports only intended public APIs
 
 ------------------------------------------------------------------------
 
@@ -98,16 +134,16 @@ In real-world Flutter BLoC projects:
 2.  **Minimal Abstraction**: Thin wrappers around `flutter_bloc` widgets
 3.  **Type Safety**: Full compile-time type checking
 4.  **Composability**: All features can be used independently
-5.  **Performance**: No runtime overhead compared to `flutter_bloc`
+5.  **Performance**: Minimal overhead with benchmark-backed acceptance thresholds
 
 ### 5.2 Module Independence
 
-Each module (A-E) is independent and can be used separately:
--   Module A (UI widgets) can be used without other modules
--   Module B (Policies) works with both standard and "WithBloc" widgets
--   Module C (Extensions) is standalone utility
--   Module D (Async Safety) is optional mixin
--   Module E (Effects) requires bloc implementation but is independent
+Each module (`ui_with_bloc`, `policies`, `context_extensions`, `async_safety`, `effects`) is independent and can be used separately:
+-   `ui_with_bloc` (UI widgets) can be used without other modules
+-   `policies` works with both standard and "WithBloc" widgets
+-   `context_extensions` is standalone utility
+-   `async_safety` is optional mixin/utilities set
+-   `effects` requires bloc implementation but is independent
 
 ### 5.3 Data Flow
 
@@ -129,32 +165,32 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph UI["UI Layer (Module A)"]
+    subgraph UI["UI Layer (ui_with_bloc)"]
         BB[BlocBuilderWithBloc]
         BL[BlocListenerWithBloc]
         BC[BlocConsumerWithBloc]
         BS[BlocSelectorWithBloc]
     end
     
-    subgraph Policies["Policies (Module B)"]
+    subgraph Policies["Policies (policies)"]
         RP[RebuildPolicy]
         LP[ListenPolicy]
     end
     
-    subgraph Extensions["Extensions (Module C)"]
+    subgraph Extensions["Extensions (context_extensions)"]
         RO[readOrNull]
         WO[watchOrNull]
         SO[selectOrNull]
         WB[withBloc]
     end
     
-    subgraph Async["Async Safety (Module D)"]
+    subgraph Async["Async Safety (async_safety)"]
         SE[SafeEmitMixin]
         CT[CancellationToken]
         RT[RestartableTask]
     end
     
-    subgraph Effects["Effects (Module E)"]
+    subgraph Effects["Effects (effects)"]
         HE[HasEffects]
         EL[EffectListener]
     end
@@ -199,9 +235,48 @@ sequenceDiagram
     Widget->>User: UI Update
 ```
 
+### 5.6 API Contract Before Code Generation
+
+The coding agent MUST treat this section as binding over illustrative snippets in the document.
+
+-   Public API changes require PRD update first.
+-   All APIs in this document are declarative contracts, not implementation inheritance requirements.
+-   The implementation MUST use only public APIs from `flutter_bloc`/`bloc` in supported versions.
+-   Any API that depends on private/undocumented framework internals is out of scope.
+-   If a required behavior is impossible with public APIs, implementation must fail fast with a clear TODO in PR and a PRD amendment request.
+
+**API Freeze Table (v0.x scope)**
+
+| Symbol                             | Status | Contract Notes                                                                    |
+|------------------------------------|--------|-----------------------------------------------------------------------------------|
+| `BlocBuilderWithBloc`              | stable | `builder(context, bloc, state)`; parity with `BlocBuilder` semantics              |
+| `BlocListenerWithBloc`             | stable | `listener(context, bloc, state)`; parity with `BlocListener` semantics            |
+| `BlocConsumerWithBloc`             | stable | Combines builder/listener with independent conditions                             |
+| `BlocSelectorWithBloc`             | stable | Selects `T` and rebuilds on selected value inequality by default                  |
+| `RebuildPolicy`                    | stable | Stateless predicate object                                                        |
+| `ListenPolicy`                     | stable | Stateless predicate object                                                        |
+| `BuildContext` nullable extensions | stable | Return `null` on missing provider, never throw provider-not-found                 |
+| `SafeEmitMixin`                    | stable | Silent no-op on closed bloc for `safeEmit`                                        |
+| `CancellationToken`                | stable | Cooperative cancellation marker (does not force interrupt)                        |
+| `RestartableTask`                  | stable | New run invalidates previous result; does not force interrupt underlying `Future` |
+| `HasEffects` + `EffectListener`    | stable | One-shot effect stream separated from state stream                                |
+
+### 5.7 Agent Execution Sequence (Required)
+
+The coding agent should execute work in this exact order:
+
+1.  Bootstrap package scaffold (section 4.5).
+2.  Apply dependency constraints (`flutter_bloc`, `bloc`) and run `flutter pub get`.
+3.  Implement `ui_with_bloc` and `context_extensions` (M1 scope).
+4.  Implement `policies`.
+5.  Implement `async_safety`.
+6.  Implement `effects`.
+7.  Run full validation: format, analyze, tests.
+8.  Update documentation and example app for implemented modules.
+
 ------------------------------------------------------------------------
 
-# MODULE A --- UI Layer Enhancements
+# MODULE ui_with_bloc --- UI Layer Enhancements
 
 ## BlocBuilderWithBloc
 
@@ -316,7 +391,7 @@ Combines `BlocBuilderWithBloc` and `BlocListenerWithBloc` functionality.
 ### API Specification
 
 ```dart
-class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends BlocConsumerBase<B, S> {
+class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends StatelessWidget {
   const BlocConsumerWithBloc({
     Key? key,
     B? bloc,
@@ -324,14 +399,7 @@ class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends BlocConsumerBase<B,
     BlocListenerCondition<S>? listenWhen,
     required void Function(BuildContext context, B bloc, S state) listener,
     required Widget Function(BuildContext context, B bloc, S state) builder,
-  }) : super(
-    key: key,
-    bloc: bloc,
-    buildWhen: buildWhen,
-    listenWhen: listenWhen,
-    listener: listener,
-    builder: builder,
-  );
+  });
 }
 ```
 
@@ -374,23 +442,14 @@ Alternative widget to `BlocSelector` that provides bloc instance directly and av
 ### API Specification
 
 ```dart
-class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends BlocSelectorBase<B, S, T> {
+class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends StatelessWidget {
   const BlocSelectorWithBloc({
     Key? key,
     B? bloc,
     required T Function(S state) selector,
-    BlocSelectorCondition<S, T>? selectorShouldRebuild,
+    bool Function(T previous, T current)? selectorShouldRebuild,
     required Widget Function(BuildContext context, B bloc, T selected) builder,
-  }) : super(
-    key: key,
-    bloc: bloc,
-    selector: selector,
-    selectorShouldRebuild: selectorShouldRebuild,
-    builder: builder,
-  );
-
-  @override
-  Widget build(BuildContext context, S state);
+  });
 }
 ```
 
@@ -420,7 +479,7 @@ BlocSelectorWithBloc<CounterBloc, CounterState, int>(
 
 ------------------------------------------------------------------------
 
-# MODULE B --- Policies
+# MODULE policies --- Policies
 
 ## RebuildPolicy
 
@@ -430,8 +489,18 @@ Abstract policy for controlling when widgets should rebuild based on state chang
 
 ```dart
 abstract class RebuildPolicy<S> {
+  const RebuildPolicy();
+
   bool shouldRebuild(S previous, S current);
 }
+```
+
+Built-in policies are exposed as top-level factory functions:
+```dart
+RebuildPolicy<S> distinct<S>();
+RebuildPolicy<S> onChange<S, T>(T Function(S state) selector);
+RebuildPolicy<S> always<S>();
+RebuildPolicy<S> never<S>();
 ```
 
 ### Built-in Policies
@@ -441,7 +510,7 @@ abstract class RebuildPolicy<S> {
 Only rebuilds when state changes (using `!=` comparison).
 
 ```dart
-RebuildPolicy<S> distinct<S>();
+distinct<S>();
 ```
 
 **Behavior**: Returns `true` when `previous != current`, `false` otherwise.
@@ -451,7 +520,7 @@ RebuildPolicy<S> distinct<S>();
 Rebuilds when selected value changes.
 
 ```dart
-RebuildPolicy<S> onChange<S, T>(T Function(S state) selector);
+onChange<S, T>(T Function(S state) selector);
 ```
 
 **Parameters**:
@@ -461,7 +530,7 @@ RebuildPolicy<S> onChange<S, T>(T Function(S state) selector);
 
 **Example**:
 ```dart
-RebuildPolicy<CounterState> onChange((state) => state.count)
+onChange<CounterState, int>((state) => state.count)
 ```
 
 #### always()
@@ -469,7 +538,7 @@ RebuildPolicy<CounterState> onChange((state) => state.count)
 Always rebuilds on every state change.
 
 ```dart
-RebuildPolicy<S> always<S>();
+always<S>();
 ```
 
 **Behavior**: Always returns `true`.
@@ -479,7 +548,7 @@ RebuildPolicy<S> always<S>();
 Never rebuilds (useful for listeners only).
 
 ```dart
-RebuildPolicy<S> never<S>();
+never<S>();
 ```
 
 **Behavior**: Always returns `false`.
@@ -500,7 +569,7 @@ class CustomRebuildPolicy<S> extends RebuildPolicy<S> {
 
 ```dart
 BlocBuilderWithBloc<CounterBloc, CounterState>(
-  buildWhen: RebuildPolicy.distinct<CounterState>().shouldRebuild,
+  buildWhen: distinct<CounterState>().shouldRebuild,
   builder: (context, bloc, state) => Text('${state.count}'),
 )
 ```
@@ -515,23 +584,33 @@ Abstract policy for controlling when listeners should be called based on state c
 
 ```dart
 abstract class ListenPolicy<S> {
+  const ListenPolicy();
+
   bool shouldListen(S previous, S current);
 }
 ```
 
+Built-in policies are exposed as top-level factory functions:
+```dart
+ListenPolicy<S> distinctListen<S>();
+ListenPolicy<S> onChangeListen<S, T>(T Function(S state) selector);
+ListenPolicy<S> alwaysListen<S>();
+ListenPolicy<S> neverListen<S>();
+```
+
 ### Built-in Policies
 
-Same as `RebuildPolicy`:
--   `distinct()`: Listen only when state changes
--   `onChange<T>(selector)`: Listen when selected value changes
--   `always()`: Always listen
--   `never()`: Never listen
+Listen variants of rebuild policies:
+-   `distinctListen()`: Listen only when state changes
+-   `onChangeListen<T>(selector)`: Listen when selected value changes
+-   `alwaysListen()`: Always listen
+-   `neverListen()`: Never listen
 
 ### Usage Example
 
 ```dart
 BlocListenerWithBloc<AuthBloc, AuthState>(
-  listenWhen: ListenPolicy.onChange<AuthState, bool>(
+  listenWhen: onChangeListen<AuthState, bool>(
     (state) => state.isAuthenticated,
   ).shouldListen,
   listener: (context, bloc, state) {
@@ -542,7 +621,7 @@ BlocListenerWithBloc<AuthBloc, AuthState>(
 
 ------------------------------------------------------------------------
 
-# MODULE C --- BuildContext Extensions
+# MODULE context_extensions --- BuildContext Extensions
 
 Extension methods on `BuildContext` providing null-safe access to bloc instances.
 
@@ -669,12 +748,12 @@ if (result != null) {
 ### Edge Cases
 
 -   All methods return `null` if bloc is not in widget tree
--   All methods are safe to call even if context is disposed
+-   Methods are safe for missing providers, but must only be called with a valid live `BuildContext`
 -   `watchOrNull` and `selectOrNull` will stop rebuilding if bloc is removed from tree
 
 ------------------------------------------------------------------------
 
-# MODULE D --- Async Safety
+# MODULE async_safety --- Async Safety
 
 ## SafeEmitMixin
 
@@ -935,7 +1014,7 @@ class MyBloc extends Bloc<MyEvent, MyState> {
 
 ------------------------------------------------------------------------
 
-# MODULE E --- Effects
+# MODULE effects --- Effects
 
 ## HasEffects
 
@@ -961,9 +1040,11 @@ Stream of effects emitted by the bloc.
 
 **Behavior**:
 -   Read-only stream
+-   Broadcast stream (supports multiple listeners)
 -   Emits effects as they occur
--   Effects are consumed once by listeners
+-   Effects are consumed once per listener subscription
 -   Stream completes when bloc is closed
+-   Delivery is non-replay by default (effects emitted before subscription are not replayed)
 
 ### Methods
 
@@ -1252,6 +1333,7 @@ BlocBuilderWithBloc<DataBloc, DataState>(...) // Plus widget also works
 -   Both libraries use the same `BlocProvider` for dependency injection
 -   No conflicts or breaking changes when mixing widgets
 -   Full type safety maintained across both libraries
+-   Both `Bloc` and `Cubit` types are supported via `BlocBase`-based contracts
 
 ------------------------------------------------------------------------
 
@@ -1413,7 +1495,7 @@ if (result != null) {
 
 **Best Practice**: Create policy instances once and reuse:
 ```dart
-final policy = RebuildPolicy.distinct<CounterState>();
+final policy = distinct<CounterState>();
 
 BlocBuilderWithBloc(..., buildWhen: policy.shouldRebuild);
 BlocBuilderWithBloc(..., buildWhen: policy.shouldRebuild);
@@ -1508,10 +1590,10 @@ final result = await token.run(() async {
 -   `RestartableTask.dispose()` prevents new tasks
 
 **Policies**:
--   `RebuildPolicy.distinct()` only rebuilds on state change
--   `RebuildPolicy.onChange()` rebuilds on selected value change
--   `RebuildPolicy.always()` always rebuilds
--   `RebuildPolicy.never()` never rebuilds
+-   `distinct()` only rebuilds on state change
+-   `onChange()` rebuilds on selected value change
+-   `always()` always rebuilds
+-   `never()` never rebuilds
 -   Custom policies work correctly
 
 **Extensions**:
@@ -1535,7 +1617,7 @@ final result = await token.run(() async {
 -   `BlocListenerWithBloc` provides bloc instance to listener
 -   `BlocConsumerWithBloc` combines builder and listener
 -   `BlocSelectorWithBloc` only rebuilds when selected value changes
--   All widgets handle missing bloc gracefully
+-   Widgets throw `ProviderNotFoundException` when `bloc` is null and provider is missing
 
 **EffectListener**:
 -   `EffectListener` calls callback on effect emission
@@ -1569,15 +1651,15 @@ test('SafeEmitMixin ignores emit when bloc is closed', () {
 
 ```dart
 testWidgets('BlocBuilderWithBloc provides bloc instance', (tester) async {
-  final bloc = CounterBloc();
+  final counterBloc = CounterBloc();
   
   await tester.pumpWidget(
     BlocProvider.value(
-      value: bloc,
+      value: counterBloc,
       child: BlocBuilderWithBloc<CounterBloc, CounterState>(
         builder: (context, bloc, state) {
           expect(bloc, isNotNull);
-          expect(bloc, equals(bloc));
+          expect(bloc, same(counterBloc));
           return Text('${state.count}');
         },
       ),
@@ -1592,6 +1674,14 @@ testWidgets('BlocBuilderWithBloc provides bloc instance', (tester) async {
 -   Selector performance is optimized
 -   Effect emission has minimal overhead
 -   Async safety checks have minimal overhead
+
+## 10.5 CI Validation Gates (Required)
+
+Each implementation PR must pass:
+
+-   `dart format --set-exit-if-changed .`
+-   `flutter analyze`
+-   `flutter test`
 
 ------------------------------------------------------------------------
 
@@ -1634,17 +1724,34 @@ docs/
 ├── README.md (main documentation)
 ├── getting_started.md
 ├── usage_guide.md
-├── widgets.md (Module A)
-├── policies.md (Module B)
-├── extensions.md (Module C)
-├── async_safety.md (Module D)
-├── effects.md (Module E)
+├── widgets.md (ui_with_bloc)
+├── policies.md (policies)
+├── extensions.md (context_extensions)
+├── async_safety.md (async_safety)
+├── effects.md (effects)
 └── examples/
     ├── basic_usage.dart
     ├── async_safety.dart
     ├── effects.dart
     └── policies.dart
 ```
+
+## 11.5 Pre-Implementation Checklist (Required)
+
+Before running a code-generation agent, all items below must be marked complete:
+
+-   Flutter package scaffold exists (`pubspec.yaml`, `lib/`, `test/`, `example/`).
+-   If scaffold did not exist, bootstrap command was executed:
+    -   `flutter create --template=package bloc_plus` or `flutter create --template=package .`
+-   Package metadata baseline exists (`README.md`, `CHANGELOG.md`, `LICENSE`, `analysis_options.yaml`).
+-   API contracts verified against current `flutter_bloc` public API.
+-   Each module has explicit acceptance criteria with at least one negative test case.
+-   Error semantics are defined (`throw` vs `null` vs no-op) for every public method/widget.
+-   Effects lifecycle ownership is explicit (controller creation, close order, late emit behavior).
+-   Async cancellation semantics explicitly state cooperative model (no hard cancellation guarantees).
+-   Benchmarks are defined with pass/fail thresholds.
+-   Example app scenarios are mapped to: `ui_with_bloc`, `policies`, `context_extensions`, `async_safety`, `effects`.
+-   Release gate is defined for each version (tests + docs + benchmark + changelog).
 
 ------------------------------------------------------------------------
 
@@ -1653,7 +1760,7 @@ docs/
 ## 12.1 Version Plan
 
 ### v0.1.0 - UI Widgets & Extensions (MVP)
-**Target**: Q1 2026
+**Target**: Milestone M1 (first shippable cut)
 
 **Features**:
 -   `BlocBuilderWithBloc`
@@ -1670,7 +1777,7 @@ docs/
 -   Example app demonstrates all features
 
 ### v0.2.0 - Policies
-**Target**: Q2 2026
+**Target**: Milestone M2
 
 **Features**:
 -   `RebuildPolicy` with built-ins (distinct, onChange, always, never)
@@ -1684,7 +1791,7 @@ docs/
 -   Documentation updated
 
 ### v0.3.0 - Async Safety
-**Target**: Q3 2026
+**Target**: Milestone M3
 
 **Features**:
 -   `SafeEmitMixin` with `safeEmit()` and `guarded()`
@@ -1699,7 +1806,7 @@ docs/
 -   Performance overhead < 1%
 
 ### v0.4.0 - Effects
-**Target**: Q4 2026
+**Target**: Milestone M4
 
 **Features**:
 -   `HasEffects` mixin
@@ -1713,7 +1820,7 @@ docs/
 -   Documentation complete
 
 ### v1.0.0 - API Freeze
-**Target**: Q1 2027
+**Target**: Milestone M5 (post-adoption stabilization)
 
 **Features**:
 -   API stability guarantee
@@ -1755,10 +1862,10 @@ docs/
 
 ## 13.4 Technical Metrics
 
--   **Bundle Size**: <50KB additional size
+-   **Bundle Size**: <50KB additional compressed size in a sample app build
 -   **Build Time**: No measurable impact on build times
 -   **Memory Usage**: No memory leaks in long-running apps
--   **Async Stability**: 100% prevention of post-close emit crashes
+-   **Async Stability**: Zero known post-close emit crashes in test suite and staged validation
 
 ## 13.5 Success Criteria Summary
 

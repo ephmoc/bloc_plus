@@ -1,0 +1,65 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to publish (tag like v0.1.0 or branch)'
+        required: true
+        default: 'main'
+      dry_run_only:
+        description: 'Run validation only (no publish)'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    name: Publish to pub.dev
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Verify publish archive
+        run: flutter pub publish --dry-run
+
+      - name: Ensure credentials secret exists
+        if: ${{ !inputs.dry_run_only }}
+        run: |
+          if [ -z "${{ secrets.PUB_CREDENTIALS_JSON }}" ]; then
+            echo "Missing repository secret: PUB_CREDENTIALS_JSON"
+            exit 1
+          fi
+
+      - name: Configure pub credentials
+        if: ${{ !inputs.dry_run_only }}
+        run: |
+          mkdir -p ~/.pub-cache
+          cat <<'JSON' > ~/.pub-cache/credentials.json
+          ${{ secrets.PUB_CREDENTIALS_JSON }}
+          JSON
+
+      - name: Publish package
+        if: ${{ !inputs.dry_run_only }}
+        run: dart pub publish --force
