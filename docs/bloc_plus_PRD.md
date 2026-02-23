@@ -102,12 +102,12 @@ In real-world Flutter BLoC projects:
 
 ### 5.2 Module Independence
 
-Each module (A-E) is independent and can be used separately:
--   Module A (UI widgets) can be used without other modules
--   Module B (Policies) works with both standard and "WithBloc" widgets
--   Module C (Extensions) is standalone utility
--   Module D (Async Safety) is optional mixin
--   Module E (Effects) requires bloc implementation but is independent
+Each module (`ui_with_bloc`, `policies`, `context_extensions`, `async_safety`, `effects`) is independent and can be used separately:
+-   `ui_with_bloc` (UI widgets) can be used without other modules
+-   `policies` works with both standard and "WithBloc" widgets
+-   `context_extensions` is standalone utility
+-   `async_safety` is optional mixin/utilities set
+-   `effects` requires bloc implementation but is independent
 
 ### 5.3 Data Flow
 
@@ -129,32 +129,32 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph UI["UI Layer (Module A)"]
+    subgraph UI["UI Layer (ui_with_bloc)"]
         BB[BlocBuilderWithBloc]
         BL[BlocListenerWithBloc]
         BC[BlocConsumerWithBloc]
         BS[BlocSelectorWithBloc]
     end
     
-    subgraph Policies["Policies (Module B)"]
+    subgraph Policies["Policies (policies)"]
         RP[RebuildPolicy]
         LP[ListenPolicy]
     end
     
-    subgraph Extensions["Extensions (Module C)"]
+    subgraph Extensions["Extensions (context_extensions)"]
         RO[readOrNull]
         WO[watchOrNull]
         SO[selectOrNull]
         WB[withBloc]
     end
     
-    subgraph Async["Async Safety (Module D)"]
+    subgraph Async["Async Safety (async_safety)"]
         SE[SafeEmitMixin]
         CT[CancellationToken]
         RT[RestartableTask]
     end
     
-    subgraph Effects["Effects (Module E)"]
+    subgraph Effects["Effects (effects)"]
         HE[HasEffects]
         EL[EffectListener]
     end
@@ -227,7 +227,7 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 
 ------------------------------------------------------------------------
 
-# MODULE A --- UI Layer Enhancements
+# MODULE ui_with_bloc --- UI Layer Enhancements
 
 ## BlocBuilderWithBloc
 
@@ -443,7 +443,7 @@ BlocSelectorWithBloc<CounterBloc, CounterState, int>(
 
 ------------------------------------------------------------------------
 
-# MODULE B --- Policies
+# MODULE policies --- Policies
 
 ## RebuildPolicy
 
@@ -565,7 +565,7 @@ BlocListenerWithBloc<AuthBloc, AuthState>(
 
 ------------------------------------------------------------------------
 
-# MODULE C --- BuildContext Extensions
+# MODULE context_extensions --- BuildContext Extensions
 
 Extension methods on `BuildContext` providing null-safe access to bloc instances.
 
@@ -697,7 +697,7 @@ if (result != null) {
 
 ------------------------------------------------------------------------
 
-# MODULE D --- Async Safety
+# MODULE async_safety --- Async Safety
 
 ## SafeEmitMixin
 
@@ -958,7 +958,7 @@ class MyBloc extends Bloc<MyEvent, MyState> {
 
 ------------------------------------------------------------------------
 
-# MODULE E --- Effects
+# MODULE effects --- Effects
 
 ## HasEffects
 
@@ -1657,11 +1657,11 @@ docs/
 ├── README.md (main documentation)
 ├── getting_started.md
 ├── usage_guide.md
-├── widgets.md (Module A)
-├── policies.md (Module B)
-├── extensions.md (Module C)
-├── async_safety.md (Module D)
-├── effects.md (Module E)
+├── widgets.md (ui_with_bloc)
+├── policies.md (policies)
+├── extensions.md (context_extensions)
+├── async_safety.md (async_safety)
+├── effects.md (effects)
 └── examples/
     ├── basic_usage.dart
     ├── async_safety.dart
@@ -1679,7 +1679,7 @@ Before running a code-generation agent, all items below must be marked complete:
 -   Effects lifecycle ownership is explicit (controller creation, close order, late emit behavior).
 -   Async cancellation semantics explicitly state cooperative model (no hard cancellation guarantees).
 -   Benchmarks are defined with pass/fail thresholds.
--   Example app scenarios are mapped to modules A-E.
+-   Example app scenarios are mapped to: `ui_with_bloc`, `policies`, `context_extensions`, `async_safety`, `effects`.
 -   Release gate is defined for each version (tests + docs + benchmark + changelog).
 
 ------------------------------------------------------------------------
