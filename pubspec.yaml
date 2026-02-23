@@ -1,7 +1,7 @@
 name: bloc_plus
 description: "Extensions for flutter_bloc focused on ergonomics and safety."
 version: 0.1.0
-repository: "https://example.com/bloc_plus"
+repository: "https://github.com/ephmoc/bloc_plus"
 topics:
   - flutter
   - bloc
@@ -26,4 +26,3 @@ dev_dependencies:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
-

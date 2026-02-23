@@ -103,4 +103,42 @@ void main() {
     final exception = tester.takeException();
     expect(exception, isA<StateError>());
   });
+
+  testWidgets('switches subscription from explicit bloc to provider bloc', (
+    tester,
+  ) async {
+    // Given
+    final providerCubit = _EffectCubit();
+    final explicitCubit = _EffectCubit();
+    addTearDown(providerCubit.close);
+    addTearDown(explicitCubit.close);
+    final events = <String>[];
+
+    Widget buildApp({required bool useExplicitBloc}) {
+      return MaterialApp(
+        home: BlocProvider.value(
+          value: providerCubit,
+          child: EffectListener<_EffectCubit, int, String>(
+            bloc: useExplicitBloc ? explicitCubit : null,
+            onEffect: (context, effect) => events.add(effect),
+            child: const SizedBox.shrink(),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildApp(useExplicitBloc: true));
+
+    // When
+    explicitCubit.emitEffect('explicit');
+    providerCubit.emitEffect('provider-before-switch');
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(buildApp(useExplicitBloc: false));
+    providerCubit.emitEffect('provider-after-switch');
+    explicitCubit.emitEffect('explicit-after-switch');
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(events, ['explicit', 'provider-after-switch']);
+  });
 }

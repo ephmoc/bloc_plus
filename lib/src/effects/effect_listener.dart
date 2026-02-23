@@ -37,9 +37,8 @@ class _EffectListenerState<B extends BlocBase<S>, S, E>
   @override
   void didUpdateWidget(covariant EffectListener<B, S, E> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldBloc = oldWidget.bloc ?? context.read<B>();
-    final currentBloc = widget.bloc ?? oldBloc;
-    if (oldBloc != currentBloc) {
+    final currentBloc = widget.bloc ?? context.read<B>();
+    if (_bloc != currentBloc) {
       _unsubscribe();
       _bloc = currentBloc;
       _subscribe();
