@@ -1,0 +1,29 @@
+name: bloc_plus
+description: "Extensions for flutter_bloc focused on ergonomics and safety."
+version: 0.1.0
+repository: "https://example.com/bloc_plus"
+topics:
+  - flutter
+  - bloc
+  - state-management
+  - widgets
+  - async
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_bloc: ">=9.0.0 <10.0.0"
+  bloc: ">=9.0.0 <10.0.0"
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+

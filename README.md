@@ -1,0 +1,135 @@
+# bloc_plus
+
+`bloc_plus` extends `flutter_bloc` with ergonomic widgets, null-safe context
+extensions, and reusable rebuild/listen policies.
+
+## Features
+
+- `BlocBuilderWithBloc`, `BlocListenerWithBloc`, `BlocConsumerWithBloc`,
+  `BlocSelectorWithBloc`
+- BuildContext extensions:
+  - `readOrNull<B>()`
+  - `watchOrNull<B>()`
+  - `selectOrNull<B, S, T>(selector)`
+  - `withBloc<B, R>(fn)`
+- Reusable policies:
+  - Rebuild: `distinct`, `onChange`, `always`, `never`
+  - Listen: `distinctListen`, `onChangeListen`, `alwaysListen`, `neverListen`
+- Async safety:
+  - `SafeEmitMixin`
+  - `CancellationToken`
+  - `RestartableTask`
+- Effects:
+  - `HasEffects`
+  - `EffectListener`
+
+## Getting started
+
+Add dependency:
+
+```yaml
+dependencies:
+  bloc_plus: ^0.1.0
+```
+
+Run the example app:
+
+```bash
+cd example
+flutter pub get
+flutter run
+```
+
+## Usage
+
+### UI widgets with bloc in callback
+
+```dart
+class CounterView extends StatelessWidget {
+  const CounterView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilderWithBloc<CounterCubit, int>(
+      builder: (context, bloc, state) {
+        return Text('$state');
+      },
+    );
+  }
+}
+```
+
+### Null-safe context access
+
+```dart
+void tryIncrement(BuildContext context) {
+  final counterCubit = context.readOrNull<CounterCubit>();
+  counterCubit?.increment();
+}
+```
+
+### Policies
+
+```dart
+class PolicyView extends StatelessWidget {
+  const PolicyView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final rebuildPolicy = onChange<MyState, int>((s) => s.count);
+    final listenPolicy = onChangeListen<MyState, bool>((s) => s.isLoading);
+
+    return BlocListenerWithBloc<MyCubit, MyState>(
+      listenWhen: listenPolicy.shouldListen,
+      listener: (context, bloc, state) {},
+      child: BlocBuilderWithBloc<MyCubit, MyState>(
+        buildWhen: rebuildPolicy.shouldRebuild,
+        builder: (context, bloc, state) => Text('${state.count}'),
+      ),
+    );
+  }
+}
+```
+
+### Async safety
+
+```dart
+class MyCubit extends Cubit<int> with SafeEmitMixin<int> {
+  MyCubit() : super(0);
+
+  Future<void> load() async {
+    final value = await guarded(() async => 1);
+    if (value != null) safeEmit(value);
+  }
+}
+```
+
+### Effects
+
+```dart
+class AuthCubit extends Cubit<int> with HasEffects<int, String> {
+  AuthCubit() : super(0);
+}
+
+class AuthEffectsView extends StatelessWidget {
+  const AuthEffectsView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return EffectListener<AuthCubit, int, String>(
+      onEffect: (context, effect) {},
+      child: const SizedBox.shrink(),
+    );
+  }
+}
+```
+
+## Status
+
+Implemented modules:
+
+- `ui_with_bloc`
+- `context_extensions`
+- `policies`
+- `async_safety`
+- `effects`
