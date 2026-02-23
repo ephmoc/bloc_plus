@@ -1,5 +1,12 @@
 # Task Spec - ui_with_bloc (UI Layer Enhancements)
 
+## Preconditions
+- Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
+- If missing, bootstrap first with:
+  - `flutter create --template=package bloc_plus` (from parent directory), or
+  - `flutter create --template=package .` (from package root)
+- In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
+
 ## Scope
 - Implement `BlocBuilderWithBloc`
 - Implement `BlocListenerWithBloc`
@@ -17,7 +24,7 @@
 - Missing bloc in context must throw provider-not-found error (same semantics as `flutter_bloc`)
 - `buildWhen` / `listenWhen` semantics must match `flutter_bloc`
 - `BlocSelectorWithBloc` rebuilds only on selected value change by default (`!=`)
-- `BlocSelectorWithBloc` accepts custom `compareSelected(previous, current)`
+- `BlocSelectorWithBloc` accepts custom `selectorShouldRebuild(previous, current)`
 
 ## Target Files
 - `lib/src/widgets/bloc_builder_with_bloc.dart`
@@ -39,7 +46,7 @@ Required cases:
 - missing provider throws
 - `buildWhen` and `listenWhen` are respected
 - selector default compare prevents unnecessary rebuilds
-- custom `compareSelected` controls rebuild behavior
+- custom `selectorShouldRebuild` controls rebuild behavior
 
 ## Example App Updates
 - Add a page/section showing all four widgets with one shared bloc

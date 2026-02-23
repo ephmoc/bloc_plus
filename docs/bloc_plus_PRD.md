@@ -60,8 +60,8 @@ In real-world Flutter BLoC projects:
 
 ### 4.1 Environment Requirements
 
--   **Flutter**: >=3.0.0
--   **Dart**: >=3.0.0
+-   **Flutter**: >=3.10.0
+-   **Dart**: >=3.0.0 <4.0.0
 -   **Null Safety**: Required (sound null safety)
 
 ### 4.2 Dependencies
@@ -85,6 +85,42 @@ In real-world Flutter BLoC projects:
 -   Can be used alongside existing `flutter_bloc` widgets
 -   Does not modify or monkey-patch `flutter_bloc` runtime behavior
 -   Backward compatible with existing BLoC patterns
+
+### 4.5 Package Bootstrap (Required)
+
+Before implementing any module, the agent MUST ensure the repository is a valid Flutter package scaffold.
+
+-   If package scaffold is missing, create it with:
+    -   `flutter create --template=package bloc_plus` (when running from parent directory)
+    -   `flutter create --template=package .` (when already in package root)
+-   For this repository layout, prefer `flutter create --template=package .` to avoid nested `bloc_plus/bloc_plus`.
+-   Do not start module implementation before scaffold exists.
+-   Required baseline artifacts after bootstrap:
+    -   `pubspec.yaml`
+    -   `lib/bloc_plus.dart`
+    -   `test/`
+    -   `example/`
+-   Immediately after scaffold creation:
+    -   Add `flutter_bloc` and `bloc` constraints from section 4.2
+    -   Run `flutter pub get`
+    -   Run `flutter analyze` once to validate clean baseline
+
+### 4.6 Package Metadata & Publish Readiness
+
+The agent should treat these as required package deliverables:
+
+-   `pubspec.yaml` includes:
+    -   `name: bloc_plus`
+    -   SDK constraints aligned with section 4.1
+    -   `flutter_bloc` and `bloc` dependency constraints from section 4.2
+    -   package metadata (`description`, `homepage` or `repository`, `issue_tracker`)
+-   Required top-level files:
+    -   `README.md`
+    -   `CHANGELOG.md`
+    -   `LICENSE`
+    -   `analysis_options.yaml`
+-   Public entrypoint:
+    -   `lib/bloc_plus.dart` exports only intended public APIs
 
 ------------------------------------------------------------------------
 
@@ -225,6 +261,19 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `RestartableTask`                  | stable | New run invalidates previous result; does not force interrupt underlying `Future` |
 | `HasEffects` + `EffectListener`    | stable | One-shot effect stream separated from state stream                                |
 
+### 5.7 Agent Execution Sequence (Required)
+
+The coding agent should execute work in this exact order:
+
+1.  Bootstrap package scaffold (section 4.5).
+2.  Apply dependency constraints (`flutter_bloc`, `bloc`) and run `flutter pub get`.
+3.  Implement `ui_with_bloc` and `context_extensions` (M1 scope).
+4.  Implement `policies`.
+5.  Implement `async_safety`.
+6.  Implement `effects`.
+7.  Run full validation: format, analyze, tests.
+8.  Update documentation and example app for implemented modules.
+
 ------------------------------------------------------------------------
 
 # MODULE ui_with_bloc --- UI Layer Enhancements
@@ -236,13 +285,16 @@ Alternative widget to `BlocBuilder` that provides bloc instance directly in buil
 ### API Specification
 
 ```dart
-class BlocBuilderWithBloc<B extends StateStreamable<S>, S> extends StatelessWidget {
+class BlocBuilderWithBloc<B extends BlocBase<S>, S> extends BlocBuilderBase<B, S> {
   const BlocBuilderWithBloc({
     Key? key,
     B? bloc,
     BlocBuilderCondition<S>? buildWhen,
     required Widget Function(BuildContext context, B bloc, S state) builder,
-  });
+  }) : super(key: key, bloc: bloc, buildWhen: buildWhen);
+
+  @override
+  Widget build(BuildContext context, S state);
 }
 ```
 
@@ -339,7 +391,7 @@ Combines `BlocBuilderWithBloc` and `BlocListenerWithBloc` functionality.
 ### API Specification
 
 ```dart
-class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends BlocConsumerBase<B, S> {
+class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends StatelessWidget {
   const BlocConsumerWithBloc({
     Key? key,
     B? bloc,
@@ -347,14 +399,7 @@ class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends BlocConsumerBase<B,
     BlocListenerCondition<S>? listenWhen,
     required void Function(BuildContext context, B bloc, S state) listener,
     required Widget Function(BuildContext context, B bloc, S state) builder,
-  }) : super(
-    key: key,
-    bloc: bloc,
-    buildWhen: buildWhen,
-    listenWhen: listenWhen,
-    listener: listener,
-    builder: builder,
-  );
+  });
 }
 ```
 
@@ -397,23 +442,14 @@ Alternative widget to `BlocSelector` that provides bloc instance directly and av
 ### API Specification
 
 ```dart
-class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends BlocSelectorBase<B, S, T> {
+class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends StatelessWidget {
   const BlocSelectorWithBloc({
     Key? key,
     B? bloc,
     required T Function(S state) selector,
-    BlocSelectorCondition<S, T>? selectorShouldRebuild,
+    bool Function(T previous, T current)? selectorShouldRebuild,
     required Widget Function(BuildContext context, B bloc, T selected) builder,
-  }) : super(
-    key: key,
-    bloc: bloc,
-    selector: selector,
-    selectorShouldRebuild: selectorShouldRebuild,
-    builder: builder,
-  );
-
-  @override
-  Widget build(BuildContext context, S state);
+  });
 }
 ```
 
@@ -453,8 +489,18 @@ Abstract policy for controlling when widgets should rebuild based on state chang
 
 ```dart
 abstract class RebuildPolicy<S> {
+  const RebuildPolicy();
+
   bool shouldRebuild(S previous, S current);
 }
+```
+
+Built-in policies are exposed as top-level factory functions:
+```dart
+RebuildPolicy<S> distinct<S>();
+RebuildPolicy<S> onChange<S, T>(T Function(S state) selector);
+RebuildPolicy<S> always<S>();
+RebuildPolicy<S> never<S>();
 ```
 
 ### Built-in Policies
@@ -464,7 +510,7 @@ abstract class RebuildPolicy<S> {
 Only rebuilds when state changes (using `!=` comparison).
 
 ```dart
-RebuildPolicy<S> distinct<S>();
+distinct<S>();
 ```
 
 **Behavior**: Returns `true` when `previous != current`, `false` otherwise.
@@ -474,7 +520,7 @@ RebuildPolicy<S> distinct<S>();
 Rebuilds when selected value changes.
 
 ```dart
-RebuildPolicy<S> onChange<S, T>(T Function(S state) selector);
+onChange<S, T>(T Function(S state) selector);
 ```
 
 **Parameters**:
@@ -484,7 +530,7 @@ RebuildPolicy<S> onChange<S, T>(T Function(S state) selector);
 
 **Example**:
 ```dart
-RebuildPolicy<CounterState> onChange((state) => state.count)
+onChange<CounterState, int>((state) => state.count)
 ```
 
 #### always()
@@ -492,7 +538,7 @@ RebuildPolicy<CounterState> onChange((state) => state.count)
 Always rebuilds on every state change.
 
 ```dart
-RebuildPolicy<S> always<S>();
+always<S>();
 ```
 
 **Behavior**: Always returns `true`.
@@ -502,7 +548,7 @@ RebuildPolicy<S> always<S>();
 Never rebuilds (useful for listeners only).
 
 ```dart
-RebuildPolicy<S> never<S>();
+never<S>();
 ```
 
 **Behavior**: Always returns `false`.
@@ -523,7 +569,7 @@ class CustomRebuildPolicy<S> extends RebuildPolicy<S> {
 
 ```dart
 BlocBuilderWithBloc<CounterBloc, CounterState>(
-  buildWhen: RebuildPolicy.distinct<CounterState>().shouldRebuild,
+  buildWhen: distinct<CounterState>().shouldRebuild,
   builder: (context, bloc, state) => Text('${state.count}'),
 )
 ```
@@ -538,23 +584,33 @@ Abstract policy for controlling when listeners should be called based on state c
 
 ```dart
 abstract class ListenPolicy<S> {
+  const ListenPolicy();
+
   bool shouldListen(S previous, S current);
 }
 ```
 
+Built-in policies are exposed as top-level factory functions:
+```dart
+ListenPolicy<S> distinctListen<S>();
+ListenPolicy<S> onChangeListen<S, T>(T Function(S state) selector);
+ListenPolicy<S> alwaysListen<S>();
+ListenPolicy<S> neverListen<S>();
+```
+
 ### Built-in Policies
 
-Same as `RebuildPolicy`:
--   `distinct()`: Listen only when state changes
--   `onChange<T>(selector)`: Listen when selected value changes
--   `always()`: Always listen
--   `never()`: Never listen
+Listen variants of rebuild policies:
+-   `distinctListen()`: Listen only when state changes
+-   `onChangeListen<T>(selector)`: Listen when selected value changes
+-   `alwaysListen()`: Always listen
+-   `neverListen()`: Never listen
 
 ### Usage Example
 
 ```dart
 BlocListenerWithBloc<AuthBloc, AuthState>(
-  listenWhen: ListenPolicy.onChange<AuthState, bool>(
+  listenWhen: onChangeListen<AuthState, bool>(
     (state) => state.isAuthenticated,
   ).shouldListen,
   listener: (context, bloc, state) {
@@ -984,9 +1040,11 @@ Stream of effects emitted by the bloc.
 
 **Behavior**:
 -   Read-only stream
+-   Broadcast stream (supports multiple listeners)
 -   Emits effects as they occur
--   Effects are consumed once by listeners
+-   Effects are consumed once per listener subscription
 -   Stream completes when bloc is closed
+-   Delivery is non-replay by default (effects emitted before subscription are not replayed)
 
 ### Methods
 
@@ -1275,6 +1333,7 @@ BlocBuilderWithBloc<DataBloc, DataState>(...) // Plus widget also works
 -   Both libraries use the same `BlocProvider` for dependency injection
 -   No conflicts or breaking changes when mixing widgets
 -   Full type safety maintained across both libraries
+-   Both `Bloc` and `Cubit` types are supported via `BlocBase`-based contracts
 
 ------------------------------------------------------------------------
 
@@ -1436,7 +1495,7 @@ if (result != null) {
 
 **Best Practice**: Create policy instances once and reuse:
 ```dart
-final policy = RebuildPolicy.distinct<CounterState>();
+final policy = distinct<CounterState>();
 
 BlocBuilderWithBloc(..., buildWhen: policy.shouldRebuild);
 BlocBuilderWithBloc(..., buildWhen: policy.shouldRebuild);
@@ -1531,10 +1590,10 @@ final result = await token.run(() async {
 -   `RestartableTask.dispose()` prevents new tasks
 
 **Policies**:
--   `RebuildPolicy.distinct()` only rebuilds on state change
--   `RebuildPolicy.onChange()` rebuilds on selected value change
--   `RebuildPolicy.always()` always rebuilds
--   `RebuildPolicy.never()` never rebuilds
+-   `distinct()` only rebuilds on state change
+-   `onChange()` rebuilds on selected value change
+-   `always()` always rebuilds
+-   `never()` never rebuilds
 -   Custom policies work correctly
 
 **Extensions**:
@@ -1558,7 +1617,7 @@ final result = await token.run(() async {
 -   `BlocListenerWithBloc` provides bloc instance to listener
 -   `BlocConsumerWithBloc` combines builder and listener
 -   `BlocSelectorWithBloc` only rebuilds when selected value changes
--   All widgets handle missing bloc gracefully
+-   Widgets throw `ProviderNotFoundException` when `bloc` is null and provider is missing
 
 **EffectListener**:
 -   `EffectListener` calls callback on effect emission
@@ -1592,15 +1651,15 @@ test('SafeEmitMixin ignores emit when bloc is closed', () {
 
 ```dart
 testWidgets('BlocBuilderWithBloc provides bloc instance', (tester) async {
-  final bloc = CounterBloc();
+  final counterBloc = CounterBloc();
   
   await tester.pumpWidget(
     BlocProvider.value(
-      value: bloc,
+      value: counterBloc,
       child: BlocBuilderWithBloc<CounterBloc, CounterState>(
         builder: (context, bloc, state) {
           expect(bloc, isNotNull);
-          expect(bloc, equals(bloc));
+          expect(bloc, same(counterBloc));
           return Text('${state.count}');
         },
       ),
@@ -1615,6 +1674,14 @@ testWidgets('BlocBuilderWithBloc provides bloc instance', (tester) async {
 -   Selector performance is optimized
 -   Effect emission has minimal overhead
 -   Async safety checks have minimal overhead
+
+## 10.5 CI Validation Gates (Required)
+
+Each implementation PR must pass:
+
+-   `dart format --set-exit-if-changed .`
+-   `flutter analyze`
+-   `flutter test`
 
 ------------------------------------------------------------------------
 
@@ -1673,6 +1740,10 @@ docs/
 
 Before running a code-generation agent, all items below must be marked complete:
 
+-   Flutter package scaffold exists (`pubspec.yaml`, `lib/`, `test/`, `example/`).
+-   If scaffold did not exist, bootstrap command was executed:
+    -   `flutter create --template=package bloc_plus` or `flutter create --template=package .`
+-   Package metadata baseline exists (`README.md`, `CHANGELOG.md`, `LICENSE`, `analysis_options.yaml`).
 -   API contracts verified against current `flutter_bloc` public API.
 -   Each module has explicit acceptance criteria with at least one negative test case.
 -   Error semantics are defined (`throw` vs `null` vs no-op) for every public method/widget.

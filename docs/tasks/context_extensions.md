@@ -1,5 +1,12 @@
 # Task Spec - context_extensions (BuildContext Extensions)
 
+## Preconditions
+- Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
+- If missing, bootstrap first with:
+  - `flutter create --template=package bloc_plus` (from parent directory), or
+  - `flutter create --template=package .` (from package root)
+- In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
+
 ## Scope
 - Implement `readOrNull<B>()`
 - Implement `watchOrNull<B>()`
