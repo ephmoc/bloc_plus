@@ -1,6 +1,6 @@
 name: bloc_plus
 description: "Extensions for flutter_bloc focused on ergonomics and safety."
-version: 0.1.1
+version: 0.1.2
 repository: "https://github.com/ephmoc/bloc_plus"
 topics:
   - flutter

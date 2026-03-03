@@ -1,3 +1,19 @@
+## 0.1.2
+
+- Documentation cleanup:
+  - Removed the two trailing README sections: `Status` and
+    `Release process (without verified publisher)`.
+- Change category:
+  - `chore`
+
+Migration impact:
+
+- No API changes. No migration required.
+
+Release type rationale:
+
+- `patch` bump for documentation-only cleanup.
+
 ## 0.1.1
 
 - CI improvements:
