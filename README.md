@@ -130,31 +130,3 @@ class AuthEffectsView extends StatelessWidget {
   }
 }
 ```
-
-## Status
-
-Implemented modules:
-
-- `ui_with_bloc`
-- `context_extensions`
-- `policies`
-- `async_safety`
-- `effects`
-
-## Release process (without verified publisher)
-
-1. Update `pubspec.yaml` version and matching section in `CHANGELOG.md`.
-2. Merge to `main`.
-3. Create and push tag:
-
-```bash
-git tag -a v0.1.1 -m "bloc_plus 0.1.1"
-git push origin v0.1.1
-```
-
-4. Run workflow `Publish` manually in GitHub Actions:
-   - `ref`: `v0.1.1`
-   - `dry_run_only`: `false`
-5. Repository secret required for publish: `PUB_CREDENTIALS_JSON`
-   (content of local `~/.pub-cache/credentials.json` from account with
-   pub.dev publish access).
