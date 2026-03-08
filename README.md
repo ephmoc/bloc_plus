@@ -36,7 +36,7 @@ Add dependency:
 
 ```yaml
 dependencies:
-  bloc_plus: ^0.1.1
+  bloc_plus: ^0.1.3
 ```
 
 Run the example app:

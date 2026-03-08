@@ -1,13 +1,19 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+/// Signature for building a widget from a selected value and the resolved bloc.
 typedef BlocSelectorBuilderWithBloc<B extends BlocBase<S>, S, T> = Widget
     Function(BuildContext context, B bloc, T selected);
 
+/// Signature for deciding whether a newly selected value should trigger a
+/// rebuild.
 typedef BlocSelectedCondition<T> = bool Function(T previous, T current);
 
+/// A selector widget that exposes both the resolved bloc instance and selected
+/// value to [builder].
 class BlocSelectorWithBloc<B extends BlocBase<S>, S, T>
     extends StatelessWidget {
+  /// Creates a selector widget with optional custom rebuild logic.
   const BlocSelectorWithBloc({
     required this.selector,
     required this.builder,
@@ -16,9 +22,18 @@ class BlocSelectorWithBloc<B extends BlocBase<S>, S, T>
     this.selectorShouldRebuild,
   });
 
+  /// The bloc to read from.
+  ///
+  /// When omitted, the widget reads the bloc from the nearest provider.
   final B? bloc;
+
+  /// Selects the value that should be passed to [builder].
   final T Function(S state) selector;
+
+  /// Custom comparison used to decide whether the selected value should rebuild.
   final BlocSelectedCondition<T>? selectorShouldRebuild;
+
+  /// Builds a widget with the selected value and resolved bloc instance.
   final BlocSelectorBuilderWithBloc<B, S, T> builder;
 
   @override

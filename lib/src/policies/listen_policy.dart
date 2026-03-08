@@ -1,6 +1,9 @@
+/// Encapsulates listener decisions for pairs of previous and current state.
 abstract class ListenPolicy<S> {
+  /// Creates a listen policy.
   const ListenPolicy();
 
+  /// Returns `true` when a listener should run for the given state change.
   bool shouldListen(S previous, S current);
 }
 
@@ -35,11 +38,15 @@ class _NeverListenPolicy<S> extends ListenPolicy<S> {
   bool shouldListen(S previous, S current) => false;
 }
 
+/// Listens only when the full state value changes.
 ListenPolicy<S> distinctListen<S>() => _DistinctListenPolicy<S>();
 
+/// Listens only when the selected value changes.
 ListenPolicy<S> onChangeListen<S, T>(T Function(S state) selector) =>
     _OnChangeListenPolicy<S, T>(selector);
 
+/// Listens for every state change.
 ListenPolicy<S> alwaysListen<S>() => _AlwaysListenPolicy<S>();
 
+/// Never listens for state changes.
 ListenPolicy<S> neverListen<S>() => _NeverListenPolicy<S>();
