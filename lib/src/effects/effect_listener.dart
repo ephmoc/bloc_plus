@@ -5,7 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'has_effects.dart';
 
+/// Listens to one-off effects emitted by blocs implementing [EffectsSource].
 class EffectListener<B extends BlocBase<S>, S, E> extends StatefulWidget {
+  /// Creates an effect listener for the given bloc type.
   const EffectListener({
     required this.onEffect,
     super.key,
@@ -13,8 +15,15 @@ class EffectListener<B extends BlocBase<S>, S, E> extends StatefulWidget {
     this.child,
   });
 
+  /// The bloc to listen to.
+  ///
+  /// When omitted, the widget reads the bloc from the nearest provider.
   final B? bloc;
+
+  /// Called whenever the bloc emits a new effect.
   final void Function(BuildContext context, E effect) onEffect;
+
+  /// Optional subtree rendered by this listener.
   final Widget? child;
 
   @override
