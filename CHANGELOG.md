@@ -1,3 +1,18 @@
+## 0.1.3
+
+- Documentation improvements:
+  - Added dartdoc comments for the public API to improve generated package
+    docs and pub.dev documentation coverage.
+
+Migration impact:
+
+- No API changes. No migration required.
+
+Release type rationale:
+
+- `patch` bump for user-visible documentation improvements with no behavior
+  changes.
+
 ## 0.1.2
 
 - Documentation cleanup:
