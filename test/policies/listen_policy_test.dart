@@ -8,6 +8,12 @@ class _State {
   final String tag;
 }
 
+class _CollectionState {
+  const _CollectionState(this.items);
+
+  final List<int> items;
+}
+
 void main() {
   test('distinctListen returns true only for different values', () {
     // Given
@@ -77,4 +83,87 @@ void main() {
     expect(result2, isFalse);
     expect(result3, isTrue);
   });
+
+  test('whenListen wraps a custom predicate', () {
+    // Given
+    final policy = whenListen<int>((previous, current) => current.isEven);
+
+    // When
+    final oddResult = policy.shouldListen(0, 1);
+    final evenResult = policy.shouldListen(1, 2);
+
+    // Then
+    expect(oddResult, isFalse);
+    expect(evenResult, isTrue);
+  });
+
+  test('and returns true only when both listen policies return true', () {
+    // Given
+    final policy =
+        distinctListen<int>().and(whenListen<int>((_, current) => current > 1));
+
+    // When
+    final sameResult = policy.shouldListen(1, 1);
+    final blockedResult = policy.shouldListen(1, 0);
+    final passingResult = policy.shouldListen(1, 2);
+
+    // Then
+    expect(sameResult, isFalse);
+    expect(blockedResult, isFalse);
+    expect(passingResult, isTrue);
+  });
+
+  test('or returns true when any listen policy returns true', () {
+    // Given
+    final policy =
+        neverListen<int>().or(whenListen<int>((_, current) => current > 1));
+
+    // When
+    final blockedResult = policy.shouldListen(1, 1);
+    final passingResult = policy.shouldListen(1, 2);
+
+    // Then
+    expect(blockedResult, isFalse);
+    expect(passingResult, isTrue);
+  });
+
+  test('not negates the wrapped listen policy', () {
+    // Given
+    final policy = distinctListen<int>().not();
+
+    // When
+    final sameResult = policy.shouldListen(1, 1);
+    final changedResult = policy.shouldListen(1, 2);
+
+    // Then
+    expect(sameResult, isTrue);
+    expect(changedResult, isFalse);
+  });
+
+  test('onChangeListenBy uses custom equality for selected values', () {
+    // Given
+    final policy = onChangeListenBy<_CollectionState, List<int>>(
+      (state) => state.items,
+      equals: _listEquals,
+    );
+    const previous = _CollectionState([1, 2]);
+    const sameSelected = _CollectionState([1, 2]);
+    const changedSelected = _CollectionState([1, 3]);
+
+    // When
+    final sameResult = policy.shouldListen(previous, sameSelected);
+    final changedResult = policy.shouldListen(previous, changedSelected);
+
+    // Then
+    expect(sameResult, isFalse);
+    expect(changedResult, isTrue);
+  });
+}
+
+bool _listEquals(List<int> previous, List<int> current) {
+  if (previous.length != current.length) return false;
+  for (var index = 0; index < previous.length; index++) {
+    if (previous[index] != current[index]) return false;
+  }
+  return true;
 }

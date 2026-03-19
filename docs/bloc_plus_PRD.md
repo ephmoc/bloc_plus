@@ -54,6 +54,19 @@ In real-world Flutter BLoC projects:
 -   Not creating a new state management framework
 -   Not enforcing architecture patterns
 
+### 3.3 Delivered Expansion Goals
+
+After the initial `v0.x` baseline, the package adds targeted ergonomic
+improvements that preserve the lightweight design:
+
+-   Compose rebuild/listen policies instead of relying on ad-hoc predicates
+-   Support custom equality for selector-based policy decisions
+-   Improve effect handling ergonomics with filtering and flatter listener
+    composition
+-   Add higher-level async helpers for common restartable workflows
+-   Evaluate a combined state-and-effect consumer only if it remains explicit
+    and low-magic
+
 ------------------------------------------------------------------------
 
 ## 4. Technical Requirements
@@ -253,13 +266,16 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `BlocListenerWithBloc`             | stable | `listener(context, bloc, state)`; parity with `BlocListener` semantics            |
 | `BlocConsumerWithBloc`             | stable | Combines builder/listener with independent conditions                             |
 | `BlocSelectorWithBloc`             | stable | Selects `T` and rebuilds on selected value inequality by default                  |
-| `RebuildPolicy`                    | stable | Stateless predicate object                                                        |
-| `ListenPolicy`                     | stable | Stateless predicate object                                                        |
+| `RebuildPolicy`                    | stable | Stateless predicate object with composition helpers and explicit predicate wrappers |
+| `ListenPolicy`                     | stable | Stateless predicate object with composition helpers and explicit predicate wrappers |
 | `BuildContext` nullable extensions | stable | Return `null` on missing provider, never throw provider-not-found                 |
 | `SafeEmitMixin`                    | stable | Silent no-op on closed bloc for `safeEmit`                                        |
 | `CancellationToken`                | stable | Cooperative cancellation marker (does not force interrupt)                        |
 | `RestartableTask`                  | stable | New run invalidates previous result; does not force interrupt underlying `Future` |
-| `HasEffects` + `EffectListener`    | stable | One-shot effect stream separated from state stream                                |
+| `RestartableTasksMixin`            | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation    |
+| `HasEffects` + `EffectListener`    | stable | One-shot effect stream separated from state stream; supports effect filtering      |
+| `MultiEffectListener`              | stable | Composes multiple effect listeners without manual nesting                         |
+| `BlocConsumerWithEffects`          | stable | Combines state builder/listener callbacks with effect handling                    |
 
 ### 5.7 Agent Execution Sequence (Required)
 
@@ -273,6 +289,20 @@ The coding agent should execute work in this exact order:
 6.  Implement `effects`.
 7.  Run full validation: format, analyze, tests.
 8.  Update documentation and example app for implemented modules.
+
+### 5.8 Implemented Expansion Track
+
+The items below were delivered as additive public APIs after the initial
+baseline contract.
+
+| Delivered addition | Motivation | Design guardrail |
+|--------------------|------------|------------------|
+| Composable policies (`and`, `or`, `not`, `whenRebuild`, `whenListen`) | Reduce repeated inline `buildWhen` / `listenWhen` lambdas | Remain stateless and directly usable with `flutter_bloc` predicates |
+| Selector policies with custom equality | Support lists, maps, DTOs, and derived values without relying only on `!=` | Equality stays explicit, with no hidden caching |
+| Effect filtering via `effectWhen` | Keep `EffectListener` callbacks small and focused | Filtering remains transparent and type-safe |
+| `MultiEffectListener` | Avoid deeply nested effect listeners | Follows established composition ergonomics |
+| `RestartableTasksMixin` | Make `RestartableTask` easier to use in Cubits/Blocs | Keeps cooperative cancellation semantics explicit |
+| `BlocConsumerWithEffects` | Simplify common screen wiring | Keeps state and effects semantically separate |
 
 ------------------------------------------------------------------------
 
