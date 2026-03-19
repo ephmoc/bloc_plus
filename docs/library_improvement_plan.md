@@ -1,7 +1,7 @@
 # Library Improvement Plan
 
-This document captures the next proposed improvements for `bloc_plus` after the
-current `v0.x` baseline.
+This document captures the expansion items delivered after the initial `v0.x`
+baseline.
 
 The goal is to extend the package in ways that stay aligned with the existing
 design principles:
@@ -11,18 +11,18 @@ design principles:
 - small and explicit abstractions,
 - high-value ergonomics for day-to-day app code.
 
-## Priorities
+## Delivered areas
 
 ### 1. Composable policies and custom equality
 
-Current gap:
+Previous gap:
 
 - `RebuildPolicy` and `ListenPolicy` cover only `distinct`, `onChange`,
   `always`, and `never`.
 - `onChange` relies on `!=`, which is often too limited for lists, maps, DTOs,
   and computed view models.
 
-Planned additions:
+Delivered additions:
 
 - composition helpers: `and`, `or`, `not`
 - custom predicate wrapper: `when`
@@ -38,15 +38,14 @@ Why this matters:
 
 ### 2. Effect filtering on top of `EffectListener`
 
-Current gap:
+Previous gap:
 
 - `EffectListener` reacts to every emitted effect
 - callers must manually filter with `if`/`switch` inside `onEffect`
 
-Planned additions:
+Delivered additions:
 
-- effect-level predicate support
-- optional typed filtering for sealed class effect hierarchies
+- effect-level predicate support via `effectWhen`
 
 Why this matters:
 
@@ -55,11 +54,11 @@ Why this matters:
 
 ### 3. `MultiEffectListener`
 
-Current gap:
+Previous gap:
 
 - multiple effect listeners require nested widgets
 
-Planned additions:
+Delivered additions:
 
 - `MultiEffectListener` mirroring the ergonomics of `MultiBlocListener`
 
@@ -70,13 +69,13 @@ Why this matters:
 
 ### 4. Higher-level async helpers
 
-Current gap:
+Previous gap:
 
 - `RestartableTask` is useful but still low-level
 - users must manually coordinate task ownership, cancellation, and result
   handling
 
-Planned additions:
+Delivered additions:
 
 - higher-level helpers for common "latest request wins" flows
 - APIs designed for direct use inside Cubits/Blocs
@@ -88,14 +87,14 @@ Why this matters:
 
 ### 5. Combined state-and-effect consumer ergonomics
 
-Current gap:
+Previous gap:
 
 - state rendering and effect handling are currently composed from separate
   widgets
 
-Planned additions:
+Delivered additions:
 
-- evaluate a `state + effect` consumer widget
+- `BlocConsumerWithEffects`
 
 Why this matters:
 
@@ -103,7 +102,7 @@ Why this matters:
 - should only be added if it stays explicit and does not blur state/effect
   responsibilities
 
-## Suggested rollout order
+## Delivered rollout order
 
 1. Composable policies and custom equality
 2. Effect filtering
@@ -129,11 +128,10 @@ The following remain out of scope unless product direction changes:
 - APIs that depend on non-public `flutter_bloc` internals
 - abstractions that hide provider lookup or effect delivery semantics
 
-## Release planning notes
+## Release notes
 
-- Policy composition and effect filtering fit a `minor` release because they add
-  public API without breaking existing behavior.
-- `MultiEffectListener` also fits a `minor` release.
-- Higher-level async helpers should be added only with strong lifecycle tests.
-- A combined state-and-effect consumer should be treated as optional until the
-  API proves simpler than plain composition.
+- Policy composition and effect filtering shipped as additive APIs.
+- `MultiEffectListener` shipped as a composition convenience.
+- Higher-level async helpers shipped with lifecycle and cancellation coverage.
+- The combined state-and-effect consumer shipped as a thin composition of
+  existing primitives rather than a new runtime model.

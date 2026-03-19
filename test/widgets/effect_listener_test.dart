@@ -65,6 +65,63 @@ void main() {
     expect(events, isEmpty);
   });
 
+  testWidgets('effectWhen filters out non-matching effects', (tester) async {
+    // Given
+    final cubit = _EffectCubit();
+    addTearDown(cubit.close);
+    final events = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider.value(
+          value: cubit,
+          child: EffectListener<_EffectCubit, int, String>(
+            effectWhen: (effect) => effect.startsWith('allow'),
+            onEffect: (context, effect) => events.add(effect),
+            child: const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+
+    // When
+    cubit.emitEffect('skip:first');
+    cubit.emitEffect('allow:second');
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(events, ['allow:second']);
+  });
+
+  testWidgets('effectWhen does not create duplicate effect deliveries', (
+    tester,
+  ) async {
+    // Given
+    final cubit = _EffectCubit();
+    addTearDown(cubit.close);
+    final events = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider.value(
+          value: cubit,
+          child: EffectListener<_EffectCubit, int, String>(
+            effectWhen: (effect) => effect.contains('match'),
+            onEffect: (context, effect) => events.add(effect),
+            child: const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+
+    // When
+    cubit.emitEffect('match');
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(events, ['match']);
+  });
+
   testWidgets('throws when provider is missing', (tester) async {
     // Given
     final widget = MaterialApp(

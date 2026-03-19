@@ -5,13 +5,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'has_effects.dart';
 
+/// Signature for deciding whether an [effect] should trigger [EffectListener].
+typedef EffectCondition<E> = bool Function(E effect);
+
+/// Contract for effect listener widgets that can wrap a child subtree.
+abstract interface class SingleChildEffectListener {
+  /// Returns a copy of this listener that wraps [child].
+  Widget withChild(Widget child);
+}
+
 /// Listens to one-off effects emitted by blocs implementing [EffectsSource].
-class EffectListener<B extends BlocBase<S>, S, E> extends StatefulWidget {
+class EffectListener<B extends BlocBase<S>, S, E> extends StatefulWidget
+    implements SingleChildEffectListener {
   /// Creates an effect listener for the given bloc type.
   const EffectListener({
     required this.onEffect,
     super.key,
     this.bloc,
+    this.effectWhen,
     this.child,
   });
 
@@ -23,12 +34,26 @@ class EffectListener<B extends BlocBase<S>, S, E> extends StatefulWidget {
   /// Called whenever the bloc emits a new effect.
   final void Function(BuildContext context, E effect) onEffect;
 
+  /// Optional predicate that decides whether [onEffect] should run.
+  final EffectCondition<E>? effectWhen;
+
   /// Optional subtree rendered by this listener.
   final Widget? child;
 
   @override
   State<EffectListener<B, S, E>> createState() =>
       _EffectListenerState<B, S, E>();
+
+  @override
+  Widget withChild(Widget child) {
+    return EffectListener<B, S, E>(
+      key: key,
+      bloc: bloc,
+      effectWhen: effectWhen,
+      onEffect: onEffect,
+      child: child,
+    );
+  }
 }
 
 class _EffectListenerState<B extends BlocBase<S>, S, E>
@@ -89,6 +114,10 @@ class _EffectListenerState<B extends BlocBase<S>, S, E>
     final effectsSource = effectsOwner as EffectsSource<E>;
     _subscription = effectsSource.effects.listen((effect) {
       if (!mounted) return;
+      final shouldHandleEffect = widget.effectWhen;
+      if (shouldHandleEffect != null && !shouldHandleEffect(effect)) {
+        return;
+      }
       widget.onEffect(context, effect);
     });
   }
