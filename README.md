@@ -7,28 +7,37 @@
 [![style: flutter_lints](https://img.shields.io/badge/style-flutter__lints-40c4ff)](https://pub.dev/packages/flutter_lints)
 [![codecov](https://codecov.io/gh/ephmoc/bloc_plus/branch/main/graph/badge.svg)](https://codecov.io/gh/ephmoc/bloc_plus)
 
-`bloc_plus` extends `flutter_bloc` with ergonomic widgets, null-safe context
-extensions, and reusable rebuild/listen policies.
+`bloc_plus` extends `flutter_bloc` with ergonomic widgets, reusable policies,
+cooperative async helpers, and explicit effect handling primitives.
 
 ## Features
 
 - `BlocBuilderWithBloc`, `BlocListenerWithBloc`, `BlocConsumerWithBloc`,
-  `BlocSelectorWithBloc`
+  `BlocSelectorWithBloc`, `BlocConsumerWithEffects`
 - BuildContext extensions:
   - `readOrNull<B>()`
   - `watchOrNull<B>()`
   - `selectOrNull<B, S, T>(selector)`
   - `withBloc<B, R>(fn)`
 - Reusable policies:
-  - Rebuild: `distinct`, `onChange`, `always`, `never`
-  - Listen: `distinctListen`, `onChangeListen`, `alwaysListen`, `neverListen`
+  - Rebuild: `distinct`, `onChange`, `onChangeBy`, `whenRebuild`, `always`,
+    `never`
+  - Listen: `distinctListen`, `onChangeListen`, `onChangeListenBy`,
+    `whenListen`, `alwaysListen`, `neverListen`
+  - Composition: `and`, `or`, `not`
 - Async safety:
   - `SafeEmitMixin`
   - `CancellationToken`
   - `RestartableTask`
+  - `RestartableTasksMixin`
 - Effects:
   - `HasEffects`
   - `EffectListener`
+  - `MultiEffectListener`
+  - `effectWhen` filtering
+
+Recent delivery notes are tracked in
+[`docs/library_improvement_plan.md`](docs/library_improvement_plan.md).
 
 ## Getting started
 
@@ -36,7 +45,7 @@ Add dependency:
 
 ```yaml
 dependencies:
-  bloc_plus: ^0.1.3
+  bloc_plus: ^0.2.0
 ```
 
 Run the example app:
@@ -75,38 +84,59 @@ void tryIncrement(BuildContext context) {
 }
 ```
 
-### Policies
+### Combined state and effects
 
 ```dart
-class PolicyView extends StatelessWidget {
-  const PolicyView({super.key});
+class CounterView extends StatelessWidget {
+  const CounterView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final rebuildPolicy = onChange<MyState, int>((s) => s.count);
-    final listenPolicy = onChangeListen<MyState, bool>((s) => s.isLoading);
-
-    return BlocListenerWithBloc<MyCubit, MyState>(
-      listenWhen: listenPolicy.shouldListen,
+    return BlocConsumerWithEffects<CounterCubit, CounterState, String>(
+      effectWhen: (effect) => effect.startsWith('snack:'),
       listener: (context, bloc, state) {},
-      child: BlocBuilderWithBloc<MyCubit, MyState>(
-        buildWhen: rebuildPolicy.shouldRebuild,
-        builder: (context, bloc, state) => Text('${state.count}'),
-      ),
+      onEffect: (context, bloc, effect) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(effect)),
+        );
+      },
+      builder: (context, bloc, state) {
+        return Text('${state.count}');
+      },
     );
   }
 }
 ```
 
+### Policies
+
+```dart
+final evenOnlyPolicy = distinct<MyState>().and(
+  whenRebuild<MyState>((previous, current) => current.count.isEven),
+);
+
+final listPolicy = onChangeBy<MyState, List<int>>(
+  (state) => state.items,
+  equals: _listEquals,
+);
+```
+
 ### Async safety
 
 ```dart
-class MyCubit extends Cubit<int> with SafeEmitMixin<int> {
-  MyCubit() : super(0);
+class SearchCubit extends Cubit<SearchState>
+    with SafeEmitMixin<SearchState>, RestartableTasksMixin<SearchState> {
+  SearchCubit() : super(const SearchState());
 
-  Future<void> load() async {
-    final value = await guarded(() async => 1);
-    if (value != null) safeEmit(value);
+  Future<void> loadPreview(String query) async {
+    safeEmit(state.copyWith(isLoading: true));
+
+    final result = await runLatest<String>('preview', () async {
+      return repository.fetchPreview(query);
+    });
+
+    if (result == null) return;
+    safeEmit(state.copyWith(isLoading: false, result: result));
   }
 }
 ```
@@ -114,19 +144,17 @@ class MyCubit extends Cubit<int> with SafeEmitMixin<int> {
 ### Effects
 
 ```dart
-class AuthCubit extends Cubit<int> with HasEffects<int, String> {
-  AuthCubit() : super(0);
-}
-
-class AuthEffectsView extends StatelessWidget {
-  const AuthEffectsView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return EffectListener<AuthCubit, int, String>(
+MultiEffectListener(
+  listeners: [
+    EffectListener<AuthCubit, AuthState, String>(
+      effectWhen: (effect) => effect.startsWith('snack:'),
       onEffect: (context, effect) {},
-      child: const SizedBox.shrink(),
-    );
-  }
-}
+    ),
+    EffectListener<AuthCubit, AuthState, String>(
+      effectWhen: (effect) => effect.startsWith('dialog:'),
+      onEffect: (context, effect) {},
+    ),
+  ],
+  child: const AuthView(),
+)
 ```

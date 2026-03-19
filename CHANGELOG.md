@@ -1,3 +1,30 @@
+## 0.2.0
+
+- Added policy composition and custom equality helpers:
+  - `whenRebuild`
+  - `whenListen`
+  - `RebuildPolicy.and`, `RebuildPolicy.or`, `RebuildPolicy.not`
+  - `ListenPolicy.and`, `ListenPolicy.or`, `ListenPolicy.not`
+  - `onChangeBy`
+  - `onChangeListenBy`
+- Expanded effect ergonomics:
+  - added `effectWhen` to `EffectListener`
+  - added `MultiEffectListener`
+- Added higher-level async helpers:
+  - `RestartableTasksMixin`
+  - keyed `runLatest`, `cancelLatest`, `cancelAllLatest`, `isTaskRunning`
+- Added `BlocConsumerWithEffects` for combined state and effect composition.
+- Updated README, PRD, task specs, and example app to document the new APIs.
+
+Migration impact:
+
+- No breaking API changes. Existing code continues to work.
+- Consumers can adopt the new APIs incrementally.
+
+Release type rationale:
+
+- `minor` bump for new public API surface additions.
+
 ## 0.1.3
 
 - Documentation improvements:
