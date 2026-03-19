@@ -54,6 +54,20 @@ In real-world Flutter BLoC projects:
 -   Not creating a new state management framework
 -   Not enforcing architecture patterns
 
+### 3.3 Next Iteration Goals
+
+After the initial `v0.x` baseline is complete, the next iteration should focus
+on targeted ergonomic improvements that preserve the package's lightweight
+design:
+
+-   Compose rebuild/listen policies instead of relying on ad-hoc predicates
+-   Support custom equality for selector-based policy decisions
+-   Improve effect handling ergonomics with filtering and flatter listener
+    composition
+-   Add higher-level async helpers for common restartable workflows
+-   Evaluate a combined state-and-effect consumer only if it remains explicit
+    and low-magic
+
 ------------------------------------------------------------------------
 
 ## 4. Technical Requirements
@@ -273,6 +287,21 @@ The coding agent should execute work in this exact order:
 6.  Implement `effects`.
 7.  Run full validation: format, analyze, tests.
 8.  Update documentation and example app for implemented modules.
+
+### 5.8 Post-Baseline Expansion Track
+
+The items below are approved investigation targets for the next public API
+iteration. They are planned additions, not part of the initial baseline
+contract.
+
+| Planned addition | Motivation | Design guardrail |
+|------------------|------------|------------------|
+| Composable policies (`and`, `or`, `not`, `when`) | Reduce repeated inline `buildWhen` / `listenWhen` lambdas | Must remain stateless and directly usable with `flutter_bloc` predicates |
+| Selector policies with custom equality | Support lists, maps, DTOs, and derived values without relying only on `!=` | Equality must be explicit, no hidden caching |
+| Effect filtering utilities | Keep `EffectListener` callbacks small and focused | Filtering must stay transparent and type-safe |
+| `MultiEffectListener` | Avoid deeply nested effect listeners | Follow established `flutter_bloc` composition ergonomics |
+| Higher-level async helpers | Make `RestartableTask` easier to use in Cubits/Blocs | No hard cancellation promises, no hidden scheduler |
+| Combined state-and-effect consumer | Simplify common screen wiring | Add only if it keeps state and effects semantically separate |
 
 ------------------------------------------------------------------------
 

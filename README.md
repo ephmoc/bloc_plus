@@ -30,6 +30,29 @@ extensions, and reusable rebuild/listen policies.
   - `HasEffects`
   - `EffectListener`
 
+## Planned improvements
+
+The current package covers the initial `v0.x` scope. The next planned
+improvements focus on reducing repetitive UI predicates, improving effect
+ergonomics, and making async helpers easier to adopt in real Cubit/Bloc code.
+
+Planned areas:
+
+- Policy composition and custom equality support:
+  - compose policies with `and`, `or`, `not`
+  - support selector policies with custom `equals`
+- Effect filtering utilities:
+  - add effect predicates or typed filtering on top of `EffectListener`
+- Multi-listener effect ergonomics:
+  - add `MultiEffectListener` for flatter widget trees
+- Higher-level async helpers:
+  - add lifecycle-friendly helpers built on top of `RestartableTask`
+- Combined state-and-effect UI helpers:
+  - evaluate a consumer widget that handles state rendering and one-shot effects
+
+See the detailed plan in
+[`docs/library_improvement_plan.md`](docs/library_improvement_plan.md).
+
 ## Getting started
 
 Add dependency:
