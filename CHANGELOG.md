@@ -1,3 +1,19 @@
+## 0.2.1
+
+- Compatibility metadata update:
+  - lowered the developer tooling floor from `Dart 3.8` to `Dart 3.0` by
+    constraining `flutter_lints` to the latest line that still supports Dart 3.0
+  - kept the package minimum SDKs unchanged at `Dart >=3.0.0` and
+    `Flutter >=3.10.0`
+
+Migration impact:
+
+- No API changes. No migration required.
+
+Release type rationale:
+
+- `patch` change for compatibility metadata and tooling support only.
+
 ## 0.2.0
 
 - Added policy composition and custom equality helpers:
