@@ -1,5 +1,8 @@
 /// Tracks cancellation for async work that may become stale.
 class CancellationToken {
+  /// Creates a token that can invalidate stale async work.
+  CancellationToken();
+
   bool _isCancelled = false;
 
   /// Whether this token has been cancelled.

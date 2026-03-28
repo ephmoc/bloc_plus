@@ -2,6 +2,9 @@ import 'cancellation_token.dart';
 
 /// Runs async work where starting a new task cancels the previous result.
 class RestartableTask<T> {
+  /// Creates a task runner that keeps only the latest task result.
+  RestartableTask();
+
   CancellationToken? _activeToken;
   int _generation = 0;
   bool _isDisposed = false;
