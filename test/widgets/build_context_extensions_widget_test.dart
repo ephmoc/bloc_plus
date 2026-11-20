@@ -1,5 +1,5 @@
 import 'package:bloc_plus/bloc_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,8 +28,9 @@ void main() {
     addTearDown(cubit.close);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: Builder(
             builder: (context) {
@@ -59,8 +60,9 @@ void main() {
     final renderedCounts = <int?>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: Builder(
             builder: (context) {
@@ -95,8 +97,9 @@ void main() {
 
     // When
     await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(
           builder: (context) {
             values.add(
               context.selectOrNull<_CounterCubit, _CounterState, int>(

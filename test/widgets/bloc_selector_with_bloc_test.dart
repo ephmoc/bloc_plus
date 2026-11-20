@@ -1,5 +1,5 @@
 import 'package:bloc_plus/bloc_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,8 +29,9 @@ void main() {
     final renderedValues = <int>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: BlocSelectorWithBloc<_SelectorCubit, _SelectorState, int>(
             selector: (state) => state.count,
@@ -61,8 +62,9 @@ void main() {
     addTearDown(cubit.close);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: BlocSelectorWithBloc<_SelectorCubit, _SelectorState, int>(
             selector: (state) => state.count,
@@ -84,8 +86,9 @@ void main() {
 
   testWidgets('throws when bloc is missing', (tester) async {
     // Given
-    final widget = MaterialApp(
-      home: BlocSelectorWithBloc<_SelectorCubit, _SelectorState, int>(
+    final widget = Directionality(
+      textDirection: TextDirection.ltr,
+      child: BlocSelectorWithBloc<_SelectorCubit, _SelectorState, int>(
         selector: (state) => state.count,
         builder: (context, bloc, selected) => const SizedBox.shrink(),
       ),

@@ -1,3 +1,25 @@
+## 0.2.2
+
+- Flutter 3.50 compatibility and dependency refresh:
+  - upgraded `flutter_lints` to `^6.0.0` (dev only); the contributor tooling
+    floor is now `Dart 3.8`, which reverses the `0.2.1` cap
+  - kept the package minimum SDKs unchanged at `Dart >=3.0.0` and
+    `Flutter >=3.10.0`; `lib/` only depends on `package:flutter/widgets.dart`
+  - tests no longer import the deprecated `package:flutter/material.dart` and
+    use a `Directionality` host instead of `MaterialApp`
+  - migrated the example app to `package:material_ui` (example now requires
+    `Flutter >=3.47.0`)
+  - excluded `build/` from analysis and moved CI actions to their Node 24
+    releases
+
+Migration impact:
+
+- No API changes. No migration required.
+
+Release type rationale:
+
+- `patch` change for tooling, tests, and the example only.
+
 ## 0.2.1
 
 - Compatibility metadata update:
