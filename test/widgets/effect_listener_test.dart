@@ -1,5 +1,5 @@
 import 'package:bloc_plus/bloc_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,8 +19,9 @@ void main() {
     final events = <String>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: EffectListener<_EffectCubit, int, String>(
             onEffect: (context, effect) => events.add(effect),
@@ -45,8 +46,9 @@ void main() {
     final events = <String>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: EffectListener<_EffectCubit, int, String>(
             onEffect: (context, effect) => events.add(effect),
@@ -57,7 +59,8 @@ void main() {
     );
 
     // When
-    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    await tester.pumpWidget(const Directionality(
+        textDirection: TextDirection.ltr, child: SizedBox.shrink()));
     cubit.emitEffect('late');
     await tester.pumpAndSettle();
 
@@ -72,8 +75,9 @@ void main() {
     final events = <String>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: EffectListener<_EffectCubit, int, String>(
             effectWhen: (effect) => effect.startsWith('allow'),
@@ -102,8 +106,9 @@ void main() {
     final events = <String>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: EffectListener<_EffectCubit, int, String>(
             effectWhen: (effect) => effect.contains('match'),
@@ -124,8 +129,9 @@ void main() {
 
   testWidgets('throws when provider is missing', (tester) async {
     // Given
-    final widget = MaterialApp(
-      home: EffectListener<_EffectCubit, int, String>(
+    final widget = Directionality(
+      textDirection: TextDirection.ltr,
+      child: EffectListener<_EffectCubit, int, String>(
         onEffect: (context, effect) {},
         child: const SizedBox.shrink(),
       ),
@@ -143,8 +149,9 @@ void main() {
     // Given
     final cubit = _NoEffectsCubit();
     addTearDown(cubit.close);
-    final widget = MaterialApp(
-      home: BlocProvider.value(
+    final widget = Directionality(
+      textDirection: TextDirection.ltr,
+      child: BlocProvider.value(
         value: cubit,
         child: EffectListener<_NoEffectsCubit, int, String>(
           onEffect: (context, effect) {},
@@ -172,8 +179,9 @@ void main() {
     final events = <String>[];
 
     Widget buildApp({required bool useExplicitBloc}) {
-      return MaterialApp(
-        home: BlocProvider.value(
+      return Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: providerCubit,
           child: EffectListener<_EffectCubit, int, String>(
             bloc: useExplicitBloc ? explicitCubit : null,

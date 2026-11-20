@@ -1,5 +1,5 @@
 import 'package:bloc_plus/bloc_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,8 +19,9 @@ void main() {
     var buildCount = 0;
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: BlocBuilderWithBloc<_CounterCubit, int>(
             builder: (context, bloc, state) {
@@ -35,7 +36,7 @@ void main() {
 
     // When
     cubit.increment();
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     // Then
     expect(find.text('0'), findsNothing);
@@ -51,8 +52,9 @@ void main() {
     addTearDown(contextCubit.close);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: contextCubit,
           child: BlocBuilderWithBloc<_CounterCubit, int>(
             bloc: explicitCubit,
@@ -74,8 +76,9 @@ void main() {
 
   testWidgets('throws when bloc is missing', (tester) async {
     // Given
-    final widget = MaterialApp(
-      home: BlocBuilderWithBloc<_CounterCubit, int>(
+    final widget = Directionality(
+      textDirection: TextDirection.ltr,
+      child: BlocBuilderWithBloc<_CounterCubit, int>(
         builder: (context, bloc, state) {
           return const SizedBox.shrink();
         },

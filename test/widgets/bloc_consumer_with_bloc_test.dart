@@ -1,5 +1,5 @@
 import 'package:bloc_plus/bloc_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,8 +17,9 @@ void main() {
     final listened = <int>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: BlocConsumerWithBloc<_CounterCubit, int>(
             listener: (context, bloc, state) {
@@ -36,7 +37,7 @@ void main() {
 
     // When
     cubit.increment();
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     // Then
     expect(find.text('1'), findsOneWidget);
@@ -52,8 +53,9 @@ void main() {
     final listened = <int>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: BlocConsumerWithBloc<_CounterCubit, int>(
             buildWhen: (previous, current) => current.isEven,
@@ -79,8 +81,9 @@ void main() {
 
   testWidgets('throws when bloc is missing', (tester) async {
     // Given
-    final widget = MaterialApp(
-      home: BlocConsumerWithBloc<_CounterCubit, int>(
+    final widget = Directionality(
+      textDirection: TextDirection.ltr,
+      child: BlocConsumerWithBloc<_CounterCubit, int>(
         listener: (context, bloc, state) {},
         builder: (context, bloc, state) => const SizedBox.shrink(),
       ),
