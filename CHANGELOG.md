@@ -41,6 +41,10 @@
   turn a missing dependency inside a lazily created bloc into `null`, and a
   widget that moves under a provider later picks it up instead of staying on
   `null`.
+- `runLatest` forgets the key of a task that throws instead of keeping it for
+  the lifetime of the bloc, and a second `close()` of a bloc with
+  `RestartableTasksMixin` waits for the first one to finish, as on a plain
+  `Cubit`.
 
 Migration impact:
 

@@ -9,6 +9,7 @@ import 'restartable_task.dart';
 mixin RestartableTasksMixin<S> on BlocBase<S> {
   final Map<Object, RestartableTask<Object?>> _tasks = {};
   bool _isClosing = false;
+  Future<void>? _closing;
 
   /// Returns `true` when the latest task for [key] is still running.
   bool isTaskRunning(Object key) => _tasks[key]?.isRunning ?? false;
@@ -24,14 +25,17 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
 
     final restartableTask =
         _tasks.putIfAbsent(key, () => RestartableTask<Object?>());
-    final result = await restartableTask.run(() async => await task());
-
-    if (identical(_tasks[key], restartableTask) && !restartableTask.isRunning) {
-      _tasks.remove(key);
+    try {
+      final result = await restartableTask.run(() async => await task());
+      if (_isClosing || isClosed) return null;
+      return result as T?;
+    } finally {
+      // Also runs when the task throws, so failed keys do not pile up.
+      if (identical(_tasks[key], restartableTask) &&
+          !restartableTask.isRunning) {
+        _tasks.remove(key);
+      }
     }
-
-    if (_isClosing || isClosed) return null;
-    return result as T?;
   }
 
   /// Cancels the latest tracked result for [key], if any.
@@ -48,11 +52,15 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
     _tasks.clear();
   }
 
+  /// Cancels all tracked tasks and closes the bloc.
+  ///
+  /// A repeated call returns the future of the first call, so every caller
+  /// waits for the same close.
   @override
-  Future<void> close() async {
-    if (_isClosing || isClosed) return;
+  Future<void> close() {
+    if (_isClosing || isClosed) return _closing ?? Future<void>.value();
     _isClosing = true;
     cancelAllLatest();
-    await super.close();
+    return _closing = super.close();
   }
 }

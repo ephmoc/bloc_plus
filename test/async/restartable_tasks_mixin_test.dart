@@ -18,6 +18,21 @@ class _SafeTrackedCubit extends Cubit<int>
   }
 }
 
+class _SlowCloseCubit extends Cubit<int> {
+  _SlowCloseCubit() : super(0);
+
+  final release = Completer<void>();
+
+  @override
+  Future<void> close() async {
+    await release.future;
+    return super.close();
+  }
+}
+
+class _SlowTrackedCubit extends _SlowCloseCubit
+    with RestartableTasksMixin<int> {}
+
 void main() {
   test('runLatest invalidates stale result for the same key', () async {
     // Given
@@ -194,5 +209,23 @@ void main() {
     // Then
     await expectLater(run, throwsStateError);
     expect(cubit.isTaskRunning('search'), isFalse);
+  });
+
+  test('a second close waits until the first one has finished', () async {
+    // Given
+    final cubit = _SlowTrackedCubit();
+    final first = cubit.close();
+    var secondDone = false;
+
+    // When
+    final second = cubit.close().then((_) => secondDone = true);
+    await Future<void>.delayed(Duration.zero);
+    final doneBeforeRelease = secondDone;
+    cubit.release.complete();
+    await Future.wait([first, second]);
+
+    // Then
+    expect(doneBeforeRelease, isFalse);
+    expect(secondDone, isTrue);
   });
 }
