@@ -1,29 +1,42 @@
 ## 0.2.2
 
-- Flutter 3.50 compatibility and dependency refresh:
-  - upgraded `flutter_lints` to `^6.0.0` (dev only); the contributor tooling
-    floor is now `Dart 3.8`, which reverses the `0.2.1` cap
-  - kept the package minimum SDKs unchanged at `Dart >=3.0.0` and
-    `Flutter >=3.10.0`; `lib/` only depends on `package:flutter/widgets.dart`
-  - tests no longer import the deprecated `package:flutter/material.dart` and
-    use a `Directionality` host instead of `MaterialApp`
-  - migrated the example app to `package:material_ui` (example now requires
-    `Flutter >=3.47.0`)
-  - excluded `build/` from analysis and moved CI actions to their Node 24
-    releases
-- CI runs as one gated workflow that also checks the lowest allowed dependency
-  versions and the newest patch of the minimum SDK (`Flutter 3.10.6` /
-  `Dart 3.0.6`).
-- Added contract tests for lifecycle, explicit-bloc, `buildWhen` and policy
-  composition paths of the existing APIs.
+- Fixes:
+  - `CancellationToken.run`, `RestartableTask.run`, `runLatest` and `guarded`
+    drop the failure of superseded or cancelled work like its result; only
+    the latest run can throw. `guarded` no longer starts on a closed bloc.
+  - `HasEffects.close()` no longer waits for a paused effect subscriber
+    before closing the bloc.
+  - `BlocSelectorWithBloc` behaves like `BlocSelector`: no stale value after
+    the selector changes, one selector call per state change, and
+    `selectorShouldRebuild` gets the last built value as `previous`.
+  - `readOrNull`, `watchOrNull` and `selectOrNull` return `null` only when no
+    provider exists.
+  - `runLatest` drops the keys of failed tasks; a repeated `close()` waits for
+    the first one.
+  - `bloc` lower bound raised to `9.2.1`, so `safeEmit` and `guarded` also
+    stop on a closing `Bloc`.
+- Tooling: Flutter 3.50 support (`flutter_lints` `^6.0.0`, contributors need
+  Dart 3.8; example app on `material_ui`, Flutter >=3.47), one gated CI
+  workflow that also checks the lowest dependency versions and Flutter
+  3.10.6, contract tests and clearer API docs. Package minimums stay at
+  Dart 3.0 and Flutter 3.10.
 
 Migration impact:
 
-- No API changes. No migration required.
+- No API changes; if you pin `bloc` below `9.2.1`, upgrade within `9.x`.
+- Superseded or cancelled runs, and `guarded` calls that fail after close,
+  return `null` instead of throwing.
+- Effects emitted right before `close()` reach subscribers after the bloc is
+  closed, like its last states; a subscriber that emits into the bloc in
+  response should use `safeEmit`.
+- `selectorShouldRebuild` gets the last built value as `previous`;
+  `BlocSelectorWithBloc` is now a `StatefulWidget`.
+- A missing provider read inside a bloc's `create` now throws from
+  `readOrNull` / `watchOrNull` / `selectOrNull` instead of returning `null`.
 
 Release type rationale:
 
-- `patch` change for tooling, tests, and the example only.
+- `patch`: bug fixes without API changes.
 
 ## 0.2.1
 

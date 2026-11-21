@@ -15,6 +15,10 @@ class RestartableTask<T> {
 
   /// Starts [task], cancelling any previous task result tracked by this
   /// instance.
+  ///
+  /// Completes with `null` when a newer [run], [cancel] or [dispose] supersedes
+  /// this run, whether [task] succeeds or fails. The failure of the latest run
+  /// is rethrown.
   Future<T?> run(Future<T> Function() task) async {
     if (_isDisposed) return null;
 
@@ -44,8 +48,8 @@ class RestartableTask<T> {
     _isRunning = false;
   }
 
-  /// Cancels any in-flight task result and prevents future runs from
-  /// completing.
+  /// Cancels any in-flight task result. Later [run] calls do not start their
+  /// task and complete with `null`.
   Future<void> dispose() async {
     if (_isDisposed) return;
     _isDisposed = true;

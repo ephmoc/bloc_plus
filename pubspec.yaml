@@ -17,7 +17,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_bloc: ">=9.0.0 <10.0.0"
-  bloc: ">=9.0.0 <10.0.0"
+  bloc: ">=9.2.1 <10.0.0"
 
 dev_dependencies:
   flutter_test:

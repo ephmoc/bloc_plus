@@ -18,6 +18,31 @@ class _SafeTrackedCubit extends Cubit<int>
   }
 }
 
+class _SlowCloseCubit extends Cubit<int> {
+  _SlowCloseCubit() : super(0);
+
+  final release = Completer<void>();
+
+  @override
+  Future<void> close() async {
+    await release.future;
+    return super.close();
+  }
+}
+
+class _SlowTrackedCubit extends _SlowCloseCubit
+    with RestartableTasksMixin<int> {}
+
+class _ReentrantCloseObserver extends BlocObserver {
+  Future<void>? reentrantClose;
+
+  @override
+  void onClose(BlocBase<dynamic> bloc) {
+    super.onClose(bloc);
+    reentrantClose ??= bloc.close();
+  }
+}
+
 void main() {
   test('runLatest invalidates stale result for the same key', () async {
     // Given
@@ -160,5 +185,74 @@ void main() {
 
     // Then
     expect(cubit.state, 0);
+  });
+
+  test('runLatest completes with null when a superseded run fails', () async {
+    // Given
+    final cubit = _TrackedCubit();
+    addTearDown(cubit.close);
+    final stale = Completer<String>();
+    final fresh = Completer<String>();
+    final staleRun = cubit.runLatest('search', () => stale.future);
+    final freshRun = cubit.runLatest('search', () => fresh.future);
+
+    // When
+    fresh.complete('fresh');
+    stale.completeError(TimeoutException('old request'));
+
+    // Then
+    expect(await freshRun, 'fresh');
+    expect(await staleRun, isNull);
+  });
+
+  test('runLatest rethrows the failure of the latest run', () async {
+    // Given
+    final cubit = _TrackedCubit();
+    addTearDown(cubit.close);
+
+    // When
+    final run = cubit.runLatest<String>(
+      'search',
+      () async => throw StateError('boom'),
+    );
+
+    // Then
+    await expectLater(run, throwsStateError);
+    expect(cubit.isTaskRunning('search'), isFalse);
+  });
+
+  test('a second close waits until the first one has finished', () async {
+    // Given
+    final cubit = _SlowTrackedCubit();
+    final first = cubit.close();
+    var secondDone = false;
+
+    // When
+    final second = cubit.close().then((_) => secondDone = true);
+    await Future<void>.delayed(Duration.zero);
+    final doneBeforeRelease = secondDone;
+    cubit.release.complete();
+    await Future.wait([first, second]);
+
+    // Then
+    expect(doneBeforeRelease, isFalse);
+    expect(secondDone, isTrue);
+  });
+
+  test('a close() made from BlocObserver.onClose shares the first close',
+      () async {
+    // Given
+    final previousObserver = Bloc.observer;
+    final observer = _ReentrantCloseObserver();
+    Bloc.observer = observer;
+    addTearDown(() => Bloc.observer = previousObserver);
+    final cubit = _TrackedCubit();
+
+    // When
+    final first = cubit.close();
+    await first;
+
+    // Then
+    expect(observer.reentrantClose, same(first));
   });
 }
