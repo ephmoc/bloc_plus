@@ -36,6 +36,11 @@
   the selector once per state change instead of two or three times; and
   `selectorShouldRebuild` receives the last built selection as `previous`. The
   widget is now a `StatefulWidget`; its constructor is unchanged.
+- `readOrNull`, `watchOrNull` and `selectOrNull` use provider's nullable
+  lookups. They still return `null` when no provider exists, but no longer
+  turn a missing dependency inside a lazily created bloc into `null`, and a
+  widget that moves under a provider later picks it up instead of staying on
+  `null`.
 
 Migration impact:
 
@@ -45,6 +50,8 @@ Migration impact:
   `guarded` call that failed after close, now gets `null` instead.
 - A `selectorShouldRebuild` callback now receives the last built selection as
   `previous` instead of the selection of the previous state.
+- Code that relied on `readOrNull` / `watchOrNull` / `selectOrNull` returning
+  `null` when creating the bloc failed now gets the error.
 
 Release type rationale:
 
