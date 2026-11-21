@@ -1,70 +1,42 @@
 ## 0.2.2
 
-- Flutter 3.50 compatibility and dependency refresh:
-  - upgraded `flutter_lints` to `^6.0.0` (dev only); the contributor tooling
-    floor is now `Dart 3.8`, which reverses the `0.2.1` cap
-  - kept the package minimum SDKs unchanged at `Dart >=3.0.0` and
-    `Flutter >=3.10.0`; `lib/` only depends on `package:flutter/widgets.dart`
-  - tests no longer import the deprecated `package:flutter/material.dart` and
-    use a `Directionality` host instead of `MaterialApp`
-  - migrated the example app to `package:material_ui` (example now requires
-    `Flutter >=3.47.0`)
-  - excluded `build/` from analysis and moved CI actions to their Node 24
-    releases
-- CI runs as one gated workflow that also checks the lowest allowed dependency
-  versions and the newest patch of the minimum SDK (`Flutter 3.10.6` /
-  `Dart 3.0.6`).
-- Added contract tests for lifecycle, explicit-bloc, `buildWhen` and policy
-  composition paths of the existing APIs.
-- Raised the `bloc` lower bound to `9.2.1`. On `bloc` 9.0.0-9.2.0 a `Bloc`
-  reports `isClosed == false` for a few microtasks after `close()`, so
-  `SafeEmitMixin.safeEmit` still emitted and `guarded` still returned results
-  while it was closing.
-- The async helpers drop the failure of superseded or cancelled work the same
-  way they drop its result: `CancellationToken.run`, `RestartableTask.run`,
-  `runLatest` and `guarded` complete with `null` instead of throwing. The
-  failure of the latest run is still rethrown. `guarded` no longer starts the
-  operation on a closed bloc.
-- `HasEffects.close()` closes the bloc before it waits for effect subscribers,
-  so a paused subscriber no longer keeps the bloc open (`isClosed` stayed
-  `false`, `emit` was accepted and `BlocObserver.onClose` was not called). The
-  returned future still completes only after every subscriber got the effects
-  emitted before `close()`.
-- `BlocSelectorWithBloc` keeps the last built selection, like `BlocSelector`.
-  It recomputes the selection when the selector or the bloc changes, so a
-  parent rebuild with a new selector no longer renders a stale value; it runs
-  the selector once per state change instead of two or three times; and
-  `selectorShouldRebuild` receives the last built selection as `previous`. The
-  widget is now a `StatefulWidget`; its constructor is unchanged.
-- `readOrNull`, `watchOrNull` and `selectOrNull` use provider's nullable
-  lookups. They still return `null` when no provider exists, but no longer
-  turn a missing dependency inside a lazily created bloc into `null`, and a
-  widget that moves under a provider later picks it up instead of staying on
-  `null`.
-- `runLatest` forgets the key of a task that throws instead of keeping it for
-  the lifetime of the bloc, and a second `close()` of a bloc with
-  `RestartableTasksMixin` waits for the first one to finish, as on a plain
-  `Cubit`.
-- Documented when the async helpers return `null`, that `runLatest` keys are
-  compared with `==`, and that the widgets throw `ProviderNotFoundException`
-  when `bloc` is omitted and no provider exists. Fixed the
-  `RestartableTask.dispose` docs: later runs do not start.
+- Fixes:
+  - `CancellationToken.run`, `RestartableTask.run`, `runLatest` and `guarded`
+    drop the failure of superseded or cancelled work like its result; only
+    the latest run can throw. `guarded` no longer starts on a closed bloc.
+  - `HasEffects.close()` no longer waits for a paused effect subscriber
+    before closing the bloc.
+  - `BlocSelectorWithBloc` behaves like `BlocSelector`: no stale value after
+    the selector changes, one selector call per state change, and
+    `selectorShouldRebuild` gets the last built value as `previous`.
+  - `readOrNull`, `watchOrNull` and `selectOrNull` return `null` only when no
+    provider exists.
+  - `runLatest` drops the keys of failed tasks; a repeated `close()` waits for
+    the first one.
+  - `bloc` lower bound raised to `9.2.1`, so `safeEmit` and `guarded` also
+    stop on a closing `Bloc`.
+- Tooling: Flutter 3.50 support (`flutter_lints` `^6.0.0`, contributors need
+  Dart 3.8; example app on `material_ui`, Flutter >=3.47), one gated CI
+  workflow that also checks the lowest dependency versions and Flutter
+  3.10.6, contract tests and clearer API docs. Package minimums stay at
+  Dart 3.0 and Flutter 3.10.
 
 Migration impact:
 
-- No API changes.
-- Apps that pin `bloc` below `9.2.1` need to upgrade `bloc` within `9.x`.
-- Code that caught the failure of a superseded or cancelled run, or of a
-  `guarded` call that failed after close, now gets `null` instead.
-- A `selectorShouldRebuild` callback now receives the last built selection as
-  `previous` instead of the selection of the previous state.
-- Code that relied on `readOrNull` / `watchOrNull` / `selectOrNull` returning
-  `null` when creating the bloc failed now gets the error.
+- No API changes; if you pin `bloc` below `9.2.1`, upgrade within `9.x`.
+- Superseded or cancelled runs, and `guarded` calls that fail after close,
+  return `null` instead of throwing.
+- Effects emitted right before `close()` reach subscribers after the bloc is
+  closed, like its last states; a subscriber that emits into the bloc in
+  response should use `safeEmit`.
+- `selectorShouldRebuild` gets the last built value as `previous`;
+  `BlocSelectorWithBloc` is now a `StatefulWidget`.
+- A missing provider read inside a bloc's `create` now throws from
+  `readOrNull` / `watchOrNull` / `selectOrNull` instead of returning `null`.
 
 Release type rationale:
 
-- `patch`: bug fixes with no API changes; the raised `bloc` floor only
-  excludes versions with the closing-window bug.
+- `patch`: bug fixes without API changes.
 
 ## 0.2.1
 
