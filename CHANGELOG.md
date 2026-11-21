@@ -25,6 +25,11 @@
   `runLatest` and `guarded` complete with `null` instead of throwing. The
   failure of the latest run is still rethrown. `guarded` no longer starts the
   operation on a closed bloc.
+- `HasEffects.close()` closes the bloc before it waits for effect subscribers,
+  so a paused subscriber no longer keeps the bloc open (`isClosed` stayed
+  `false`, `emit` was accepted and `BlocObserver.onClose` was not called). The
+  returned future still completes only after every subscriber got the effects
+  emitted before `close()`.
 
 Migration impact:
 

@@ -69,4 +69,39 @@ void main() {
     // Then
     expect(action, returnsNormally);
   });
+
+  test('close closes the cubit even while an effect subscriber is paused',
+      () async {
+    // Given
+    final cubit = _EffectCubit();
+    final subscription = cubit.effects.listen((_) {})..pause();
+
+    // When
+    final closing = cubit.close();
+    final closedRightAway = cubit.isClosed;
+    subscription.resume();
+    await closing;
+
+    // Then
+    expect(closedRightAway, isTrue);
+  });
+
+  test('close completes after the effects emitted before it are delivered',
+      () async {
+    // Given
+    final cubit = _EffectCubit();
+    final received = <String>[];
+    final subscription = cubit.effects.listen(received.add);
+    addTearDown(subscription.cancel);
+    cubit
+      ..emitEffect('a')
+      ..emitEffect('b')
+      ..emitEffect('c');
+
+    // When
+    await cubit.close();
+
+    // Then
+    expect(received, ['a', 'b', 'c']);
+  });
 }
