@@ -64,18 +64,16 @@ void main() {
   });
 
   testWidgets(
-      'watchOrNull and selectOrNull pick up a provider that appears above a '
-      'relocated widget', (tester) async {
+      'watchOrNull picks up a provider that appears above a relocated widget',
+      (tester) async {
     // Given
     final cubit = _IntCubit();
     addTearDown(cubit.close);
     final watched = <int?>[];
-    final selected = <int?>[];
     final child = Builder(
       key: GlobalKey(),
       builder: (context) {
         watched.add(context.watchOrNull<_IntCubit>()?.state);
-        selected.add(context.selectOrNull<_IntCubit, int, int>((s) => s));
         return const SizedBox.shrink();
       },
     );
@@ -88,6 +86,30 @@ void main() {
 
     // Then
     expect(watched, [null, 5, 6]);
+  });
+
+  testWidgets(
+      'selectOrNull picks up a provider that appears above a relocated widget',
+      (tester) async {
+    // Given
+    final cubit = _IntCubit();
+    addTearDown(cubit.close);
+    final selected = <int?>[];
+    final child = Builder(
+      key: GlobalKey(),
+      builder: (context) {
+        selected.add(context.selectOrNull<_IntCubit, int, int>((s) => s));
+        return const SizedBox.shrink();
+      },
+    );
+    await tester.pumpWidget(child);
+
+    // When
+    await tester.pumpWidget(BlocProvider.value(value: cubit, child: child));
+    cubit.increment();
+    await tester.pumpAndSettle();
+
+    // Then
     expect(selected, [null, 5, 6]);
   });
 
