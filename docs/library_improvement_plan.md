@@ -128,11 +128,12 @@ Related task specs:
 Planned, in this order. Items marked *proposed* still need a decision.
 
 - `0.2.2` (patch, in progress): one gated CI workflow that also covers the
-  lowest dependency versions and the minimum SDK, and contract tests
-  for lifecycle, explicit-bloc and `buildWhen` paths (both on `develop`);
-  fixes for errors of superseded async work, `HasEffects.close()` ordering,
-  `BlocSelectorWithBloc` selection updates, the `*OrNull` lookups and
-  `runLatest` cleanup; `bloc >=9.2.1`.
+  lowest dependency versions and the minimum SDK; contract tests for
+  lifecycle, explicit-bloc and `buildWhen` paths; fixes for errors of
+  superseded async work, `HasEffects.close()` ordering, `BlocSelectorWithBloc`
+  selection updates, the `*OrNull` lookups and `runLatest` cleanup;
+  `bloc >=9.2.1` (all on `develop`); a tag-driven release pipeline that
+  publishes to pub.dev through OIDC.
 - `0.3.0` (minor, *proposed*): function-typed rebuild/listen conditions with
   deprecation of the policy classes, which also resolves the `whenListen` name
   clash with `bloc_test`; a typed effect listener with two type parameters;
