@@ -30,6 +30,12 @@
   `false`, `emit` was accepted and `BlocObserver.onClose` was not called). The
   returned future still completes only after every subscriber got the effects
   emitted before `close()`.
+- `BlocSelectorWithBloc` keeps the last built selection, like `BlocSelector`.
+  It recomputes the selection when the selector or the bloc changes, so a
+  parent rebuild with a new selector no longer renders a stale value; it runs
+  the selector once per state change instead of two or three times; and
+  `selectorShouldRebuild` receives the last built selection as `previous`. The
+  widget is now a `StatefulWidget`; its constructor is unchanged.
 
 Migration impact:
 
@@ -37,6 +43,8 @@ Migration impact:
 - Apps that pin `bloc` below `9.2.1` need to upgrade `bloc` within `9.x`.
 - Code that caught the failure of a superseded or cancelled run, or of a
   `guarded` call that failed after close, now gets `null` instead.
+- A `selectorShouldRebuild` callback now receives the last built selection as
+  `previous` instead of the selection of the previous state.
 
 Release type rationale:
 

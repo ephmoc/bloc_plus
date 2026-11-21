@@ -11,8 +11,11 @@ typedef BlocSelectedCondition<T> = bool Function(T previous, T current);
 
 /// A selector widget that exposes both the resolved bloc instance and selected
 /// value to [builder].
-class BlocSelectorWithBloc<B extends BlocBase<S>, S, T>
-    extends StatelessWidget {
+///
+/// Like `BlocSelector`, it keeps the last built selection: the selection is
+/// recomputed when [selector] or the bloc changes, and [selector] runs once
+/// per state change.
+class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends StatefulWidget {
   /// Creates a selector widget with optional custom rebuild logic.
   const BlocSelectorWithBloc({
     required this.selector,
@@ -31,29 +34,68 @@ class BlocSelectorWithBloc<B extends BlocBase<S>, S, T>
   final T Function(S state) selector;
 
   /// Custom comparison used to decide whether the selected value should rebuild.
+  ///
+  /// Receives the last built selection as `previous` and the selection of the
+  /// new state as `current`. Defaults to `previous != current`.
   final BlocSelectedCondition<T>? selectorShouldRebuild;
 
   /// Builds a widget with the selected value and resolved bloc instance.
   final BlocSelectorBuilderWithBloc<B, S, T> builder;
 
   @override
+  State<BlocSelectorWithBloc<B, S, T>> createState() =>
+      _BlocSelectorWithBlocState<B, S, T>();
+}
+
+// Mirrors flutter_bloc's _BlocSelectorState: caches the last built selection.
+class _BlocSelectorWithBlocState<B extends BlocBase<S>, S, T>
+    extends State<BlocSelectorWithBloc<B, S, T>> {
+  late B _bloc;
+  late T _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _bloc = widget.bloc ?? context.read<B>();
+    _selected = widget.selector(_bloc.state);
+  }
+
+  @override
+  void didUpdateWidget(BlocSelectorWithBloc<B, S, T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final bloc = widget.bloc ?? context.read<B>();
+    if (!identical(_bloc, bloc) || oldWidget.selector != widget.selector) {
+      _bloc = bloc;
+      _selected = widget.selector(_bloc.state);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bloc = widget.bloc ?? context.read<B>();
+    if (!identical(_bloc, bloc)) {
+      _bloc = bloc;
+      _selected = widget.selector(_bloc.state);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<B, S>(
-      bloc: bloc,
-      buildWhen: (previous, current) {
-        final previousSelected = selector(previous);
-        final currentSelected = selector(current);
-        final shouldRebuild = selectorShouldRebuild;
-        if (shouldRebuild != null) {
-          return shouldRebuild(previousSelected, currentSelected);
-        }
-        return previousSelected != currentSelected;
+    if (widget.bloc == null) {
+      // Rebuild when the provided bloc instance is replaced.
+      context.select<B, bool>((bloc) => identical(_bloc, bloc));
+    }
+    return BlocListener<B, S>(
+      bloc: _bloc,
+      listener: (context, state) {
+        final selected = widget.selector(state);
+        final changed =
+            widget.selectorShouldRebuild?.call(_selected, selected) ??
+                _selected != selected;
+        if (changed) setState(() => _selected = selected);
       },
-      builder: (context, state) {
-        final resolvedBloc = bloc ?? context.read<B>();
-        final selected = selector(state);
-        return builder(context, resolvedBloc, selected);
-      },
+      child: widget.builder(context, _bloc, _selected),
     );
   }
 }
