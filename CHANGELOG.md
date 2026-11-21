@@ -11,6 +11,8 @@
     `Flutter >=3.47.0`)
   - excluded `build/` from analysis and moved CI actions to their Node 24
     releases
+- CI runs as one gated workflow that also checks the lowest allowed dependency
+  versions and the declared minimum SDK (`Flutter 3.10.6` / `Dart 3.0.6`).
 
 Migration impact:
 

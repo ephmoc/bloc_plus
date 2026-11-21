@@ -118,6 +118,11 @@ Run all:
 
 If full suite is heavy, run targeted tests during development, but final response must include full-suite result or explicitly state what was not run.
 
+When dependency or SDK constraints change, also run the extra CI gates locally:
+
+- lowest allowed versions: `flutter pub downgrade && flutter analyze && flutter test`, then `flutter pub get` to return to the newest versions;
+- declared minimum SDK: the steps of the `min-sdk` job in `.github/workflows/ci.yml` with Flutter 3.10.6 (for example via fvm), in a throwaway copy of the repository.
+
 ## 8. Code Quality Rules
 
 - Keep code simple and explicit; avoid unnecessary abstraction.
