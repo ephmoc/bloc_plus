@@ -193,3 +193,17 @@ If something could not be completed, state the blocker and attempted workaround.
   3. `flutter analyze`
   4. `flutter test`
 - If any command cannot be run, explicitly report which command was skipped and why.
+
+## 16. Release Process
+
+- Never push a release tag without explicit user approval: pushing `vX.Y.Z` publishes the package.
+- A release tag is `vX.Y.Z` (or `vX.Y.Z-dev.N` for a prerelease) and must equal `version` in `pubspec.yaml`.
+- Steps:
+  1. on `develop`, set `version` and the `## X.Y.Z` section in `CHANGELOG.md`;
+  2. merge `develop` into `main` through a PR titled `Release: X.Y.Z` (squash);
+  3. when CI on `main` is green for that commit, tag it and push the tag;
+  4. merge `main` back into `develop` with a real merge commit pushed directly (`git switch develop && git merge origin/main && git push origin develop`, admin bypass). Never through a PR: a squash merge does not record the merge, and the next release PR would conflict.
+- `.github/workflows/release.yml` then checks the tag, the CHANGELOG section, that the commit is on `main` and that `ci-gate` passed on it, publishes to pub.dev with GitHub's OIDC token (environment `pub.dev`, no stored credentials) and creates the GitHub Release from the CHANGELOG section.
+- `Actions > Release > Run workflow` builds and checks the package archive without publishing.
+- One-time setup on pub.dev: `Admin > Automated publishing`, repository `ephmoc/bloc_plus`, tag pattern `v{{version}}`, required environment `pub.dev`.
+- `scripts/pubdev_publish.sh` is the manual fallback. It does not create the GitHub Release; after using it, push the tag if needed and run `gh release create vX.Y.Z --notes-file <the CHANGELOG section>`.
