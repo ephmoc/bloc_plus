@@ -27,7 +27,8 @@ class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends StatefulWidget {
 
   /// The bloc to read from.
   ///
-  /// When omitted, the widget reads the bloc from the nearest provider.
+  /// When omitted, the widget reads the bloc from the nearest provider and
+  /// throws a `ProviderNotFoundException` if there is none.
   final B? bloc;
 
   /// Selects the value that should be passed to [builder].

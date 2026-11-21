@@ -48,8 +48,8 @@ class RestartableTask<T> {
     _isRunning = false;
   }
 
-  /// Cancels any in-flight task result and prevents future runs from
-  /// completing.
+  /// Cancels any in-flight task result. Later [run] calls do not start their
+  /// task and complete with `null`.
   Future<void> dispose() async {
     if (_isDisposed) return;
     _isDisposed = true;

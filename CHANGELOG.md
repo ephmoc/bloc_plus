@@ -45,6 +45,10 @@
   the lifetime of the bloc, and a second `close()` of a bloc with
   `RestartableTasksMixin` waits for the first one to finish, as on a plain
   `Cubit`.
+- Documented when the async helpers return `null`, that `runLatest` keys are
+  compared with `==`, and that the widgets throw `ProviderNotFoundException`
+  when `bloc` is omitted and no provider exists. Fixed the
+  `RestartableTask.dispose` docs: later runs do not start.
 
 Migration impact:
 

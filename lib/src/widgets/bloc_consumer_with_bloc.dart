@@ -19,7 +19,8 @@ class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends StatelessWidget {
 
   /// The bloc to consume.
   ///
-  /// When omitted, the widget reads the bloc from the nearest provider.
+  /// When omitted, the widget reads the bloc from the nearest provider and
+  /// throws a `ProviderNotFoundException` if there is none.
   final B? bloc;
 
   /// Optional predicate that controls whether [builder] runs for a state

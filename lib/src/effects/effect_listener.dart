@@ -28,7 +28,8 @@ class EffectListener<B extends BlocBase<S>, S, E> extends StatefulWidget
 
   /// The bloc to listen to.
   ///
-  /// When omitted, the widget reads the bloc from the nearest provider.
+  /// When omitted, the widget reads the bloc from the nearest provider and
+  /// throws a `ProviderNotFoundException` if there is none.
   final B? bloc;
 
   /// Called whenever the bloc emits a new effect.

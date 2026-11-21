@@ -83,6 +83,10 @@ void tryIncrement(BuildContext context) {
 }
 ```
 
+`readOrNull`, `watchOrNull` and `selectOrNull` return `null` only when there
+is no provider. An error thrown while the provider creates the bloc is
+rethrown.
+
 ### Combined state and effects
 
 ```dart
@@ -139,6 +143,10 @@ class SearchCubit extends Cubit<SearchState>
   }
 }
 ```
+
+`runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
+complete with `null` when the work was superseded, cancelled or outlived the
+bloc. That also holds when such work fails, so only the latest run can throw.
 
 ### Effects
 
