@@ -122,8 +122,8 @@ If full suite is heavy, run targeted tests during development, but final respons
 
 When dependency or SDK constraints change, also run the extra CI gates locally:
 
-- lowest allowed versions: `flutter pub downgrade && flutter analyze && flutter test`, then `flutter pub get` to return to the newest versions;
-- declared minimum SDK: the steps of the `min-sdk` job in `.github/workflows/ci.yml` with Flutter 3.10.6 (for example via fvm), in a throwaway copy of the repository.
+- lowest allowed versions: `flutter pub downgrade && flutter analyze && flutter test`, then `flutter pub upgrade` to return to the newest versions (`flutter pub get` keeps the downgraded lock);
+- minimum SDK: the steps of the `min-sdk` job in `.github/workflows/ci.yml` with Flutter 3.10.6, the newest patch of the declared minimum (for example via fvm), in a throwaway copy of the repository.
 
 ## 8. Code Quality Rules
 

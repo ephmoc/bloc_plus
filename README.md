@@ -1,6 +1,6 @@
 # bloc_plus
 
-[![CI](https://github.com/ephmoc/bloc_plus/actions/workflows/ci.yml/badge.svg)](https://github.com/ephmoc/bloc_plus/actions/workflows/ci.yml)
+[![CI](https://github.com/ephmoc/bloc_plus/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/ephmoc/bloc_plus/actions/workflows/ci.yml)
 [![pub package](https://img.shields.io/pub/v/bloc_plus)](https://pub.dev/packages/bloc_plus)
 [![license](https://img.shields.io/github/license/ephmoc/bloc_plus)](https://github.com/ephmoc/bloc_plus/blob/main/LICENSE)
 [![style: flutter_lints](https://img.shields.io/badge/style-flutter__lints-40c4ff)](https://pub.dev/packages/flutter_lints)

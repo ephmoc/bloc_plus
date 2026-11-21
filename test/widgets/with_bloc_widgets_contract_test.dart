@@ -238,31 +238,33 @@ void main() {
       expect(builtStates, [0, 2]);
     });
 
-    testWidgets('delivers a state and an effect of one tick in emission order',
+    testWidgets('delivers states and effects of one tick in per-stream order',
         (tester) async {
       // Given
       final cubit = _CounterCubit();
       addTearDown(cubit.close);
-      final log = <String>[];
+      final states = <int>[];
+      final effects = <String>[];
       await tester.pumpWidget(
         BlocConsumerWithEffects<_CounterCubit, int, String>(
           bloc: cubit,
-          listener: (context, bloc, state) => log.add('state:$state'),
-          onEffect: (context, bloc, effect) => log.add('effect:$effect'),
+          listener: (context, bloc, state) => states.add(state),
+          onEffect: (context, bloc, effect) => effects.add(effect),
           builder: (context, bloc, state) => _text(state),
         ),
       );
 
       // When
       cubit.increment();
-      cubit.emitEffect('after-1');
-      await tester.pumpAndSettle();
-      cubit.emitEffect('before-2');
+      cubit.emitEffect('a');
       cubit.increment();
+      cubit.emitEffect('b');
       await tester.pumpAndSettle();
 
       // Then
-      expect(log, ['state:1', 'effect:after-1', 'effect:before-2', 'state:2']);
+      // dart:async orders events per stream only, so check each stream alone.
+      expect(states, [1, 2]);
+      expect(effects, ['a', 'b']);
     });
   });
 

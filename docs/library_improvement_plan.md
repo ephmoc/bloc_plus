@@ -128,7 +128,7 @@ Related task specs:
 Planned, in this order. Items marked *proposed* still need a decision.
 
 - `0.2.2` (patch, in progress): one gated CI workflow that also covers the
-  lowest dependency versions and the declared minimum SDK, and contract tests
+  lowest dependency versions and the minimum SDK, and contract tests
   for lifecycle, explicit-bloc and `buildWhen` paths (both on `develop`);
   fixes for errors of superseded async work, `HasEffects.close()` ordering,
   `BlocSelectorWithBloc` selection updates, the `*OrNull` lookups and

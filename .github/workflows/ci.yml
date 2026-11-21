@@ -9,6 +9,7 @@ on:
   push:
     branches: [develop, main]
   schedule:
+    # The README badge uses ?event=push, so scheduled runs never change it.
     - cron: '17 4 * * 1' # Mondays 04:17 UTC, runs on the default branch
   workflow_dispatch:
 
@@ -121,7 +122,7 @@ jobs:
         run: flutter test
 
   min-sdk:
-    name: Declared minimum SDK (Flutter 3.10.6 / Dart 3.0.6)
+    name: Minimum SDK, newest patch (Flutter 3.10.6 / Dart 3.0.6)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -129,7 +130,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # Keep in sync with environment.flutter in pubspec.yaml.
+      # pubspec.yaml declares flutter >=3.10.0 / sdk >=3.0.0; 3.10.6 is the newest
+      # patch of that release. Update it when the environment floor changes.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
