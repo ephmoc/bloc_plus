@@ -17,6 +17,8 @@ When instructions conflict, use this priority order:
 3. `docs/bloc_plus_PRD.md`.
 4. `docs/tasks/*.md`.
 
+`docs/library_improvement_plan.md` is informational: it records delivered items, next steps and guardrails, and does not define APIs.
+
 If any conflict remains unresolved, stop and ask the user.
 
 ## 3. Package Bootstrap Rule
@@ -118,6 +120,11 @@ Run all:
 
 If full suite is heavy, run targeted tests during development, but final response must include full-suite result or explicitly state what was not run.
 
+When dependency or SDK constraints change, also run the extra CI gates locally:
+
+- lowest allowed versions: `flutter pub downgrade && flutter analyze && flutter test`, then `flutter pub upgrade` to return to the newest versions (`flutter pub get` keeps the downgraded lock);
+- minimum SDK: the steps of the `min-sdk` job in `.github/workflows/ci.yml` with Flutter 3.10.6, the newest patch of the declared minimum (for example via fvm), in a throwaway copy of the repository.
+
 ## 8. Code Quality Rules
 
 - Keep code simple and explicit; avoid unnecessary abstraction.
@@ -149,7 +156,7 @@ If something could not be completed, state the blocker and attempted workaround.
 ## 11. Dependency & Lockfile Policy
 
 - Keep dependency constraints intentional and explicit in `pubspec.yaml`.
-- When dependency constraints change, run `flutter pub get` and commit resulting lockfile updates.
+- When dependency constraints change, run `flutter pub get` and commit resulting `example/pubspec.lock` updates. The root `pubspec.lock` is intentionally untracked (library package).
 - Prefer latest compatible patch/minor within declared constraints unless user requests stricter pinning.
 - Do not add new runtime dependencies without user approval.
 

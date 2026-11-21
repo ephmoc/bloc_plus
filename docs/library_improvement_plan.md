@@ -1,7 +1,9 @@
 # Library Improvement Plan
 
-This document captures the expansion items delivered after the initial `v0.x`
-baseline.
+Delivery notes for the expansion items shipped in `0.2.0`, the planned next
+steps, and the guardrails for future work. API names and signatures are
+defined by the code and its API docs, and per-version changes by
+`CHANGELOG.md`; where this file disagrees with them, they win.
 
 The goal is to extend the package in ways that stay aligned with the existing
 design principles:
@@ -11,7 +13,7 @@ design principles:
 - small and explicit abstractions,
 - high-value ergonomics for day-to-day app code.
 
-## Delivered areas
+## Delivered in 0.2.0
 
 ### 1. Composable policies and custom equality
 
@@ -25,7 +27,8 @@ Previous gap:
 Delivered additions:
 
 - composition helpers: `and`, `or`, `not`
-- custom predicate wrapper: `when`
+- custom predicate wrappers: `whenRebuild(predicate)` and
+  `whenListen(predicate)`
 - selector policies with explicit equality:
   - `onChangeBy(selector, equals: ...)`
   - `onChangeListenBy(selector, equals: ...)`
@@ -77,8 +80,11 @@ Previous gap:
 
 Delivered additions:
 
-- higher-level helpers for common "latest request wins" flows
-- APIs designed for direct use inside Cubits/Blocs
+- `RestartableTasksMixin` with keyed `runLatest`, `cancelLatest`,
+  `cancelAllLatest`, and `isTaskRunning` for "latest request wins" flows
+- pending tasks are cancelled when the bloc closes
+- designed for direct use inside Cubits; inside Bloc event handlers, prefer the
+  handler's `emit` and `bloc_concurrency` transformers
 
 Why this matters:
 
@@ -89,18 +95,17 @@ Why this matters:
 
 Previous gap:
 
-- state rendering and effect handling are currently composed from separate
-  widgets
+- state rendering and effect handling are composed from separate widgets
 
 Delivered additions:
 
-- `BlocConsumerWithEffects`
+- `BlocConsumerWithEffects`, a thin composition of `EffectListener` and
+  `BlocConsumerWithBloc`
 
 Why this matters:
 
-- could simplify common screen wiring
-- should only be added if it stays explicit and does not blur state/effect
-  responsibilities
+- simplifies common screen wiring
+- stays explicit: state and effects keep separate callbacks and conditions
 
 ## Delivered rollout order
 
@@ -118,6 +123,24 @@ Related task specs:
 - `docs/tasks/async_helpers.md`
 - `docs/tasks/state_effect_consumer.md`
 
+## Next
+
+Planned, in this order. Items marked *proposed* still need a decision.
+
+- `0.2.2` (patch, in progress): one gated CI workflow that also covers the
+  lowest dependency versions and the minimum SDK, and contract tests
+  for lifecycle, explicit-bloc and `buildWhen` paths (both on `develop`);
+  fixes for errors of superseded async work, `HasEffects.close()` ordering,
+  `BlocSelectorWithBloc` selection updates, the `*OrNull` lookups and
+  `runLatest` cleanup; `bloc >=9.2.1`.
+- `0.3.0` (minor, *proposed*): function-typed rebuild/listen conditions with
+  deprecation of the policy classes, which also resolves the `whenListen` name
+  clash with `bloc_test`; a typed effect listener with two type parameters;
+  cancellation hooks for the async helpers and an explicit outcome instead of
+  `null`.
+- `1.0` (*proposed*): remove deprecated APIs, add class modifiers, freeze the
+  public API.
+
 ## Guardrails
 
 The following remain out of scope unless product direction changes:
@@ -127,11 +150,19 @@ The following remain out of scope unless product direction changes:
 - framework-specific code generation
 - APIs that depend on non-public `flutter_bloc` internals
 - abstractions that hide provider lookup or effect delivery semantics
+- more `*WithBloc` widget variants or a `MultiBlocBuilder`
+- more `BuildContext` lookup helpers (provider already supports nullable
+  lookups such as `context.read<T?>()`)
+- more policy combinators
+- event transformers for `Bloc` (covered by `bloc_concurrency`)
+- general-purpose cancellation tokens (timeouts, merging) or structured
+  concurrency
+- a custom analyzer plugin or a DevTools extension
 
-## Release notes
+## Release notes (0.2.0)
 
 - Policy composition and effect filtering shipped as additive APIs.
 - `MultiEffectListener` shipped as a composition convenience.
-- Higher-level async helpers shipped with lifecycle and cancellation coverage.
+- Higher-level async helpers shipped with lifecycle and cancellation tests.
 - The combined state-and-effect consumer shipped as a thin composition of
   existing primitives rather than a new runtime model.
