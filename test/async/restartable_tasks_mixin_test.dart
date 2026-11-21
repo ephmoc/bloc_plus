@@ -33,6 +33,16 @@ class _SlowCloseCubit extends Cubit<int> {
 class _SlowTrackedCubit extends _SlowCloseCubit
     with RestartableTasksMixin<int> {}
 
+class _ReentrantCloseObserver extends BlocObserver {
+  Future<void>? reentrantClose;
+
+  @override
+  void onClose(BlocBase<dynamic> bloc) {
+    super.onClose(bloc);
+    reentrantClose ??= bloc.close();
+  }
+}
+
 void main() {
   test('runLatest invalidates stale result for the same key', () async {
     // Given
@@ -227,5 +237,22 @@ void main() {
     // Then
     expect(doneBeforeRelease, isFalse);
     expect(secondDone, isTrue);
+  });
+
+  test('a close() made from BlocObserver.onClose shares the first close',
+      () async {
+    // Given
+    final previousObserver = Bloc.observer;
+    final observer = _ReentrantCloseObserver();
+    Bloc.observer = observer;
+    addTearDown(() => Bloc.observer = previousObserver);
+    final cubit = _TrackedCubit();
+
+    // When
+    final first = cubit.close();
+    await first;
+
+    // Then
+    expect(observer.reentrantClose, same(first));
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 
 import 'restartable_task.dart';
@@ -8,7 +10,6 @@ import 'restartable_task.dart';
 /// suppresses stale results but does not interrupt underlying `Future` work.
 mixin RestartableTasksMixin<S> on BlocBase<S> {
   final Map<Object, RestartableTask<Object?>> _tasks = {};
-  bool _isClosing = false;
   Future<void>? _closing;
 
   /// Returns `true` when the latest task for [key] is still running.
@@ -24,13 +25,13 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// Keys are compared with `==`: a new `List` key never matches an earlier
   /// one, while a string or a record with the same content does.
   Future<T?> runLatest<T>(Object key, Future<T> Function() task) async {
-    if (_isClosing || isClosed) return null;
+    if (_closing != null || isClosed) return null;
 
     final restartableTask =
         _tasks.putIfAbsent(key, () => RestartableTask<Object?>());
     try {
       final result = await restartableTask.run(() async => await task());
-      if (_isClosing || isClosed) return null;
+      if (_closing != null || isClosed) return null;
       return result as T?;
     } finally {
       // Also runs when the task throws, so failed keys do not pile up.
@@ -61,9 +62,15 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// waits for the same close.
   @override
   Future<void> close() {
-    if (_isClosing || isClosed) return _closing ?? Future<void>.value();
-    _isClosing = true;
+    final pending = _closing;
+    if (pending != null) return pending;
+    if (isClosed) return Future<void>.value();
+    // Assigned before super.close(), which calls BlocObserver.onClose
+    // synchronously, so a close() from there also gets this future.
+    final closing = Completer<void>();
+    _closing = closing.future;
     cancelAllLatest();
-    return _closing = super.close();
+    closing.complete(super.close());
+    return closing.future;
   }
 }
