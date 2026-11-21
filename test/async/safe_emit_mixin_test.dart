@@ -61,6 +61,47 @@ void main() {
     expect(result, isNull);
   });
 
+  test('guarded completes with null when the operation fails after close',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+    final work = Completer<int>();
+    final run = cubit.guarded(() => work.future);
+
+    // When
+    await cubit.close();
+    work.completeError(StateError('boom'));
+
+    // Then
+    expect(await run, isNull);
+  });
+
+  test('guarded rethrows a failure while the cubit is open', () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+    addTearDown(cubit.close);
+
+    // When
+    final run = cubit.guarded<int>(() async => throw StateError('boom'));
+
+    // Then
+    await expectLater(run, throwsStateError);
+  });
+
+  test('guarded does not start the operation on a closed cubit', () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+    await cubit.close();
+    var calls = 0;
+
+    // When
+    final result = await cubit.guarded(() async => ++calls);
+
+    // Then
+    expect(result, isNull);
+    expect(calls, 0);
+  });
+
   test('safeEmit drops states once close() has been called on a Bloc',
       () async {
     // Given

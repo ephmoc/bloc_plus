@@ -20,16 +20,23 @@
   reports `isClosed == false` for a few microtasks after `close()`, so
   `SafeEmitMixin.safeEmit` still emitted and `guarded` still returned results
   while it was closing.
+- The async helpers drop the failure of superseded or cancelled work the same
+  way they drop its result: `CancellationToken.run`, `RestartableTask.run`,
+  `runLatest` and `guarded` complete with `null` instead of throwing. The
+  failure of the latest run is still rethrown. `guarded` no longer starts the
+  operation on a closed bloc.
 
 Migration impact:
 
 - No API changes.
 - Apps that pin `bloc` below `9.2.1` need to upgrade `bloc` within `9.x`.
+- Code that caught the failure of a superseded or cancelled run, or of a
+  `guarded` call that failed after close, now gets `null` instead.
 
 Release type rationale:
 
-- `patch`: no API changes; the raised `bloc` floor only excludes versions with
-  the closing-window bug.
+- `patch`: bug fixes with no API changes; the raised `bloc` floor only
+  excludes versions with the closing-window bug.
 
 ## 0.2.1
 

@@ -15,6 +15,10 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
 
   /// Runs [task] as the latest task for [key], invalidating older results for
   /// the same key.
+  ///
+  /// Completes with `null` when a newer run for [key], [cancelLatest],
+  /// [cancelAllLatest] or [close] supersedes this run, whether [task] succeeds
+  /// or fails. The failure of the latest run is rethrown.
   Future<T?> runLatest<T>(Object key, Future<T> Function() task) async {
     if (_isClosing || isClosed) return null;
 

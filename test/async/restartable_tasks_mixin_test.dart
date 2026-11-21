@@ -161,4 +161,38 @@ void main() {
     // Then
     expect(cubit.state, 0);
   });
+
+  test('runLatest completes with null when a superseded run fails', () async {
+    // Given
+    final cubit = _TrackedCubit();
+    addTearDown(cubit.close);
+    final stale = Completer<String>();
+    final fresh = Completer<String>();
+    final staleRun = cubit.runLatest('search', () => stale.future);
+    final freshRun = cubit.runLatest('search', () => fresh.future);
+
+    // When
+    fresh.complete('fresh');
+    stale.completeError(TimeoutException('old request'));
+
+    // Then
+    expect(await freshRun, 'fresh');
+    expect(await staleRun, isNull);
+  });
+
+  test('runLatest rethrows the failure of the latest run', () async {
+    // Given
+    final cubit = _TrackedCubit();
+    addTearDown(cubit.close);
+
+    // When
+    final run = cubit.runLatest<String>(
+      'search',
+      () async => throw StateError('boom'),
+    );
+
+    // Then
+    await expectLater(run, throwsStateError);
+    expect(cubit.isTaskRunning('search'), isFalse);
+  });
 }
