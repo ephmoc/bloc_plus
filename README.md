@@ -35,7 +35,7 @@ cooperative async helpers, and explicit effect handling primitives.
   - `MultiEffectListener`
   - `effectWhen` filtering
 
-Recent delivery notes are tracked in
+Delivery notes, next steps and guardrails are tracked in
 [`docs/library_improvement_plan.md`](docs/library_improvement_plan.md).
 
 ## Getting started

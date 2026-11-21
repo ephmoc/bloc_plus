@@ -13,12 +13,13 @@
   - `and`
   - `or`
   - `not`
-  - `when`
 - Extend `ListenPolicy<S>` with composition helpers:
   - `and`
   - `or`
   - `not`
-  - `when`
+- Add top-level predicate wrappers:
+  - `whenRebuild<S>(predicate)`
+  - `whenListen<S>(predicate)`
 - Add selector policies with explicit equality:
   - `onChangeBy<S, T>(selector, {required equals})`
   - `onChangeListenBy<S, T>(selector, {required equals})`
@@ -35,7 +36,7 @@
 - `and`: returns `true` only when both component policies return `true`
 - `or`: returns `true` when any component policy returns `true`
 - `not`: negates the wrapped policy result
-- `when`: wraps an explicit predicate in a policy object
+- `whenRebuild` / `whenListen`: wrap an explicit predicate in a policy object
 - `onChangeBy` and `onChangeListenBy` compare selected values with the provided
   `equals` callback instead of relying on `!=`
 - Existing public APIs (`distinct`, `onChange`, `always`, `never`,
@@ -56,7 +57,8 @@ Required cases:
 - `and` truth table for rebuild and listen policies
 - `or` truth table for rebuild and listen policies
 - `not` negates wrapped policy result
-- `when` delegates to the provided predicate without hidden state
+- `whenRebuild` / `whenListen` delegate to the provided predicate without
+  hidden state
 - `onChangeBy` supports custom equality for lists or DTO-like values
 - `onChangeListenBy` supports custom equality for lists or DTO-like values
 - composed policies can be reused across multiple invocations
@@ -70,7 +72,8 @@ Required cases:
 - New policy APIs are exported and documented
 - Existing policy behavior remains unchanged
 - Unit tests cover composition and custom equality paths
-- APIs are directly usable in `buildWhen` / `listenWhen`
+- APIs are usable in `buildWhen` / `listenWhen` through `.shouldRebuild` /
+  `.shouldListen`
 - No hidden mutable state is introduced
 
 ## Validation Commands
