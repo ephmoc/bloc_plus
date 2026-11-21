@@ -16,14 +16,20 @@
   `Dart 3.0.6`).
 - Added contract tests for lifecycle, explicit-bloc, `buildWhen` and policy
   composition paths of the existing APIs.
+- Raised the `bloc` lower bound to `9.2.1`. On `bloc` 9.0.0-9.2.0 a `Bloc`
+  reports `isClosed == false` for a few microtasks after `close()`, so
+  `SafeEmitMixin.safeEmit` still emitted and `guarded` still returned results
+  while it was closing.
 
 Migration impact:
 
-- No API changes. No migration required.
+- No API changes.
+- Apps that pin `bloc` below `9.2.1` need to upgrade `bloc` within `9.x`.
 
 Release type rationale:
 
-- `patch` change for tooling, tests, and the example only.
+- `patch`: no API changes; the raised `bloc` floor only excludes versions with
+  the closing-window bug.
 
 ## 0.2.1
 
