@@ -135,7 +135,7 @@ published from tags through OIDC. Details are in `CHANGELOG.md`.
 
 Planned, in this order. Items marked *proposed* still need a decision.
 
-- `0.3.0` (minor, decided 2026-11-22, in progress on `develop`):
+- `0.3.0` (minor, decided 2026-11-22, on `develop`, not yet released):
   - conditions: `BlocCondition` and `whenChanged`; `RebuildPolicy`,
     `ListenPolicy` and their 12 factories deprecated, which also retires the
     `whenListen` name that clashes with `bloc_test`. No `and` / `or` / `not` on
@@ -151,10 +151,10 @@ Planned, in this order. Items marked *proposed* still need a decision.
     `CancellationToken` to the task, `whenCancelled`, and callers released as
     soon as their run is cancelled;
   - `@protected` and `@visibleForTesting` on `emitEffect` and `safeEmit`;
-  - still to do: `StateStreamable<S>` bounds on the widgets and `Object`
-    bounds on the extensions, a `const` `BlocListenerWithBloc` constructor, one
-    bloc instance per `build` in the consumers, and the PRD and task specs
-    brought in line with the code.
+  - `StateStreamable<S>` bounds on the widgets and `Object` bounds on the
+    extensions, a `const` `BlocListenerWithBloc` constructor, one bloc
+    instance per `build` in the consumers, and the PRD and task specs brought
+    in line with the code.
 - Later 0.x (*proposed*): a debug warning when nobody listens to effects, a
   testing recipe for effects, a selector-based listener, and more async modes
   (ignore while running, a queue per key); renaming the

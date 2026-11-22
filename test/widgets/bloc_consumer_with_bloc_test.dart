@@ -10,6 +10,71 @@ class _CounterCubit extends Cubit<int> {
 }
 
 void main() {
+  testWidgets('follows the provided bloc right after bloc changes to null', (
+    tester,
+  ) async {
+    // Given
+    final explicit = _CounterCubit();
+    final provided = _CounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(explicit.close);
+    addTearDown(provided.close);
+    final listened = <String>[];
+    String name(_CounterCubit bloc) =>
+        identical(bloc, provided) ? 'provided' : 'explicit';
+    Widget consumer({required _CounterCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: BlocConsumerWithBloc<_CounterCubit, int>(
+            bloc: bloc,
+            listener: (context, bloc, state) =>
+                listened.add('${name(bloc)}:$state'),
+            builder: (context, bloc, state) =>
+                Text('${name(bloc)}:$state', textDirection: TextDirection.ltr),
+          ),
+        );
+    await tester.pumpWidget(consumer(bloc: explicit));
+
+    // When
+    await tester.pumpWidget(consumer(bloc: null));
+    explicit.increment();
+    provided.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(listened, ['provided:3']);
+    expect(find.text('provided:3'), findsOneWidget);
+  });
+
+  testWidgets('follows a new provided bloc', (tester) async {
+    // Given
+    final first = _CounterCubit();
+    final second = _CounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(first.close);
+    addTearDown(second.close);
+    final listened = <String>[];
+    String name(_CounterCubit bloc) =>
+        identical(bloc, second) ? 'second' : 'first';
+    final consumer = BlocConsumerWithBloc<_CounterCubit, int>(
+      listener: (context, bloc, state) => listened.add('${name(bloc)}:$state'),
+      builder: (context, bloc, state) =>
+          Text('${name(bloc)}:$state', textDirection: TextDirection.ltr),
+    );
+    await tester.pumpWidget(BlocProvider.value(value: first, child: consumer));
+
+    // When
+    await tester.pumpWidget(BlocProvider.value(value: second, child: consumer));
+    first.increment();
+    second.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(listened, ['second:3']);
+    expect(find.text('second:3'), findsOneWidget);
+  });
+
   testWidgets('builds and listens with bloc instance', (tester) async {
     // Given
     final cubit = _CounterCubit();

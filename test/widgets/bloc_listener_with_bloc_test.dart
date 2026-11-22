@@ -6,10 +6,38 @@ import 'package:flutter_test/flutter_test.dart';
 class _CounterCubit extends Cubit<int> {
   _CounterCubit() : super(0);
 
+  final listened = <int>[];
+
   void increment() => emit(state + 1);
 }
 
+// A top-level function, so the listener below can be const.
+void _recordOnBloc(BuildContext context, _CounterCubit bloc, int state) =>
+    bloc.listened.add(state);
+
 void main() {
+  testWidgets('a const listener passes the provided bloc', (tester) async {
+    // Given
+    final cubit = _CounterCubit();
+    addTearDown(cubit.close);
+    await tester.pumpWidget(
+      BlocProvider.value(
+        value: cubit,
+        child: const BlocListenerWithBloc<_CounterCubit, int>(
+          listener: _recordOnBloc,
+          child: SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    // When
+    cubit.increment();
+    await tester.pump();
+
+    // Then
+    expect(cubit.listened, [1]);
+  });
+
   testWidgets('calls listener on state changes and provides bloc', (
     tester,
   ) async {

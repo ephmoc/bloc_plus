@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Signature for building a widget from a selected value and the resolved bloc.
-typedef BlocSelectorBuilderWithBloc<B extends BlocBase<S>, S, T> = Widget
+typedef BlocSelectorBuilderWithBloc<B extends StateStreamable<S>, S, T> = Widget
     Function(BuildContext context, B bloc, T selected);
 
 /// Signature for deciding whether a newly selected value should trigger a
@@ -15,7 +15,8 @@ typedef BlocSelectedCondition<T> = bool Function(T previous, T current);
 /// Like `BlocSelector`, it keeps the last built selection: the selection is
 /// recomputed when [selector] or the bloc changes, and [selector] runs once
 /// per state change.
-class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends StatefulWidget {
+class BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>
+    extends StatefulWidget {
   /// Creates a selector widget with optional custom rebuild logic.
   const BlocSelectorWithBloc({
     required this.selector,
@@ -49,7 +50,7 @@ class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends StatefulWidget {
 }
 
 // Mirrors flutter_bloc's _BlocSelectorState: caches the last built selection.
-class _BlocSelectorWithBlocState<B extends BlocBase<S>, S, T>
+class _BlocSelectorWithBlocState<B extends StateStreamable<S>, S, T>
     extends State<BlocSelectorWithBloc<B, S, T>> {
   late B _bloc;
   late T _selected;

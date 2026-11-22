@@ -94,6 +94,46 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
+  testWidgets(
+      'takes states and effects from the provided bloc right after '
+      'bloc changes to null', (tester) async {
+    // Given
+    final explicit = _EffectCounterCubit();
+    final provided = _EffectCounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(explicit.close);
+    addTearDown(provided.close);
+    final log = <String>[];
+    String name(_EffectCounterCubit bloc) =>
+        identical(bloc, provided) ? 'provided' : 'explicit';
+    Widget consumer({required _EffectCounterCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+            bloc: bloc,
+            listener: (context, bloc, state) =>
+                log.add('state ${name(bloc)}:$state'),
+            onEffect: (context, bloc, effect) =>
+                log.add('effect ${name(bloc)}:$effect'),
+            builder: (context, bloc, state) => const SizedBox.shrink(),
+          ),
+        );
+    await tester.pumpWidget(consumer(bloc: explicit));
+
+    // When
+    await tester.pumpWidget(consumer(bloc: null));
+    explicit
+      ..increment()
+      ..emitEffect('a');
+    provided
+      ..increment()
+      ..emitEffect('b');
+    await tester.pump();
+
+    // Then
+    expect(log, unorderedEquals(['state provided:3', 'effect provided:b']));
+  });
+
   testWidgets('uses the latest onEffect and effectWhen after a rebuild',
       (tester) async {
     // Given
