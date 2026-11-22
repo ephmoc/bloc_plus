@@ -41,4 +41,29 @@ void main() {
     // Then
     expect(result, 5);
   });
+
+  test('run completes with null when the task fails after cancel', () async {
+    // Given
+    final token = CancellationToken();
+    final work = Completer<int>();
+    final run = token.run(() => work.future);
+
+    // When
+    token.cancel();
+    work.completeError(StateError('boom'));
+
+    // Then
+    expect(await run, isNull);
+  });
+
+  test('run rethrows the failure of a task that was not cancelled', () async {
+    // Given
+    final token = CancellationToken();
+
+    // When
+    final run = token.run<int>(() async => throw StateError('boom'));
+
+    // Then
+    await expectLater(run, throwsStateError);
+  });
 }

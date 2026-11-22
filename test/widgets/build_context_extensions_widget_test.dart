@@ -1,5 +1,5 @@
 import 'package:bloc_plus/bloc_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,7 +19,100 @@ class _CounterCubit extends Cubit<_CounterState> {
   void toggle() => emit(_CounterState(count: state.count, flag: !state.flag));
 }
 
+class _Repo {}
+
+class _RepoCubit extends Cubit<int> {
+  _RepoCubit(this.repo) : super(0);
+
+  final _Repo repo;
+}
+
+class _IntCubit extends Cubit<int> {
+  _IntCubit() : super(5);
+
+  void increment() => emit(state + 1);
+}
+
 void main() {
+  testWidgets(
+      'readOrNull surfaces a missing dependency of a lazily created bloc', (
+    tester,
+  ) async {
+    // Given
+    final results = <_RepoCubit?>[];
+    final widget = BlocProvider<_RepoCubit>(
+      create: (context) => _RepoCubit(context.read<_Repo>()),
+      child: Builder(
+        builder: (context) {
+          results.add(context.readOrNull<_RepoCubit>());
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+
+    // When
+    await tester.pumpWidget(widget);
+    final buildError = tester.takeException();
+    // provider throws a cast error when disposing a provider whose create
+    // callback failed; consume it so only the build error is asserted.
+    await tester.pumpWidget(const SizedBox.shrink());
+    tester.takeException();
+
+    // Then
+    expect(buildError, isA<ProviderNotFoundException>());
+    expect(results, isEmpty);
+  });
+
+  testWidgets(
+      'watchOrNull picks up a provider that appears above a relocated widget',
+      (tester) async {
+    // Given
+    final cubit = _IntCubit();
+    addTearDown(cubit.close);
+    final watched = <int?>[];
+    final child = Builder(
+      key: GlobalKey(),
+      builder: (context) {
+        watched.add(context.watchOrNull<_IntCubit>()?.state);
+        return const SizedBox.shrink();
+      },
+    );
+    await tester.pumpWidget(child);
+
+    // When
+    await tester.pumpWidget(BlocProvider.value(value: cubit, child: child));
+    cubit.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(watched, [null, 5, 6]);
+  });
+
+  testWidgets(
+      'selectOrNull picks up a provider that appears above a relocated widget',
+      (tester) async {
+    // Given
+    final cubit = _IntCubit();
+    addTearDown(cubit.close);
+    final selected = <int?>[];
+    final child = Builder(
+      key: GlobalKey(),
+      builder: (context) {
+        selected.add(context.selectOrNull<_IntCubit, int, int>((s) => s));
+        return const SizedBox.shrink();
+      },
+    );
+    await tester.pumpWidget(child);
+
+    // When
+    await tester.pumpWidget(BlocProvider.value(value: cubit, child: child));
+    cubit.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(selected, [null, 5, 6]);
+  });
+
   testWidgets('watchOrNull updates widget when bloc state changes', (
     tester,
   ) async {
@@ -28,8 +121,9 @@ void main() {
     addTearDown(cubit.close);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: Builder(
             builder: (context) {
@@ -59,8 +153,9 @@ void main() {
     final renderedCounts = <int?>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: Builder(
             builder: (context) {
@@ -95,8 +190,9 @@ void main() {
 
     // When
     await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(
           builder: (context) {
             values.add(
               context.selectOrNull<_CounterCubit, _CounterState, int>(

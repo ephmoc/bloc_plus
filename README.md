@@ -1,7 +1,6 @@
 # bloc_plus
 
-[![CI](https://github.com/ephmoc/bloc_plus/actions/workflows/ci.yml/badge.svg)](https://github.com/ephmoc/bloc_plus/actions/workflows/ci.yml)
-[![PR Checks](https://github.com/ephmoc/bloc_plus/actions/workflows/pr.yml/badge.svg)](https://github.com/ephmoc/bloc_plus/actions/workflows/pr.yml)
+[![CI](https://github.com/ephmoc/bloc_plus/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/ephmoc/bloc_plus/actions/workflows/ci.yml)
 [![pub package](https://img.shields.io/pub/v/bloc_plus)](https://pub.dev/packages/bloc_plus)
 [![license](https://img.shields.io/github/license/ephmoc/bloc_plus)](https://github.com/ephmoc/bloc_plus/blob/main/LICENSE)
 [![style: flutter_lints](https://img.shields.io/badge/style-flutter__lints-40c4ff)](https://pub.dev/packages/flutter_lints)
@@ -36,7 +35,7 @@ cooperative async helpers, and explicit effect handling primitives.
   - `MultiEffectListener`
   - `effectWhen` filtering
 
-Recent delivery notes are tracked in
+Delivery notes, next steps and guardrails are tracked in
 [`docs/library_improvement_plan.md`](docs/library_improvement_plan.md).
 
 ## Getting started
@@ -45,7 +44,7 @@ Add dependency:
 
 ```yaml
 dependencies:
-  bloc_plus: ^0.2.1
+  bloc_plus: ^0.2.2
 ```
 
 Run the example app:
@@ -83,6 +82,10 @@ void tryIncrement(BuildContext context) {
   counterCubit?.increment();
 }
 ```
+
+`readOrNull`, `watchOrNull` and `selectOrNull` return `null` only when there
+is no provider. An error thrown while the provider creates the bloc is
+rethrown.
 
 ### Combined state and effects
 
@@ -140,6 +143,10 @@ class SearchCubit extends Cubit<SearchState>
   }
 }
 ```
+
+`runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
+complete with `null` when the work was superseded, cancelled or outlived the
+bloc. That also holds when such work fails, so only the latest run can throw.
 
 ### Effects
 

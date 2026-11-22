@@ -1,25 +1,54 @@
+# Single source of truth for all quality gates (replaces ci.yml, pr.yml and coverage.yml).
+# The only check to mark as required in the branch ruleset is the job "ci-gate".
+# Do NOT add paths/paths-ignore filters here: a required check that never reports blocks merging.
 name: CI
 
 on:
+  pull_request:
+    branches: [develop, main]
   push:
     branches: [develop, main]
+  schedule:
+    # The README badge uses ?event=push, so scheduled runs never change it.
+    - cron: '17 4 * * 1' # Mondays 04:17 UTC, runs on the default branch
+  workflow_dispatch:
+
+# PR runs: a new push to the PR cancels the superseded run.
+# Push/schedule/dispatch runs: one group per event, ref and commit, so they are never
+# cancelled or replaced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('{0}-{1}-{2}', github.event_name, github.ref, github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   quality:
-    name: Analyze and Test
+    name: Format, analyze, test, coverage, publish dry-run
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Install dependencies
         run: flutter pub get
+
+      # A new Flutter stable can change SDK-pinned versions in example/pubspec.lock.
+      - name: Fail if pub get changed tracked files
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            echo "::error::flutter pub get changed tracked files. Run 'flutter pub get' with the current Flutter stable and commit the result (usually example/pubspec.lock)."
+            exit 1
+          fi
 
       - name: Verify formatting
         run: dart format --set-exit-if-changed .
@@ -27,8 +56,142 @@ jobs:
       - name: Static analysis
         run: flutter analyze
 
-      - name: Run tests
-        run: flutter test
-
+      # Before the tests, so coverage/ output can never end up in the checked archive.
       - name: pub.dev dry-run
         run: flutter pub publish --dry-run
+
+      - name: Tests with coverage
+        run: flutter test --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage/lcov.info
+          # Secrets are absent on PRs from forks and from Dependabot, and a Codecov
+          # outage must not block merging: fail hard only on pushes to develop/main.
+          fail_ci_if_error: ${{ github.event_name == 'push' }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  changelog:
+    name: CHANGELOG updated for code changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Enforce CHANGELOG update for code changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Three dots = diff against the merge base, so commits that landed on the
+          # base branch after the PR branched off are not attributed to the PR.
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          if printf '%s\n' "$changed" | grep -qE '^(lib/|pubspec\.yaml$)' \
+            && ! printf '%s\n' "$changed" | grep -qx 'CHANGELOG.md'; then
+            echo "::error::Code or public package metadata changed without a CHANGELOG.md update."
+            exit 1
+          fi
+
+  downgrade:
+    name: Lowest allowed dependency versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve lowest versions
+        run: flutter pub downgrade
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+  min-sdk:
+    name: Minimum SDK, newest patch (Flutter 3.10.6 / Dart 3.0.6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # pubspec.yaml declares flutter >=3.10.0 / sdk >=3.0.0; 3.10.6 is the newest
+      # patch of that release. Update it when the environment floor changes.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.10.6
+          cache: true
+
+      # example/ needs Flutter >=3.47; flutter_lints ^6.0.0 needs Dart >=3.8.
+      # flutter_lints 3.0.1 is the newest release whose SDK range admits Dart 3.0.
+      - name: Prepare floor tree
+        run: |
+          rm -rf example
+          printf 'dependency_overrides:\n  flutter_lints: 3.0.1\n' > pubspec_overrides.yaml
+
+      - name: Resolve newest allowed dependencies
+        run: flutter pub get
+
+      - name: Static analysis (newest)
+        run: flutter analyze
+
+      - name: Run tests (newest)
+        run: flutter test --timeout 60s
+
+      - name: Resolve lowest allowed dependencies
+        run: flutter pub downgrade
+
+      - name: Static analysis (lowest)
+        run: flutter analyze
+
+      - name: Run tests (lowest)
+        run: flutter test --timeout 60s
+
+  # Not part of ci-gate. A red scheduled run e-mails the user who last changed
+  # the cron line. GitHub disables schedules after 60 days without repository activity.
+  beta-canary:
+    name: Beta channel canary
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: beta
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  ci-gate:
+    name: ci-gate
+    if: always()
+    needs: [quality, changelog, downgrade, min-sdk]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All blocking jobs passed or were skipped
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::A blocking job failed or was cancelled."
+          exit 1

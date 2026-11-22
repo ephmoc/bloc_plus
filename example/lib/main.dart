@@ -1,26 +1,20 @@
 import 'dart:async';
 
 import 'package:bloc_plus/bloc_plus.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   runApp(const ExampleApp());
 }
 
 class CounterState {
-  const CounterState({
-    this.count = 0,
-    this.evenHistory = const <int>[],
-  });
+  const CounterState({this.count = 0, this.evenHistory = const <int>[]});
 
   final int count;
   final List<int> evenHistory;
 
-  CounterState copyWith({
-    int? count,
-    List<int>? evenHistory,
-  }) {
+  CounterState copyWith({int? count, List<int>? evenHistory}) {
     return CounterState(
       count: count ?? this.count,
       evenHistory: evenHistory ?? this.evenHistory,
@@ -29,18 +23,12 @@ class CounterState {
 }
 
 class SearchState {
-  const SearchState({
-    this.isLoading = false,
-    this.result = 'No result yet',
-  });
+  const SearchState({this.isLoading = false, this.result = 'No result yet'});
 
   final bool isLoading;
   final String result;
 
-  SearchState copyWith({
-    bool? isLoading,
-    String? result,
-  }) {
+  SearchState copyWith({bool? isLoading, String? result}) {
     return SearchState(
       isLoading: isLoading ?? this.isLoading,
       result: result ?? this.result,
@@ -58,21 +46,12 @@ class CounterCubit extends Cubit<CounterState>
         ? [...state.evenHistory, nextCount]
         : state.evenHistory;
 
-    emit(
-      state.copyWith(
-        count: nextCount,
-        evenHistory: nextHistory,
-      ),
-    );
+    emit(state.copyWith(count: nextCount, evenHistory: nextHistory));
     emitEffect('snack:Count moved to $nextCount');
   }
 
   void cloneHistory() {
-    emit(
-      state.copyWith(
-        evenHistory: List<int>.of(state.evenHistory),
-      ),
-    );
+    emit(state.copyWith(evenHistory: List<int>.of(state.evenHistory)));
     emitEffect('snack:Cloned the history list');
   }
 
@@ -91,12 +70,7 @@ class SearchCubit extends Cubit<SearchState>
   SearchCubit() : super(const SearchState());
 
   Future<void> loadPreview(String label, Duration delay) async {
-    safeEmit(
-      state.copyWith(
-        isLoading: true,
-        result: 'Loading $label...',
-      ),
-    );
+    safeEmit(state.copyWith(isLoading: true, result: 'Loading $label...'));
 
     final result = await runLatest<String>('preview', () async {
       await Future<void>.delayed(delay);
@@ -106,10 +80,7 @@ class SearchCubit extends Cubit<SearchState>
     if (result == null) return;
 
     safeEmit(
-      state.copyWith(
-        isLoading: false,
-        result: 'Latest result: $result',
-      ),
+      state.copyWith(isLoading: false, result: 'Latest result: $result'),
     );
     emitEffect('info:Loaded $result');
   }
@@ -117,10 +88,7 @@ class SearchCubit extends Cubit<SearchState>
   void cancelPreview() {
     cancelLatest('preview');
     safeEmit(
-      state.copyWith(
-        isLoading: false,
-        result: 'Cancelled latest preview',
-      ),
+      state.copyWith(isLoading: false, result: 'Cancelled latest preview'),
     );
     emitEffect('info:Cancelled preview');
   }
@@ -138,10 +106,7 @@ class ExampleApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'bloc_plus example',
-        theme: ThemeData(
-          colorSchemeSeed: Colors.teal,
-          useMaterial3: true,
-        ),
+        theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
         home: const ExamplePage(),
       ),
     );
@@ -178,9 +143,9 @@ class ExamplePage extends StatelessWidget {
         EffectListener<SearchCubit, SearchState, String>(
           effectWhen: (effect) => effect.startsWith('info:'),
           onEffect: (context, effect) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_stripEffectPrefix(effect))),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(_stripEffectPrefix(effect))));
           },
         ),
       ],

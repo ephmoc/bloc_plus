@@ -1,5 +1,5 @@
 import 'package:bloc_plus/bloc_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,8 +20,9 @@ void main() {
     final effects = <String>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
             listener: (context, bloc, state) {
@@ -62,8 +63,9 @@ void main() {
     final effects = <String>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
             buildWhen: (previous, current) => current.isEven,
@@ -102,8 +104,9 @@ void main() {
     final effects = <String>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: providerCubit,
           child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
             bloc: explicitCubit,
@@ -138,8 +141,9 @@ void main() {
 
   testWidgets('throws when bloc is missing', (tester) async {
     // Given
-    final widget = MaterialApp(
-      home: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+    final widget = Directionality(
+      textDirection: TextDirection.ltr,
+      child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
         listener: (context, bloc, state) {},
         onEffect: (context, bloc, effect) {},
         builder: (context, bloc, state) => const SizedBox.shrink(),
@@ -162,8 +166,9 @@ void main() {
     final effects = <String>[];
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: BlocProvider.value(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: BlocProvider.value(
           value: cubit,
           child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
             listener: (context, bloc, state) {},
@@ -175,7 +180,8 @@ void main() {
     );
 
     // When
-    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    await tester.pumpWidget(const Directionality(
+        textDirection: TextDirection.ltr, child: SizedBox.shrink()));
     cubit.emitEffect('late');
     await tester.pumpAndSettle();
 

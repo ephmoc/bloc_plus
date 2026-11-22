@@ -1,3 +1,43 @@
+## 0.2.2
+
+- Fixes:
+  - `CancellationToken.run`, `RestartableTask.run`, `runLatest` and `guarded`
+    drop the failure of superseded or cancelled work like its result; only
+    the latest run can throw. `guarded` no longer starts on a closed bloc.
+  - `HasEffects.close()` no longer waits for a paused effect subscriber
+    before closing the bloc.
+  - `BlocSelectorWithBloc` behaves like `BlocSelector`: no stale value after
+    the selector changes, one selector call per state change, and
+    `selectorShouldRebuild` gets the last built value as `previous`.
+  - `readOrNull`, `watchOrNull` and `selectOrNull` return `null` only when no
+    provider exists.
+  - `runLatest` drops the keys of failed tasks; a repeated `close()` waits for
+    the first one.
+  - `bloc` lower bound raised to `9.2.1`, so `safeEmit` and `guarded` also
+    stop on a closing `Bloc`.
+- Tooling: Flutter 3.50 support (`flutter_lints` `^6.0.0`, contributors need
+  Dart 3.8; example app on `material_ui`, Flutter >=3.47), one gated CI
+  workflow that also checks the lowest dependency versions and Flutter
+  3.10.6, contract tests and clearer API docs. Package minimums stay at
+  Dart 3.0 and Flutter 3.10.
+
+Migration impact:
+
+- No API changes; if you pin `bloc` below `9.2.1`, upgrade within `9.x`.
+- Superseded or cancelled runs, and `guarded` calls that fail after close,
+  return `null` instead of throwing.
+- Effects emitted right before `close()` reach subscribers after the bloc is
+  closed, like its last states; a subscriber that emits into the bloc in
+  response should use `safeEmit`.
+- `selectorShouldRebuild` gets the last built value as `previous`;
+  `BlocSelectorWithBloc` is now a `StatefulWidget`.
+- A missing provider read inside a bloc's `create` now throws from
+  `readOrNull` / `watchOrNull` / `selectOrNull` instead of returning `null`.
+
+Release type rationale:
+
+- `patch`: bug fixes without API changes.
+
 ## 0.2.1
 
 - Compatibility metadata update:

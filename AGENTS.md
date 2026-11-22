@@ -17,6 +17,8 @@ When instructions conflict, use this priority order:
 3. `docs/bloc_plus_PRD.md`.
 4. `docs/tasks/*.md`.
 
+`docs/library_improvement_plan.md` is informational: it records delivered items, next steps and guardrails, and does not define APIs.
+
 If any conflict remains unresolved, stop and ask the user.
 
 ## 3. Package Bootstrap Rule
@@ -118,6 +120,11 @@ Run all:
 
 If full suite is heavy, run targeted tests during development, but final response must include full-suite result or explicitly state what was not run.
 
+When dependency or SDK constraints change, also run the extra CI gates locally:
+
+- lowest allowed versions: `flutter pub downgrade && flutter analyze && flutter test`, then `flutter pub upgrade` to return to the newest versions (`flutter pub get` keeps the downgraded lock);
+- minimum SDK: the steps of the `min-sdk` job in `.github/workflows/ci.yml` with Flutter 3.10.6, the newest patch of the declared minimum (for example via fvm), in a throwaway copy of the repository.
+
 ## 8. Code Quality Rules
 
 - Keep code simple and explicit; avoid unnecessary abstraction.
@@ -149,7 +156,7 @@ If something could not be completed, state the blocker and attempted workaround.
 ## 11. Dependency & Lockfile Policy
 
 - Keep dependency constraints intentional and explicit in `pubspec.yaml`.
-- When dependency constraints change, run `flutter pub get` and commit resulting lockfile updates.
+- When dependency constraints change, run `flutter pub get` and commit resulting `example/pubspec.lock` updates. The root `pubspec.lock` is intentionally untracked (library package).
 - Prefer latest compatible patch/minor within declared constraints unless user requests stricter pinning.
 - Do not add new runtime dependencies without user approval.
 
@@ -186,3 +193,19 @@ If something could not be completed, state the blocker and attempted workaround.
   3. `flutter analyze`
   4. `flutter test`
 - If any command cannot be run, explicitly report which command was skipped and why.
+
+## 16. Release Process
+
+- Never push a release tag without explicit user approval: pushing `vX.Y.Z` publishes the package.
+- A release tag is `vX.Y.Z` (or `vX.Y.Z-dev.N` for a prerelease) and must equal `version` in `pubspec.yaml`.
+- Steps:
+  1. on `develop`, set `version` and a `## <version>` section with notes in `CHANGELOG.md`, using the exact version string (`## X.Y.Z-dev.N` for a prerelease);
+  2. merge `develop` into `main` through a PR titled `Release: X.Y.Z` (squash);
+  3. when CI on `main` is green for that commit, tag it and push the tag;
+  4. merge `main` back into `develop` with a real merge commit pushed directly (`git switch develop && git merge origin/main && git push origin develop`, admin bypass). Never through a PR: a squash merge does not record the merge, and the next release PR would conflict.
+- `.github/workflows/release.yml` then checks the tag, the CHANGELOG section, that the commit is on `main` and that `ci-gate` passed on it, publishes to pub.dev with GitHub's OIDC token (environment `pub.dev`, no stored credentials) and creates the GitHub Release from the CHANGELOG section.
+- `Actions > Release > Run workflow` builds and checks the package archive without publishing.
+- One-time setup:
+  - pub.dev: `Admin > Automated publishing`, repository `ephmoc/bloc_plus`, tag pattern `v{{version}}`, required environment `pub.dev`;
+  - GitHub: a tag ruleset that lets only admins create, move or delete `v*` tags, and a deployment tag rule `v*` on the `pub.dev` environment. The ruleset is the gate that matters: a tag runs the `release.yml` of the commit it points to, so anyone who can push a `v*` tag controls what gets checked and published.
+- `scripts/pubdev_publish.sh` is the manual fallback. It does not create the GitHub Release; after using it, push the tag if needed and run `gh release create vX.Y.Z --notes-file <the CHANGELOG section>`.
