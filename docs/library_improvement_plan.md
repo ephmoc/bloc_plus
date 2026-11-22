@@ -161,8 +161,13 @@ Released 2026-11-22 (minor). Details and migration notes are in
 
 Planned, in this order. Items marked *proposed* still need a decision.
 
-- Later 0.x (*proposed*): a debug warning when nobody listens to effects, a
-  testing recipe for effects, a selector-based listener, and more async modes
+- `0.3.1` (patch, decided 2026-11-22, on `develop`, not yet released): a
+  recipe for testing effects and the opt-in `debugPrintUnheardEffects` warning
+  for effects that nothing listens to. `dart fix` data for the 0.3.0
+  deprecations was dropped: the policy factories cannot be described, and
+  renaming `EffectListener<B, S, E>` to `BlocEffectListener` keeps the extra
+  type argument, so the result does not compile.
+- Later 0.x (*proposed*): a selector-based listener and more async modes
   (ignore while running, a queue per key); renaming the
   `BlocEffectListenerWithBloc` typedef, which reads like a widget.
 - `1.0` (*proposed*): remove deprecated APIs, add class modifiers, freeze the
