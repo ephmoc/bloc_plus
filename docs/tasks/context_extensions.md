@@ -1,5 +1,10 @@
 # Task Spec - context_extensions (BuildContext Extensions)
 
+> Status: delivered in 0.1.0. Since 0.2.2 they return `null` only when no
+> provider exists. In 0.3.0 the bounds widened: `readOrNull`, `watchOrNull`
+> and `withBloc` accept any provided type, such as a repository, and
+> `selectOrNull` any `StateStreamable<S>`.
+
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - If missing, bootstrap first with:
@@ -8,10 +13,10 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
-- Implement `readOrNull<B>()`
-- Implement `watchOrNull<B>()`
-- Implement `selectOrNull<B, S, T>(selector)`
-- Implement `withBloc<B, R>(fn)`
+- Implement `readOrNull<B extends Object>()`
+- Implement `watchOrNull<B extends Object>()`
+- Implement `selectOrNull<B extends StateStreamable<S>, S, T>(T Function(S state) selector)`
+- Implement `withBloc<B extends Object, R>(R Function(B bloc) fn)`
 
 ## Out Of Scope
 - Any lifecycle behavior requiring disposed-context support
@@ -19,10 +24,12 @@
 
 ## Public Contract
 - Missing provider returns `null`, no provider-not-found throw
+- Other errors, such as one thrown while the provider creates the bloc, are
+  rethrown
 - Methods must be used with live `BuildContext` only
 - `watchOrNull` subscribes and rebuilds when state changes (when bloc exists)
 - `selectOrNull` rebuilds only when selected value changes
-- `withBloc` executes callback only when bloc exists
+- `withBloc` executes callback only when a `B` is provided
 
 ## Target Files
 - `lib/src/extensions/build_context_extensions.dart`
@@ -31,6 +38,7 @@
 
 ## Tests (Contract)
 - `test/extensions/build_context_extensions_test.dart`
+- `test/extensions/build_context_extensions_contract_test.dart`
 - `test/widgets/build_context_extensions_widget_test.dart`
 
 Required cases:
@@ -39,8 +47,12 @@ Required cases:
 - `watchOrNull` updates when state changes
 - `selectOrNull` updates only on selected value change
 - `withBloc` returns callback result when bloc exists, otherwise `null`
+- errors other than a missing provider are rethrown
+- a provided repository is found (0.3.0)
 
 ## Example App Updates
+- Historical: the example app at 0.3.0 does not use these extensions; the
+  README shows them.
 - Add null-safe usage examples for all four extension methods
 - Include one standard `flutter_bloc` widget using these extensions
 

@@ -1,5 +1,12 @@
 # Task Spec - policies
 
+> Status: delivered in 0.1.0. Deprecated in 0.3.0, removed in 1.0:
+> `RebuildPolicy`, `ListenPolicy` and their factories. Replacement:
+> `BlocCondition<S>` and `whenChanged<S, T>(selector, {equals})` from
+> `lib/src/policies/conditions.dart`, passed directly as `buildWhen`,
+> `listenWhen` or `selectorShouldRebuild`. This spec is historical; do not
+> extend the policy classes.
+
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - If missing, bootstrap first with:
@@ -10,11 +17,11 @@
 ## Scope
 - Implement `RebuildPolicy<S>`
 - Implement `ListenPolicy<S>`
-- Provide built-ins:
-  - `distinct()`
-  - `onChange<T>(selector)`
-  - `always()`
-  - `never()`
+- Provide built-ins (shipped as top-level functions, all deprecated in 0.3.0):
+  - `distinct<S>()` / `distinctListen<S>()`
+  - `onChange<S, T>(selector)` / `onChangeListen<S, T>(selector)`
+  - `always<S>()` / `alwaysListen<S>()`
+  - `never<S>()` / `neverListen<S>()`
 - Ensure compatibility with `ui_with_bloc` widgets and standard `flutter_bloc` conditions
 
 ## Out Of Scope
@@ -28,6 +35,11 @@
 - `always`: always true
 - `never`: always false
 - Policies expose predicate methods usable directly in `buildWhen` / `listenWhen`
+  (`shouldRebuild` / `shouldListen`)
+- Replacement at 0.3.0: `whenChanged(sel)` for `onChange` (keep `<S, T>`, or
+  type the selector parameter, when the widget has no type arguments), omit
+  the parameter for `always`, `(previous, current) => false` for `never`,
+  `(previous, current) => previous != current` for `distinct`
 
 ## Target Files
 - `lib/src/policies/rebuild_policy.dart`
@@ -46,6 +58,7 @@ Required cases:
 - no hidden state between calls
 
 ## Example App Updates
+- Historical: the example app at 0.3.0 uses `whenChanged` instead of policies.
 - Add one screen/section demonstrating policy reuse in multiple widgets
 - Show at least one custom policy implementation
 

@@ -1,5 +1,12 @@
 # Task Spec - effects
 
+> Status: delivered in 0.1.0 as `EffectsSource<E>`, `HasEffects<S, E>` and
+> `EffectListener<B extends BlocBase<S>, S, E>`. In 0.3.0 `EffectListener`
+> is deprecated, removed in 1.0. Replacement:
+> `BlocEffectListener<B extends EffectsSource<E>, E>`, which checks the effect
+> type at compile time and composes inside `MultiBlocListener`. 0.3.0 also
+> makes `emitEffect` `@protected` and `@visibleForTesting`.
+
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - If missing, bootstrap first with:
@@ -8,9 +15,15 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
-- Implement `HasEffects<E>` contract for one-shot effects
-- Implement `EffectListener<B, E>` widget
-- Define and enforce lifecycle behavior for effect stream ownership/closing
+- Implement the `EffectsSource<E>` interface (`Stream<E> get effects`) and
+  `mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E>` with
+  `emitEffect(E effect)` for one-shot effects
+- Implement an effect listener widget: shipped as `EffectListener<B, S, E>`
+  (deprecated in 0.3.0); use `BlocEffectListener<B, E>` with
+  `onEffect(context, effect)`, `effectWhen`, `bloc`, `child`
+- Define and enforce lifecycle behavior for effect stream ownership/closing:
+  the stream is broadcast, and `close()` closes the bloc, then waits until
+  subscribers got the effects emitted before it
 
 ## Out Of Scope
 - Replacing state with effects
@@ -19,20 +32,24 @@
 ## Public Contract
 - Effects are emitted on separate stream from state
 - Effects do not trigger rebuild by themselves
-- `EffectListener` subscribes once and invokes callback once per effect event
+- Effects are not replayed: a listener gets only effects emitted while it is
+  subscribed
+- The listener (`BlocEffectListener`, formerly `EffectListener`) subscribes once and invokes callback once per effect event
 - Listener unsubscribes on dispose
 - Missing provider follows provider-not-found semantics (same as widget family)
 - Late emits after bloc close must not crash consumer code (well-defined no-op or handled close path)
 
 ## Target Files
 - `lib/src/effects/has_effects.dart`
-- `lib/src/effects/effect_listener.dart`
+- `lib/src/effects/effect_listener.dart` (deprecated widget)
+- `lib/src/effects/bloc_effect_listener.dart` (0.3.0)
 - `lib/src/effects/effects.dart` (barrel)
 - `lib/bloc_plus.dart` (exports)
 
 ## Tests (Contract)
 - `test/effects/has_effects_test.dart`
 - `test/widgets/effect_listener_test.dart`
+- `test/widgets/bloc_effect_listener_test.dart` (0.3.0)
 
 Required cases:
 - `emitEffect` emits event to stream
@@ -43,7 +60,11 @@ Required cases:
 - missing provider throws as expected
 
 ## Example App Updates
-- Auth/navigation example using effect types and `EffectListener`
+- Historical: the example app at 0.3.0 uses `String` effects with prefixes
+  (snack/dialog/info) and two `BlocEffectListener` entries in a
+  `MultiBlocListener`; it has no auth/navigation example or effect types.
+- Auth/navigation example using effect types and `BlocEffectListener`
+  (originally `EffectListener`)
 - Multiple listeners example for different effect categories
 
 ## Acceptance Criteria (DoD)
