@@ -1,4 +1,9 @@
+// The deprecated family refers to itself until its removal in 1.0.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 /// Encapsulates listener decisions for pairs of previous and current state.
+@Deprecated('Use BlocCondition and whenChanged, passed directly as '
+    'listenWhen. Will be removed in 1.0.')
 abstract class ListenPolicy<S> {
   /// Creates a listen policy.
   const ListenPolicy();
@@ -95,9 +100,13 @@ class _NotListenPolicy<S> extends ListenPolicy<S> {
 }
 
 /// Listens only when the full state value changes.
+@Deprecated('Pass (previous, current) => previous != current, or omit the '
+    'parameter when the bloc is a Bloc or Cubit (emit already skips '
+    'equal states). Will be removed in 1.0.')
 ListenPolicy<S> distinctListen<S>() => _DistinctListenPolicy<S>();
 
 /// Listens only when the selected value changes.
+@Deprecated('Use whenChanged(selector). Will be removed in 1.0.')
 ListenPolicy<S> onChangeListen<S, T>(T Function(S state) selector) =>
     onChangeListenBy<S, T>(
       selector,
@@ -105,6 +114,8 @@ ListenPolicy<S> onChangeListen<S, T>(T Function(S state) selector) =>
     );
 
 /// Listens only when the selected value changes according to [equals].
+@Deprecated('Use whenChanged(selector, equals: equals). '
+    'Will be removed in 1.0.')
 ListenPolicy<S> onChangeListenBy<S, T>(
   T Function(S state) selector, {
   required bool Function(T previous, T current) equals,
@@ -112,12 +123,17 @@ ListenPolicy<S> onChangeListenBy<S, T>(
     _OnChangeListenPolicy<S, T>(selector, equals);
 
 /// Listens for every state change.
+@Deprecated('Omit the listenWhen parameter. Will be removed in 1.0.')
 ListenPolicy<S> alwaysListen<S>() => _AlwaysListenPolicy<S>();
 
 /// Never listens for state changes.
+@Deprecated('Pass (previous, current) => false as listenWhen. '
+    'Will be removed in 1.0.')
 ListenPolicy<S> neverListen<S>() => _NeverListenPolicy<S>();
 
 /// Wraps [predicate] as a reusable listen policy.
+@Deprecated('Pass the predicate directly as listenWhen. The name clashes '
+    'with whenListen from bloc_test. Will be removed in 1.0.')
 ListenPolicy<S> whenListen<S>(
   bool Function(S previous, S current) predicate,
 ) =>

@@ -1,4 +1,9 @@
+// The deprecated family refers to itself until its removal in 1.0.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 /// Encapsulates rebuild decisions for pairs of previous and current state.
+@Deprecated('Use BlocCondition and whenChanged, passed directly as buildWhen. '
+    'Will be removed in 1.0.')
 abstract class RebuildPolicy<S> {
   /// Creates a rebuild policy.
   const RebuildPolicy();
@@ -96,14 +101,20 @@ class _NotRebuildPolicy<S> extends RebuildPolicy<S> {
 }
 
 /// Rebuilds only when the full state value changes.
+@Deprecated('Pass (previous, current) => previous != current, or omit the '
+    'parameter when the bloc is a Bloc or Cubit (emit already skips '
+    'equal states). Will be removed in 1.0.')
 RebuildPolicy<S> distinct<S>() => _DistinctRebuildPolicy<S>();
 
 /// Rebuilds only when the selected value changes.
+@Deprecated('Use whenChanged(selector). Will be removed in 1.0.')
 RebuildPolicy<S> onChange<S, T>(T Function(S state) selector) =>
     onChangeBy<S, T>(selector,
         equals: (previous, current) => previous == current);
 
 /// Rebuilds only when the selected value changes according to [equals].
+@Deprecated('Use whenChanged(selector, equals: equals). '
+    'Will be removed in 1.0.')
 RebuildPolicy<S> onChangeBy<S, T>(
   T Function(S state) selector, {
   required bool Function(T previous, T current) equals,
@@ -111,12 +122,17 @@ RebuildPolicy<S> onChangeBy<S, T>(
     _OnChangeRebuildPolicy<S, T>(selector, equals);
 
 /// Rebuilds for every state change.
+@Deprecated('Omit the buildWhen parameter. Will be removed in 1.0.')
 RebuildPolicy<S> always<S>() => _AlwaysRebuildPolicy<S>();
 
 /// Never rebuilds for state changes.
+@Deprecated('Pass (previous, current) => false as buildWhen. '
+    'Will be removed in 1.0.')
 RebuildPolicy<S> never<S>() => _NeverRebuildPolicy<S>();
 
 /// Wraps [predicate] as a reusable rebuild policy.
+@Deprecated('Pass the predicate directly as buildWhen. '
+    'Will be removed in 1.0.')
 RebuildPolicy<S> whenRebuild<S>(
   bool Function(S previous, S current) predicate,
 ) =>

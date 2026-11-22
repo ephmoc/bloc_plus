@@ -113,15 +113,52 @@ class CounterView extends StatelessWidget {
 
 ### Policies
 
-```dart
-final evenOnlyPolicy = distinct<MyState>().and(
-  whenRebuild<MyState>((previous, current) => current.count.isEven),
-);
+`whenChanged` returns a `BlocCondition<S>`, a plain
+`bool Function(previous, current)`. It goes straight into `buildWhen`,
+`listenWhen` and `selectorShouldRebuild`, in this package's widgets and in
+`BlocBuilder`, `BlocListener` and `BlocConsumer`, without type arguments: the
+state type comes from the widget, so a typo in the selector is a compile error.
 
-final listPolicy = onChangeBy<MyState, List<int>>(
-  (state) => state.items,
-  equals: _listEquals,
-);
+```dart
+BlocBuilder<CounterCubit, CounterState>(
+  buildWhen: whenChanged((state) => state.count),
+  builder: (context, state) => Text('${state.count}'),
+)
+
+// Several fields: select a record of scalars.
+buildWhen: whenChanged((state) => (state.count, state.label)),
+
+// Collections: pass equals.
+listenWhen: whenChanged((state) => state.items, equals: listEquals),
+
+// Anything else: a plain predicate.
+buildWhen: (previous, current) =>
+    previous.count != current.count && current.count.isEven,
+```
+
+Select scalars or records of scalars. A list, also inside a record, is
+compared by identity, so pass `equals:` (for example `listEquals` from
+`package:flutter/foundation.dart`). Never build a new list in the selector,
+such as `(state) => [state.a]`: it is then always "changed".
+
+`RebuildPolicy`, `ListenPolicy` and their factories are deprecated and will
+be removed in 1.0:
+
+| Deprecated | Replacement |
+| --- | --- |
+| `onChange(sel).shouldRebuild`, `onChangeListen(sel).shouldListen` | `whenChanged(sel)` |
+| `onChangeBy(sel, equals: eq)`, `onChangeListenBy(sel, equals: eq)` | `whenChanged(sel, equals: eq)` |
+| `whenRebuild(p).shouldRebuild`, `whenListen(p).shouldListen` | `p` |
+| `always()`, `alwaysListen()` | omit `buildWhen` / `listenWhen` |
+| `never()`, `neverListen()` | `(previous, current) => false` |
+| `distinct()`, `distinctListen()` | `(previous, current) => previous != current`, or omit the parameter for a `Bloc` or `Cubit` (`emit` already skips equal states) |
+| `a.and(b)`, `a.or(b)`, `a.not()` | `(p, c) => a(p, c) && b(p, c)`, `\|\|`, `!` |
+
+Until 1.0, `whenListen` clashes with `whenListen` from `bloc_test`. In tests
+that import both, hide this package's one:
+
+```dart
+import 'package:bloc_plus/bloc_plus.dart' hide whenListen;
 ```
 
 ### Async safety

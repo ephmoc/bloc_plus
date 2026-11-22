@@ -175,14 +175,6 @@ class CounterSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final evenOnlyPolicy = distinct<CounterState>().and(
-      whenRebuild<CounterState>((previous, current) => current.count.isEven),
-    );
-    final historyPolicy = onChangeBy<CounterState, List<int>>(
-      (state) => state.evenHistory,
-      equals: _listEquals,
-    );
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -238,22 +230,26 @@ class CounterSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             BlocBuilderWithBloc<CounterCubit, CounterState>(
-              buildWhen: evenOnlyPolicy.shouldRebuild,
+              buildWhen: (previous, current) =>
+                  previous.count != current.count && current.count.isEven,
               builder: (context, bloc, state) {
                 return Text(
-                  'Even-only preview (and + whenRebuild): ${state.count}',
+                  'Even-only preview (plain predicate): ${state.count}',
                 );
               },
             ),
             const SizedBox(height: 8),
             BlocBuilderWithBloc<CounterCubit, CounterState>(
-              buildWhen: historyPolicy.shouldRebuild,
+              buildWhen: whenChanged(
+                (state) => state.evenHistory,
+                equals: _listEquals,
+              ),
               builder: (context, bloc, state) {
                 final history = state.evenHistory.isEmpty
                     ? 'none yet'
                     : state.evenHistory.join(', ');
                 return Text(
-                  'Even history (onChangeBy + custom equality): $history',
+                  'Even history (whenChanged + custom equality): $history',
                 );
               },
             ),
