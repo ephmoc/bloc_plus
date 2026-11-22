@@ -39,16 +39,16 @@ void main() {
       expect(builtStates, [0, 2]);
     });
 
-    testWidgets('policy objects plug into buildWhen', (tester) async {
+    testWidgets('a reusable predicate plugs into buildWhen', (tester) async {
       // Given
       final cubit = _CounterCubit();
       addTearDown(cubit.close);
       final builtStates = <int>[];
-      final policy = whenRebuild<int>((previous, current) => current.isEven);
+      bool evenOnly(int previous, int current) => current.isEven;
       await tester.pumpWidget(
         BlocBuilderWithBloc<_CounterCubit, int>(
           bloc: cubit,
-          buildWhen: policy.shouldRebuild,
+          buildWhen: evenOnly,
           builder: (context, bloc, state) {
             builtStates.add(state);
             return _text(state);

@@ -1,5 +1,12 @@
 # Task Spec - policy_composition
 
+> Status: delivered in 0.2.0. Deprecated in 0.3.0, removed in 1.0, with the
+> rest of `RebuildPolicy` / `ListenPolicy`. Replacements: `whenChanged(sel,
+> equals: eq)` for `onChangeBy` / `onChangeListenBy`, the plain predicate `p`
+> for `whenRebuild(p)` / `whenListen(p)` (`whenListen` also clashes with
+> `bloc_test`), and a plain predicate or a record selector for `and`, `or`,
+> `not`. This spec is historical; do not extend it.
+
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - Baseline `policies` module is already implemented and exported

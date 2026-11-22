@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Exposes a stream of one-off effects emitted outside the main bloc state.
@@ -19,6 +20,13 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
   Stream<E> get effects => _effectsController.stream;
 
   /// Emits a one-off [effect] to current listeners.
+  ///
+  /// Like `emit`, call it only from inside the bloc (or from a
+  /// `mixin X on HasEffects<S, E>` that shares helpers between blocs).
+  /// Calls from elsewhere, including extensions on the bloc and other
+  /// libraries, get analyzer warnings; tests may call it.
+  @protected
+  @visibleForTesting
   void emitEffect(E effect) {
     if (_effectsController.isClosed) return;
     _effectsController.add(effect);
@@ -28,10 +36,12 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
   /// the effects emitted before [close] and the done event.
   ///
   /// Like the bloc's own last states, effects emitted right before [close]
-  /// reach subscribers after the bloc is closed, so a subscriber that reacts
-  /// by emitting into this bloc should use `SafeEmitMixin.safeEmit`. The bloc
-  /// is closed right away even if an effect subscriber is paused; only the
-  /// returned future waits for that subscriber to resume.
+  /// reach subscribers after the bloc is closed. A bloc method that a
+  /// subscriber calls in response should emit with `SafeEmitMixin.safeEmit`,
+  /// and a subscriber that adds an event to a `Bloc` should check `isClosed`
+  /// first, because `add` throws after [close]. The bloc is closed right away
+  /// even if an effect subscriber is paused; only the returned future waits
+  /// for that subscriber to resume.
   @override
   Future<void> close() async {
     final effectsDone = _effectsController.close();

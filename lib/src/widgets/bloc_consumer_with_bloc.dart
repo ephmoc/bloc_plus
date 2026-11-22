@@ -6,7 +6,12 @@ import 'bloc_listener_with_bloc.dart';
 
 /// A [BlocConsumer] variant that passes the resolved bloc instance to both
 /// [listener] and [builder].
-class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends StatelessWidget {
+///
+/// The bloc is resolved once per build, so the callbacks always receive the
+/// bloc whose states they get, also right after [bloc] changes from an
+/// instance to `null`.
+class BlocConsumerWithBloc<B extends StateStreamable<S>, S>
+    extends StatelessWidget {
   /// Creates a widget that rebuilds and listens with access to the bloc.
   const BlocConsumerWithBloc({
     required this.listener,
@@ -39,18 +44,14 @@ class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilds only when a different instance is provided.
+    final resolvedBloc = bloc ?? context.select<B, B>((bloc) => bloc);
     return BlocConsumer<B, S>(
-      bloc: bloc,
+      bloc: resolvedBloc,
       buildWhen: buildWhen,
       listenWhen: listenWhen,
-      listener: (context, state) {
-        final resolvedBloc = bloc ?? context.read<B>();
-        listener(context, resolvedBloc, state);
-      },
-      builder: (context, state) {
-        final resolvedBloc = bloc ?? context.read<B>();
-        return builder(context, resolvedBloc, state);
-      },
+      listener: (context, state) => listener(context, resolvedBloc, state),
+      builder: (context, state) => builder(context, resolvedBloc, state),
     );
   }
 }

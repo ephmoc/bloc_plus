@@ -123,22 +123,43 @@ Related task specs:
 - `docs/tasks/async_helpers.md`
 - `docs/tasks/state_effect_consumer.md`
 
+## Delivered in 0.2.2
+
+Fixes for superseded async work, `HasEffects.close()` ordering,
+`BlocSelectorWithBloc` selection updates, the `*OrNull` lookups and
+`runLatest` cleanup; `bloc >=9.2.1`; one gated CI workflow that also covers the
+lowest dependency versions and the minimum SDK; contract tests; releases
+published from tags through OIDC. Details are in `CHANGELOG.md`.
+
 ## Next
 
 Planned, in this order. Items marked *proposed* still need a decision.
 
-- `0.2.2` (patch, in progress): one gated CI workflow that also covers the
-  lowest dependency versions and the minimum SDK; contract tests for
-  lifecycle, explicit-bloc and `buildWhen` paths; fixes for errors of
-  superseded async work, `HasEffects.close()` ordering, `BlocSelectorWithBloc`
-  selection updates, the `*OrNull` lookups and `runLatest` cleanup;
-  `bloc >=9.2.1` (all on `develop`); a tag-driven release pipeline that
-  publishes to pub.dev through OIDC.
-- `0.3.0` (minor, *proposed*): function-typed rebuild/listen conditions with
-  deprecation of the policy classes, which also resolves the `whenListen` name
-  clash with `bloc_test`; a typed effect listener with two type parameters;
-  cancellation hooks for the async helpers and an explicit outcome instead of
-  `null`.
+- `0.3.0` (minor, decided 2026-11-22, on `develop`, not yet released):
+  - conditions: `BlocCondition` and `whenChanged`; `RebuildPolicy`,
+    `ListenPolicy` and their 12 factories deprecated, which also retires the
+    `whenListen` name that clashes with `bloc_test`. No `and` / `or` / `not` on
+    the function type: an untyped lambda as their receiver would compile as
+    `dynamic`, so typos would only fail at run time;
+  - effects: `BlocEffectListener<B extends EffectsSource<E>, E>` as a
+    `SingleChildWidget` that composes inside `MultiBlocListener` (direct
+    dependency on `provider`, the range `flutter_bloc` requires);
+    `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`
+    deprecated; `BlocConsumerWithEffects` bound to `HasEffects<S, E>` with an
+    optional `listener`;
+  - async: `TaskOutcome`, `runOutcome` / `runLatestOutcome` passing a
+    `CancellationToken` to the task, `whenCancelled`, and callers released as
+    soon as their run is cancelled;
+  - `@protected` and `@visibleForTesting` on `emitEffect` and `safeEmit`;
+  - `StateStreamable<S>` bounds on the widgets, `Object` bounds on
+    `readOrNull`, `watchOrNull` and `withBloc` (`StateStreamableSource<S>` on
+    `selectOrNull`), a `const` `BlocListenerWithBloc` constructor, one bloc
+    instance per `build` in the consumers, and the PRD and task specs brought
+    in line with the code.
+- Later 0.x (*proposed*): a debug warning when nobody listens to effects, a
+  testing recipe for effects, a selector-based listener, and more async modes
+  (ignore while running, a queue per key); renaming the
+  `BlocEffectListenerWithBloc` typedef, which reads like a widget.
 - `1.0` (*proposed*): remove deprecated APIs, add class modifiers, freeze the
   public API.
 

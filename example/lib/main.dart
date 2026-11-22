@@ -72,12 +72,15 @@ class SearchCubit extends Cubit<SearchState>
   Future<void> loadPreview(String label, Duration delay) async {
     safeEmit(state.copyWith(isLoading: true, result: 'Loading $label...'));
 
-    final result = await runLatest<String>('preview', () async {
+    final outcome = await runLatestOutcome('preview', (_) async {
       await Future<void>.delayed(delay);
       return label;
     });
 
-    if (result == null) return;
+    // A superseded or cancelled request resumes at once; only the latest one
+    // updates the state.
+    if (!outcome.isCompleted) return;
+    final result = outcome.value;
 
     safeEmit(
       state.copyWith(isLoading: false, result: 'Latest result: $result'),
@@ -118,9 +121,9 @@ class ExamplePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiEffectListener(
+    return MultiBlocListener(
       listeners: [
-        EffectListener<CounterCubit, CounterState, String>(
+        BlocEffectListener<CounterCubit, String>(
           effectWhen: (effect) => effect.startsWith('dialog:'),
           onEffect: (context, effect) {
             showDialog<void>(
@@ -140,7 +143,7 @@ class ExamplePage extends StatelessWidget {
             );
           },
         ),
-        EffectListener<SearchCubit, SearchState, String>(
+        BlocEffectListener<SearchCubit, String>(
           effectWhen: (effect) => effect.startsWith('info:'),
           onEffect: (context, effect) {
             ScaffoldMessenger.of(
@@ -155,9 +158,10 @@ class ExamplePage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: const [
             Text(
-              'This example shows the new policy helpers, effect filtering, '
-              'multi-effect composition, restartable async helpers, and the '
-              'combined state-and-effect consumer.',
+              'This example shows whenChanged conditions, effect filtering, '
+              'effect listeners in a MultiBlocListener, restartable async '
+              'helpers with TaskOutcome, and the combined state-and-effect '
+              'consumer.',
             ),
             SizedBox(height: 16),
             CounterSection(),
@@ -175,14 +179,6 @@ class CounterSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final evenOnlyPolicy = distinct<CounterState>().and(
-      whenRebuild<CounterState>((previous, current) => current.count.isEven),
-    );
-    final historyPolicy = onChangeBy<CounterState, List<int>>(
-      (state) => state.evenHistory,
-      equals: _listEquals,
-    );
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -196,13 +192,12 @@ class CounterSection extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               'Uses BlocConsumerWithEffects for snack effects, '
-              'MultiEffectListener for dialog effects, and policy helpers for '
-              'targeted rebuilds.',
+              'BlocEffectListener in a MultiBlocListener for dialog effects, '
+              'and whenChanged conditions for targeted rebuilds.',
             ),
             const SizedBox(height: 16),
             BlocConsumerWithEffects<CounterCubit, CounterState, String>(
               effectWhen: (effect) => effect.startsWith('snack:'),
-              listener: (context, bloc, state) {},
               onEffect: (context, bloc, effect) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(_stripEffectPrefix(effect))),
@@ -238,22 +233,26 @@ class CounterSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             BlocBuilderWithBloc<CounterCubit, CounterState>(
-              buildWhen: evenOnlyPolicy.shouldRebuild,
+              buildWhen: (previous, current) =>
+                  previous.count != current.count && current.count.isEven,
               builder: (context, bloc, state) {
                 return Text(
-                  'Even-only preview (and + whenRebuild): ${state.count}',
+                  'Even-only preview (plain predicate): ${state.count}',
                 );
               },
             ),
             const SizedBox(height: 8),
             BlocBuilderWithBloc<CounterCubit, CounterState>(
-              buildWhen: historyPolicy.shouldRebuild,
+              buildWhen: whenChanged(
+                (state) => state.evenHistory,
+                equals: _listEquals,
+              ),
               builder: (context, bloc, state) {
                 final history = state.evenHistory.isEmpty
                     ? 'none yet'
                     : state.evenHistory.join(', ');
                 return Text(
-                  'Even history (onChangeBy + custom equality): $history',
+                  'Even history (whenChanged + custom equality): $history',
                 );
               },
             ),
@@ -289,8 +288,9 @@ class SearchSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Uses RestartableTasksMixin so the latest preview request '
-                  'wins without forcing cancellation of the underlying work.',
+                  'Uses RestartableTasksMixin.runLatestOutcome so the latest '
+                  'preview request wins: a superseded or cancelled request '
+                  'resumes at once, while its underlying work keeps running.',
                 ),
                 const SizedBox(height: 16),
                 Text(state.result),

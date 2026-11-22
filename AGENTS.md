@@ -208,4 +208,5 @@ If something could not be completed, state the blocker and attempted workaround.
 - One-time setup:
   - pub.dev: `Admin > Automated publishing`, repository `ephmoc/bloc_plus`, tag pattern `v{{version}}`, required environment `pub.dev`;
   - GitHub: a tag ruleset that lets only admins create, move or delete `v*` tags, and a deployment tag rule `v*` on the `pub.dev` environment. The ruleset is the gate that matters: a tag runs the `release.yml` of the commit it points to, so anyone who can push a `v*` tag controls what gets checked and published.
+  - GitHub: a ruleset that blocks deleting `develop`, with no bypass. The release PR's head is `develop`, so GitHub offers "Delete branch" after it is merged.
 - `scripts/pubdev_publish.sh` is the manual fallback. It does not create the GitHub Release; after using it, push the tag if needed and run `gh release create vX.Y.Z --notes-file <the CHANGELOG section>`.

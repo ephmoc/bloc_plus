@@ -1,3 +1,6 @@
+// The deprecated widgets refer to each other until their removal in 1.0.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
@@ -5,16 +8,26 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'has_effects.dart';
 
-/// Signature for deciding whether an [effect] should trigger [EffectListener].
+/// Signature for deciding whether an [effect] should trigger an effect
+/// listener.
 typedef EffectCondition<E> = bool Function(E effect);
 
 /// Contract for effect listener widgets that can wrap a child subtree.
+@Deprecated(
+  'Use BlocEffectListener<B, E>, a SingleChildWidget that composes inside '
+  'MultiBlocListener. Will be removed in 1.0.',
+)
 abstract interface class SingleChildEffectListener {
   /// Returns a copy of this listener that wraps [child].
   Widget withChild(Widget child);
 }
 
 /// Listens to one-off effects emitted by blocs implementing [EffectsSource].
+@Deprecated(
+  'Use BlocEffectListener<B, E> instead: it checks the effect type at '
+  'compile time and composes inside MultiBlocListener. '
+  'Will be removed in 1.0.',
+)
 class EffectListener<B extends BlocBase<S>, S, E> extends StatefulWidget
     implements SingleChildEffectListener {
   /// Creates an effect listener for the given bloc type.

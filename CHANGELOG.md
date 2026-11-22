@@ -1,3 +1,89 @@
+## 0.3.0
+
+- Added:
+  - `BlocCondition<S>` and `whenChanged(selector, {equals})`. The result goes
+    straight into `buildWhen`, `listenWhen` and `selectorShouldRebuild`, also
+    on `BlocBuilder`, `BlocListener` and `BlocConsumer`, without type
+    arguments when the widget has its own. Select a record for several
+    fields; pass `equals:` for collections.
+  - `BlocEffectListener<B extends EffectsSource<E>, E>`: a wrong effect type
+    or a bloc without effects no longer compiles, and the listener composes
+    inside `MultiBlocListener`.
+  - `RestartableTask.runOutcome` and `RestartableTasksMixin.runLatestOutcome`:
+    the task gets a `CancellationToken`, and the `TaskOutcome<T>` result tells
+    a cancelled run apart from one that completed with `null`.
+    `CancellationToken.whenCancelled` can abort the underlying I/O.
+  - `BlocConsumerWithEffects.listener` is optional.
+  - A `const` constructor for `BlocListenerWithBloc`.
+- Changed:
+  - A cancelled, superseded or closed run releases its caller at once (`null`
+    or `TaskOutcome.cancelled()`) instead of waiting for the abandoned work,
+    which keeps running. This fixes callers that hung on work that never
+    completes.
+  - `BlocConsumerWithEffects` requires `B extends HasEffects<S, E>`.
+  - The `*WithBloc` widgets and their callback typedefs accept
+    `B extends StateStreamable<S>`, like flutter_bloc's widgets.
+    `readOrNull`, `watchOrNull` and `withBloc` accept any provided type, such
+    as a repository: `withBloc((Repo repo) => ...)` now finds the repository
+    instead of inferring `Never` and returning `null`. `selectOrNull` accepts
+    any `StateStreamableSource<S>`, the type `BlocProvider` provides and
+    keeps up to date.
+  - `BlocConsumerWithBloc` and `BlocConsumerWithEffects` resolve the bloc once
+    per build, so states, effects and every callback come from one instance,
+    also right after `bloc:` changes from an instance to `null`.
+  - `emitEffect` and `safeEmit` are `@protected` and `@visibleForTesting`,
+    like `emit`.
+  - New direct dependency: `provider` `>=6.0.0 <7.0.0`, the range
+    `flutter_bloc` already requires.
+- Deprecated, removed in 1.0: `RebuildPolicy`, `ListenPolicy` and their 12
+  factories (including `whenListen`, which clashes with `bloc_test`),
+  `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`.
+
+Migration impact:
+
+- Deprecated APIs keep working; each use is a `deprecated_member_use` info,
+  which fails `flutter analyze` until migrated:
+  - `onChange(sel)` / `onChangeListen(sel)` -> `whenChanged(sel)`, keeping
+    `<S, T>` when the widget has no type arguments; the `...By`
+    forms -> `whenChanged(sel, equals: eq)`; `whenRebuild(p)` /
+    `whenListen(p)` -> `p`; `always()` -> omit the parameter; `never()` ->
+    `(previous, current) => false`; `distinct()` ->
+    `(previous, current) => previous != current` (omitting the parameter
+    differs only for a first emitted state equal to the initial one);
+    `a.and(b)` -> a plain predicate or a record selector.
+  - `EffectListener<B, S, E>` -> `BlocEffectListener<B, E>`;
+    `MultiEffectListener` -> `MultiBlocListener`, which needs a non-empty
+    list; a listener for one effect subtype -> the supertype with
+    `if (effect case Sub(...))` in `onEffect`.
+  - With `bloc_test`, import `bloc_plus` with `hide whenListen` until 1.0.
+- `BlocConsumerWithEffects` no longer compiles with a bloc that implements
+  `EffectsSource` by hand: mix in `HasEffects<S, E>`.
+- `emitEffect` and `safeEmit` called from outside the bloc, extension methods
+  on it included, now warn (tests are exempt): move the call into the bloc or
+  into a `mixin X on HasEffects<S, E>`.
+- Code after the `await` of a superseded run, a `finally` included, now runs
+  while the newer run is in flight: check the outcome before resetting a
+  shared loading flag.
+- In a `Bloc` handler, a task that calls the handler's `emit` still needs an
+  `emit.isDone` (or `token.isCancelled`) check: the handler now completes
+  first, and bloc rejects the late `emit` only with an assert, so release
+  builds emit the stale state.
+- Write both type arguments of `BlocEffectListener`: below language version
+  3.7, `E` is not inferred from `bloc:`.
+- After `bloc:` of `BlocConsumerWithBloc` or `BlocConsumerWithEffects` changes
+  from an instance to `null`, the widget follows the provided bloc at once
+  instead of the previous instance. `BlocBuilderWithBloc` and
+  `BlocListenerWithBloc` keep the previous instance, like `BlocBuilder` and
+  `BlocListener`, while their callback gets the provided one: give them a new
+  `key` when you switch.
+
+Release type rationale:
+
+- `minor`: new APIs, wider type bounds and deprecations; the narrower consumer
+  bound, the new analyzer warnings, the earlier release of superseded callers
+  and the consumers following the provided bloc are behaviour changes that a
+  0.x minor allows.
+
 ## 0.2.2
 
 - Fixes:

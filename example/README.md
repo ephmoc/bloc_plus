@@ -3,11 +3,10 @@
 The example app demonstrates:
 
 - `BlocConsumerWithEffects`
-- policy composition with `and` / `whenRebuild`
-- custom equality with `onChangeBy`
-- `EffectListener.effectWhen`
-- `MultiEffectListener`
-- `RestartableTasksMixin`
+- targeted rebuilds with a plain predicate as `buildWhen`
+- custom equality with `whenChanged(..., equals: ...)`
+- `BlocEffectListener` with `effectWhen`, inside a `MultiBlocListener`
+- `RestartableTasksMixin.runLatestOutcome` and `TaskOutcome`
 
 Run:
 

@@ -1,5 +1,11 @@
 # Task Spec - async_helpers
 
+> Status: delivered in 0.2.0 as `RestartableTasksMixin<S>`. 0.2.2 drops the
+> keys of failed tasks and makes a repeated `close()` wait for the first one.
+> 0.3.0 adds `runLatestOutcome`, which passes a `CancellationToken` and
+> returns a `TaskOutcome<T>`, and releases a superseded or closed caller at
+> once; the abandoned work keeps running.
+
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - Baseline `async_safety` module is already implemented and exported
@@ -27,6 +33,15 @@
 - Owner disposal prevents future task completion from surfacing results
 - No helper may imply that the underlying `Future` is forcefully interrupted
 
+## Signatures (0.3.0)
+- `mixin RestartableTasksMixin<S> on BlocBase<S>`
+- `bool isTaskRunning(Object key)`
+- `Future<T?> runLatest<T>(Object key, Future<T> Function() task)`
+- `Future<TaskOutcome<T>> runLatestOutcome<T>(Object key, Future<T> Function(CancellationToken token) task)`
+- `void cancelLatest(Object key)`, `void cancelAllLatest()`
+- `Future<void> close()` cancels all tracked tasks, then closes the bloc
+- Keys are compared with `==`
+
 ## Target Files
 - `lib/src/async/restartable_tasks_mixin.dart`
 - `lib/src/async/async.dart` (barrel)
@@ -34,6 +49,8 @@
 
 ## Tests (Contract)
 - `test/async/restartable_tasks_mixin_test.dart`
+- `test/async/run_outcome_test.dart` (0.3.0: `runLatestOutcome`, token,
+  release of a superseded caller)
 
 Required cases:
 - repeated runs for the same key drop stale results
@@ -65,3 +82,5 @@ Required cases:
 - Prefer a small surface area over a general-purpose task framework
 - Document clearly that cancellation suppresses results and does not interrupt
   underlying work
+- Inside `Bloc` event handlers, point to `bloc_concurrency` `restartable()`;
+  a task that calls a handler's `emit` must check `emit.isDone` first
