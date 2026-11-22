@@ -69,7 +69,6 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
 
   @override
   Widget build(BuildContext context) {
-    final listener = this.listener;
     return BlocEffectListener<B, E>(
       bloc: bloc,
       effectWhen: effectWhen,
@@ -80,14 +79,12 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
       child: BlocConsumerWithBloc<B, S>(
         bloc: bloc,
         buildWhen: buildWhen,
-        listenWhen: listener == null ? _never : listenWhen,
+        listenWhen: listenWhen,
         listener: listener ?? _ignore,
         builder: builder,
       ),
     );
   }
 }
-
-bool _never(Object? previous, Object? current) => false;
 
 void _ignore(BuildContext context, Object? bloc, Object? state) {}
