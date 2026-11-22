@@ -72,12 +72,15 @@ class SearchCubit extends Cubit<SearchState>
   Future<void> loadPreview(String label, Duration delay) async {
     safeEmit(state.copyWith(isLoading: true, result: 'Loading $label...'));
 
-    final result = await runLatest<String>('preview', () async {
+    final outcome = await runLatestOutcome('preview', (_) async {
       await Future<void>.delayed(delay);
       return label;
     });
 
-    if (result == null) return;
+    // A superseded or cancelled request resumes at once; only the latest one
+    // updates the state.
+    if (!outcome.isCompleted) return;
+    final result = outcome.value;
 
     safeEmit(
       state.copyWith(isLoading: false, result: 'Latest result: $result'),
@@ -284,8 +287,9 @@ class SearchSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Uses RestartableTasksMixin so the latest preview request '
-                  'wins without forcing cancellation of the underlying work.',
+                  'Uses RestartableTasksMixin.runLatestOutcome so the latest '
+                  'preview request wins: a superseded or cancelled request '
+                  'resumes at once, while its underlying work keeps running.',
                 ),
                 const SizedBox(height: 16),
                 Text(state.result),

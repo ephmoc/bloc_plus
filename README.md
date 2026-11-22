@@ -172,22 +172,65 @@ class SearchCubit extends Cubit<SearchState>
     with SafeEmitMixin<SearchState>, RestartableTasksMixin<SearchState> {
   SearchCubit() : super(const SearchState());
 
-  Future<void> loadPreview(String query) async {
+  Future<void> search(String query) async {
     safeEmit(state.copyWith(isLoading: true));
 
-    final result = await runLatest<String>('preview', () async {
-      return repository.fetchPreview(query);
+    final outcome = await runLatestOutcome('search', (token) {
+      return repository.find(query, abortTrigger: token.whenCancelled);
     });
 
-    if (result == null) return;
-    safeEmit(state.copyWith(isLoading: false, result: result));
+    // A superseded call resumes at once while the newer search is still
+    // loading, so only the latest one clears the flag.
+    if (outcome.isCompleted) {
+      // outcome.value may be null: not found.
+      safeEmit(state.copyWith(isLoading: false, item: outcome.value));
+    }
   }
 }
 ```
 
+`runLatestOutcome` and `RestartableTask.runOutcome` complete with a
+`TaskOutcome`: `TaskOutcome.completed(value)` for the latest run, or
+`TaskOutcome.cancelled()` as soon as the run is superseded, cancelled
+(`cancelLatest`, `cancelAllLatest`, `RestartableTask.cancel`), disposed or the
+bloc closes. `outcome.value` throws on a cancelled outcome, so check
+`outcome.isCompleted` first, or match it with
+`if (outcome case TaskOutcome(isCompleted: true, :final value))`. Outcomes
+compare by value, so `expect(outcome, const TaskOutcome<int>.completed(2))`
+works in tests.
+
+- **The abandoned task keeps running.** Cancellation releases the caller and
+  drops the result, but does not stop the work. Check `token.isCancelled`
+  before any side effect (a cache write, an analytics call), or pass
+  `token.whenCancelled` to the I/O so it can abort: `package:http` accepts it
+  as `abortTrigger`, and for dio call `cancel()` on a `CancelToken` from
+  `token.whenCancelled.then(...)`.
+- **A superseded caller resumes immediately**, while the newer run is still
+  in flight. Code after the `await`, including a `finally` block that resets
+  state shared with the newer run (such as a loading flag), must check the
+  outcome first.
+- **Failures are not an outcome.** The failure of the latest run is rethrown,
+  so use `try`/`catch`; a failure of a cancelled run is dropped.
+- **Inside `Bloc` event handlers**, prefer the handler's `emit` with a
+  `bloc_concurrency` transformer such as `restartable()`. If a handler does
+  call `runLatest`, the handler now completes as soon as the run is cancelled,
+  so a cancelled task can no longer emit a stale state through its `emit`.
+
 `runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
 complete with `null` when the work was superseded, cancelled or outlived the
-bloc. That also holds when such work fails, so only the latest run can throw.
+bloc, also when that work fails, so only the latest run can throw. They suit
+non-null results. When `T` is nullable or `void`, use the outcome methods, or
+for `CancellationToken.run` and `guarded` wrap the result in a record so that
+`null` only means discarded:
+
+```dart
+final result = await guarded(() async => (item: await repository.find(q)));
+if (result == null) return; // the bloc was closed
+safeEmit(state.copyWith(item: result.item)); // item may be null: not found
+```
+
+The `cancellation_token` package also exports a `CancellationToken`. If you
+import both, add `hide CancellationToken` to one import or use a prefix.
 
 ### Effects
 
