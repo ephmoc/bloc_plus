@@ -14,8 +14,11 @@
     in callbacks
 -   Async safety utilities to prevent common lifecycle-related crashes
 -   Effect handling primitives for one-shot UI events
--   Optional rebuild/listen policies to reduce boilerplate and increase
+-   Optional rebuild/listen conditions to reduce boilerplate and increase
     correctness
+
+This document describes the API at version 0.3.0. When it and the code
+disagree, `lib/` and `CHANGELOG.md` win; fix this document.
 
 The package must be:
 
@@ -56,6 +59,14 @@ In real-world Flutter BLoC projects:
 
 ### 3.3 Delivered Expansion Goals
 
+> Historical: these goals were delivered in 0.2.0. In 0.3.0 `RebuildPolicy`,
+> `ListenPolicy` and their 12 factories (with `and` / `or` / `not`),
+> `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`
+> were deprecated, to be removed in 1.0. Their replacements are plain
+> conditions (`whenChanged`) and `BlocEffectListener` inside
+> `MultiBlocListener`; `effectWhen` lives on in `BlocEffectListener`.
+> Current status: `CHANGELOG.md`.
+
 After the initial `v0.x` baseline, the package adds targeted ergonomic
 improvements that preserve the lightweight design:
 
@@ -80,7 +91,10 @@ improvements that preserve the lightweight design:
 ### 4.2 Dependencies
 
 -   **flutter_bloc**: >=9.0.0, <10.0.0
--   **bloc**: >=9.0.0, <10.0.0
+-   **bloc**: >=9.2.1, <10.0.0 (raised in 0.2.2, so `safeEmit` and `guarded`
+    also stop on a closing `Bloc`)
+-   **provider**: >=6.0.0, <7.0.0 (direct since 0.3.0; the range
+    `flutter_bloc` already requires)
 -   No additional heavy dependencies
 
 ### 4.3 Platform Support
@@ -100,6 +114,9 @@ improvements that preserve the lightweight design:
 -   Backward compatible with existing BLoC patterns
 
 ### 4.5 Package Bootstrap (Required)
+
+> Historical: the scaffold exists since 0.1.0. Do not re-run
+> `flutter create` in this repository; `AGENTS.md` section 3 governs it.
 
 Before implementing any module, the agent MUST ensure the repository is a valid Flutter package scaffold.
 
@@ -126,7 +143,8 @@ The agent should treat these as required package deliverables:
     -   `name: bloc_plus`
     -   SDK constraints aligned with section 4.1
     -   `flutter_bloc` and `bloc` dependency constraints from section 4.2
-    -   package metadata (`description`, `homepage` or `repository`, `issue_tracker`)
+    -   package metadata (`description` and `repository`; pub.dev derives
+        the issue tracker from it)
 -   Required top-level files:
     -   `README.md`
     -   `CHANGELOG.md`
@@ -148,15 +166,19 @@ The agent should treat these as required package deliverables:
 3.  **Type Safety**: Full compile-time type checking
 4.  **Composability**: All features can be used independently
 5.  **Performance**: Minimal overhead with benchmark-backed acceptance thresholds
+    (historical: no benchmarks or thresholds were ever defined; see 10.4)
 
 ### 5.2 Module Independence
 
 Each module (`ui_with_bloc`, `policies`, `context_extensions`, `async_safety`, `effects`) is independent and can be used separately:
 -   `ui_with_bloc` (UI widgets) can be used without other modules
--   `policies` works with both standard and "WithBloc" widgets
+-   `policies` works with both standard and "WithBloc" widgets; since 0.3.0
+    it means the conditions (`BlocCondition`, `whenChanged`), and the
+    `RebuildPolicy` / `ListenPolicy` family is deprecated
 -   `context_extensions` is standalone utility
 -   `async_safety` is optional mixin/utilities set
--   `effects` requires bloc implementation but is independent
+-   `effects` requires bloc implementation but is independent;
+    `BlocConsumerWithEffects` lives with the widgets but needs `HasEffects`
 
 ### 5.3 Data Flow
 
@@ -165,8 +187,8 @@ graph LR
     A[User Action] --> B[Bloc Event]
     B --> C[Bloc State]
     C --> D[Widget Rebuild]
-    C --> E[Effect Stream]
-    E --> F[EffectListener]
+    B --> E[Effect Stream]
+    E --> F[BlocEffectListener]
     
     style A fill:#e1f5ff
     style C fill:#fff4e1
@@ -183,11 +205,12 @@ graph TB
         BL[BlocListenerWithBloc]
         BC[BlocConsumerWithBloc]
         BS[BlocSelectorWithBloc]
+        BE[BlocConsumerWithEffects]
     end
     
-    subgraph Policies["Policies (policies)"]
-        RP[RebuildPolicy]
-        LP[ListenPolicy]
+    subgraph Policies["Conditions (policies)"]
+        BCo[BlocCondition]
+        WC[whenChanged]
     end
     
     subgraph Extensions["Extensions (context_extensions)"]
@@ -201,11 +224,14 @@ graph TB
         SE[SafeEmitMixin]
         CT[CancellationToken]
         RT[RestartableTask]
+        RM[RestartableTasksMixin]
+        TO[TaskOutcome]
     end
     
     subgraph Effects["Effects (effects)"]
+        ES[EffectsSource]
         HE[HasEffects]
-        EL[EffectListener]
+        EL[BlocEffectListener]
     end
     
     subgraph Bloc["flutter_bloc"]
@@ -235,7 +261,7 @@ sequenceDiagram
     participant User
     participant Widget
     participant Bloc
-    participant EffectListener
+    participant BlocEffectListener
     
     User->>Widget: User Action
     Widget->>Bloc: Event
@@ -243,8 +269,8 @@ sequenceDiagram
     Bloc->>Bloc: emit(state)
     Bloc->>Bloc: emitEffect(effect)
     Bloc-->>Widget: State Change
-    Bloc-->>EffectListener: Effect Stream
-    EffectListener->>Widget: Handle Effect (Navigation/SnackBar)
+    Bloc-->>BlocEffectListener: Effect Stream
+    BlocEffectListener->>Widget: Handle Effect (Navigation/SnackBar)
     Widget->>User: UI Update
 ```
 
@@ -260,24 +286,31 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 
 **API Freeze Table (v0.x scope)**
 
-| Symbol                             | Status | Contract Notes                                                                    |
-|------------------------------------|--------|-----------------------------------------------------------------------------------|
-| `BlocBuilderWithBloc`              | stable | `builder(context, bloc, state)`; parity with `BlocBuilder` semantics              |
-| `BlocListenerWithBloc`             | stable | `listener(context, bloc, state)`; parity with `BlocListener` semantics            |
-| `BlocConsumerWithBloc`             | stable | Combines builder/listener with independent conditions                             |
-| `BlocSelectorWithBloc`             | stable | Selects `T` and rebuilds on selected value inequality by default                  |
-| `RebuildPolicy`                    | stable | Stateless predicate object with composition helpers and explicit predicate wrappers |
-| `ListenPolicy`                     | stable | Stateless predicate object with composition helpers and explicit predicate wrappers |
-| `BuildContext` nullable extensions | stable | Return `null` on missing provider, never throw provider-not-found                 |
-| `SafeEmitMixin`                    | stable | Silent no-op on closed bloc for `safeEmit`                                        |
-| `CancellationToken`                | stable | Cooperative cancellation marker (does not force interrupt)                        |
-| `RestartableTask`                  | stable | New run invalidates previous result; does not force interrupt underlying `Future` |
-| `RestartableTasksMixin`            | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation    |
-| `HasEffects` + `EffectListener`    | stable | One-shot effect stream separated from state stream; supports effect filtering      |
-| `MultiEffectListener`              | stable | Composes multiple effect listeners without manual nesting                         |
-| `BlocConsumerWithEffects`          | stable | Combines state builder/listener callbacks with effect handling                    |
+| Symbol | Status | Contract Notes |
+| --- | --- | --- |
+| `BlocBuilderWithBloc` | stable | `B extends StateStreamable<S>`; `builder(context, bloc, state)`; parity with `BlocBuilder` semantics |
+| `BlocListenerWithBloc` | stable | `B extends StateStreamable<S>`; `const`; `listener(context, bloc, state)`; parity with `BlocListener` semantics |
+| `BlocConsumerWithBloc` | stable | Combines builder/listener with independent conditions; resolves the bloc once per build |
+| `BlocSelectorWithBloc` | stable | Selects `T` and rebuilds on selected value inequality by default; parity with `BlocSelector` |
+| `BlocCondition` + `whenChanged` | stable (0.3.0) | Plain `bool Function(S previous, S current)`, passed directly as `buildWhen` / `listenWhen` / `selectorShouldRebuild` |
+| `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
+| `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
+| `BuildContext` nullable extensions | stable | Return `null` only on a missing provider; rethrow other errors; any provided type (`selectOrNull`: a `StateStreamableSource<S>`) |
+| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`) |
+| `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled` |
+| `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
+| `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future` |
+| `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation |
+| `EffectsSource` + `HasEffects` | stable | One-shot effect stream separated from state stream; `emitEffect` is `@protected`, `@visibleForTesting` |
+| `BlocEffectListener` | stable (0.3.0) | `B extends EffectsSource<E>`; composes inside `MultiBlocListener`; supports effect filtering |
+| `EffectListener` | deprecated (0.3.0, removed in 1.0) | Replaced by `BlocEffectListener` |
+| `MultiEffectListener`, `SingleChildEffectListener` | deprecated (0.3.0, removed in 1.0) | Replaced by `MultiBlocListener` with `BlocEffectListener` |
+| `BlocConsumerWithEffects` | stable | `B extends HasEffects<S, E>`; combines state builder/optional listener with effect handling; resolves the bloc once per build |
 
 ### 5.7 Agent Execution Sequence (Required)
+
+> Historical: this was the order for the first implementation; every step
+> was done in 0.1.x. New work follows `AGENTS.md`.
 
 The coding agent should execute work in this exact order:
 
@@ -291,6 +324,15 @@ The coding agent should execute work in this exact order:
 8.  Update documentation and example app for implemented modules.
 
 ### 5.8 Implemented Expansion Track
+
+> Historical: this table records 0.2.0. In 0.3.0 `RebuildPolicy`,
+> `ListenPolicy` and their 12 factories (with `and` / `or` / `not`),
+> `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`
+> were deprecated, to be removed in 1.0. `effectWhen` lives on in
+> `BlocEffectListener`. 0.3.0 added
+> `BlocCondition` / `whenChanged`, `BlocEffectListener`, `TaskOutcome` with
+> `runOutcome` / `runLatestOutcome`, and `CancellationToken.whenCancelled`;
+> see the module sections below.
 
 The items below were delivered as additive public APIs after the initial
 baseline contract.
@@ -315,13 +357,19 @@ Alternative widget to `BlocBuilder` that provides bloc instance directly in buil
 ### API Specification
 
 ```dart
-class BlocBuilderWithBloc<B extends BlocBase<S>, S> extends BlocBuilderBase<B, S> {
+typedef BlocWidgetBuilderWithBloc<B extends StateStreamable<S>, S> =
+    Widget Function(BuildContext context, B bloc, S state);
+
+class BlocBuilderWithBloc<B extends StateStreamable<S>, S>
+    extends BlocBuilderBase<B, S> {
   const BlocBuilderWithBloc({
-    Key? key,
-    B? bloc,
-    BlocBuilderCondition<S>? buildWhen,
-    required Widget Function(BuildContext context, B bloc, S state) builder,
-  }) : super(key: key, bloc: bloc, buildWhen: buildWhen);
+    required this.builder,
+    super.key,
+    super.bloc,
+    super.buildWhen,
+  });
+
+  final BlocWidgetBuilderWithBloc<B, S> builder;
 
   @override
   Widget build(BuildContext context, S state);
@@ -340,6 +388,11 @@ class BlocBuilderWithBloc<B extends BlocBase<S>, S> extends BlocBuilderBase<B, S
 -   Builder receives both bloc instance and current state
 -   Rebuild behavior matches `BlocBuilder` exactly
 -   Full type safety maintained
+-   Accepts any `StateStreamable<S>`, like `BlocBuilder` (since 0.3.0)
+-   Like `BlocBuilder`, when `bloc` changes from an instance to `null` it keeps
+    listening to that instance, while `builder` receives the provided bloc.
+    Give the widget a new `key` when you switch between an explicit and a
+    provided bloc.
 
 ### Example Usage
 
@@ -368,17 +421,22 @@ Alternative widget to `BlocListener` that provides bloc instance directly in lis
 ### API Specification
 
 ```dart
-class BlocListenerWithBloc<B extends BlocBase<S>, S> extends BlocListenerBase<B, S> {
-  const BlocListenerWithBloc({
-    Key? key,
-    B? bloc,
-    BlocListenerCondition<S>? listenWhen,
-    required void Function(BuildContext context, B bloc, S state) listener,
-    Widget? child,
-  }) : super(key: key, bloc: bloc, listenWhen: listenWhen, child: child);
+typedef BlocWidgetListenerWithBloc<B extends StateStreamable<S>, S> =
+    void Function(BuildContext context, B bloc, S state);
 
+class BlocListenerWithBloc<B extends StateStreamable<S>, S>
+    extends BlocListenerBase<B, S> {
+  const BlocListenerWithBloc({
+    required BlocWidgetListenerWithBloc<B, S> listener,
+    super.key,
+    super.bloc,
+    super.listenWhen,
+    super.child,
+  });
+
+  // Adapts the (context, bloc, state) callback to BlocListenerBase.
   @override
-  void listen(BuildContext context, S state);
+  BlocWidgetListener<S> get listener;
 }
 ```
 
@@ -395,12 +453,19 @@ class BlocListenerWithBloc<B extends BlocBase<S>, S> extends BlocListenerBase<B,
 -   Listener receives both bloc instance and current state
 -   Listen behavior matches `BlocListener` exactly
 -   Listener is called once per state change when `listenWhen` returns true
+-   Accepts any `StateStreamable<S>`, like `BlocListener`, and has a `const`
+    constructor (both since 0.3.0)
+-   Composes inside `MultiBlocListener`, like `BlocListener`
+-   Like `BlocListener`, when `bloc` changes from an instance to `null` it
+    keeps listening to that instance, while the callback receives the
+    provided bloc. Give the widget a new `key` when you switch between an
+    explicit and a provided bloc.
 
 ### Example Usage
 
 ```dart
 BlocListenerWithBloc<AuthBloc, AuthState>(
-  listenWhen: (previous, current) => previous.isAuthenticated != current.isAuthenticated,
+  listenWhen: whenChanged((state) => state.isAuthenticated),
   listener: (context, bloc, state) {
     if (state.isAuthenticated) {
       Navigator.pushReplacementNamed(context, '/home');
@@ -421,15 +486,22 @@ Combines `BlocBuilderWithBloc` and `BlocListenerWithBloc` functionality.
 ### API Specification
 
 ```dart
-class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends StatelessWidget {
+class BlocConsumerWithBloc<B extends StateStreamable<S>, S>
+    extends StatelessWidget {
   const BlocConsumerWithBloc({
-    Key? key,
-    B? bloc,
-    BlocBuilderCondition<S>? buildWhen,
-    BlocListenerCondition<S>? listenWhen,
-    required void Function(BuildContext context, B bloc, S state) listener,
-    required Widget Function(BuildContext context, B bloc, S state) builder,
+    required this.listener,
+    required this.builder,
+    super.key,
+    this.bloc,
+    this.buildWhen,
+    this.listenWhen,
   });
+
+  final B? bloc;
+  final BlocBuilderCondition<S>? buildWhen;
+  final BlocListenerCondition<S>? listenWhen;
+  final BlocWidgetListenerWithBloc<B, S> listener;
+  final BlocWidgetBuilderWithBloc<B, S> builder;
 }
 ```
 
@@ -446,6 +518,10 @@ class BlocConsumerWithBloc<B extends BlocBase<S>, S> extends StatelessWidget {
 -   Combines listener and builder functionality
 -   Both callbacks receive bloc instance
 -   Independent conditions for listening and building
+-   If `bloc` is null and not found in context, throws `ProviderNotFoundException`
+-   Resolves the bloc once per build (since 0.3.0), so the callbacks always
+    receive the bloc whose states they get, also right after `bloc` changes
+    from an instance to `null`
 
 ### Example Usage
 
@@ -472,14 +548,25 @@ Alternative widget to `BlocSelector` that provides bloc instance directly and av
 ### API Specification
 
 ```dart
-class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends StatelessWidget {
+typedef BlocSelectorBuilderWithBloc<B extends StateStreamable<S>, S, T> =
+    Widget Function(BuildContext context, B bloc, T selected);
+
+typedef BlocSelectedCondition<T> = bool Function(T previous, T current);
+
+class BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>
+    extends StatefulWidget {
   const BlocSelectorWithBloc({
-    Key? key,
-    B? bloc,
-    required T Function(S state) selector,
-    bool Function(T previous, T current)? selectorShouldRebuild,
-    required Widget Function(BuildContext context, B bloc, T selected) builder,
+    required this.selector,
+    required this.builder,
+    super.key,
+    this.bloc,
+    this.selectorShouldRebuild,
   });
+
+  final B? bloc;
+  final T Function(S state) selector;
+  final BlocSelectedCondition<T>? selectorShouldRebuild;
+  final BlocSelectorBuilderWithBloc<B, S, T> builder;
 }
 ```
 
@@ -495,6 +582,13 @@ class BlocSelectorWithBloc<B extends BlocBase<S>, S, T> extends StatelessWidget 
 -   Only rebuilds when selected value changes (by default uses `==` comparison)
 -   Builder receives bloc instance and selected value (not full state)
 -   Optimized for performance when only part of state is needed
+-   Behaves like `BlocSelector` (since 0.2.2): it keeps the last built
+    selection, `selector` runs once per state change, and the selection is
+    recomputed when `selector` or the bloc changes
+-   `selectorShouldRebuild` receives the last built selection as `previous`
+    and the selection of the new state as `current`; the default is
+    `previous != current`
+-   If `bloc` is null and not found in context, throws `ProviderNotFoundException`
 
 ### Example Usage
 
@@ -511,26 +605,105 @@ BlocSelectorWithBloc<CounterBloc, CounterState, int>(
 
 # MODULE policies --- Policies
 
+## Conditions (BlocCondition, whenChanged)
+
+Added in 0.3.0. A condition is a plain function over a pair of states. It
+goes directly into `buildWhen`, `listenWhen` and `selectorShouldRebuild`, in
+this package's widgets and in the upstream `BlocBuilder`, `BlocListener` and
+`BlocConsumer`. There are no `and` / `or` / `not` helpers: combine conditions
+in a plain predicate.
+
+### API Specification
+
+```dart
+typedef BlocCondition<S> = bool Function(S previous, S current);
+
+BlocCondition<S> whenChanged<S, T>(
+  T Function(S state) selector, {
+  bool Function(T previous, T current)? equals,
+});
+```
+
+`BlocCondition<S>` is the same function type as `BlocBuilderCondition<S>` and
+`BlocListenerCondition<S>` from `flutter_bloc`, and as
+`BlocSelectedCondition<T>`.
+
+### Behavior
+
+-   `whenChanged` holds when the value picked by `selector` differs between
+    the previous and the current state
+-   Values are compared with `==` unless `equals` is given
+-   When the widget has its type arguments, `whenChanged` needs none: the
+    state type comes from the widget. When the widget infers them from
+    `bloc:`, or the condition is stored in a variable, type the selector's
+    parameter (`whenChanged((CounterState state) => state.count)`) or write
+    `whenChanged<S, T>(selector)`
+-   Select scalars or records of scalars. A collection, also as a record
+    field, is compared by identity, so pass `equals` (for example
+    `listEquals`). Never build a new collection in the selector: it is then
+    always "changed"
+
+### Example Usage
+
+```dart
+BlocBuilder<CounterCubit, CounterState>(
+  buildWhen: whenChanged((state) => state.count),
+  builder: (context, state) => Text('${state.count}'),
+)
+
+// Several fields: a record of scalars.
+buildWhen: whenChanged((state) => (state.count, state.label)),
+
+// A collection: pass equals.
+listenWhen: whenChanged((state) => state.items, equals: listEquals),
+
+// Anything else: a plain predicate.
+buildWhen: (previous, current) =>
+    previous.count != current.count && current.count.isEven,
+```
+
+------------------------------------------------------------------------
+
 ## RebuildPolicy
+
+> Deprecated in 0.3.0, removed in 1.0. Use `whenChanged` or a plain
+> predicate as `buildWhen` instead. Replacements: `onChange(sel)` ->
+> `whenChanged(sel)`; `onChangeBy(sel, equals: eq)` ->
+> `whenChanged(sel, equals: eq)`; `whenRebuild(p)` -> `p`; `always()` -> omit
+> `buildWhen`; `never()` -> `(previous, current) => false`; `distinct()` ->
+> `(previous, current) => previous != current`; `a.and(b)` -> a plain
+> predicate or a record selector. The text below describes the deprecated
+> API.
 
 Abstract policy for controlling when widgets should rebuild based on state changes.
 
 ### API Specification
 
 ```dart
+@Deprecated('...')
 abstract class RebuildPolicy<S> {
   const RebuildPolicy();
 
   bool shouldRebuild(S previous, S current);
+
+  RebuildPolicy<S> and(RebuildPolicy<S> other);
+  RebuildPolicy<S> or(RebuildPolicy<S> other);
+  RebuildPolicy<S> not();
 }
 ```
 
-Built-in policies are exposed as top-level factory functions:
+Built-in policies are exposed as top-level factory functions, all
+deprecated:
 ```dart
 RebuildPolicy<S> distinct<S>();
 RebuildPolicy<S> onChange<S, T>(T Function(S state) selector);
+RebuildPolicy<S> onChangeBy<S, T>(
+  T Function(S state) selector, {
+  required bool Function(T previous, T current) equals,
+});
 RebuildPolicy<S> always<S>();
 RebuildPolicy<S> never<S>();
+RebuildPolicy<S> whenRebuild<S>(bool Function(S previous, S current) predicate);
 ```
 
 ### Built-in Policies
@@ -598,8 +771,15 @@ class CustomRebuildPolicy<S> extends RebuildPolicy<S> {
 ### Usage with Widgets
 
 ```dart
+// Deprecated:
 BlocBuilderWithBloc<CounterBloc, CounterState>(
   buildWhen: distinct<CounterState>().shouldRebuild,
+  builder: (context, bloc, state) => Text('${state.count}'),
+)
+
+// Since 0.3.0:
+BlocBuilderWithBloc<CounterBloc, CounterState>(
+  buildWhen: (previous, current) => previous != current,
   builder: (context, bloc, state) => Text('${state.count}'),
 )
 ```
@@ -608,24 +788,43 @@ BlocBuilderWithBloc<CounterBloc, CounterState>(
 
 ## ListenPolicy
 
+> Deprecated in 0.3.0, removed in 1.0. Use `whenChanged` or a plain
+> predicate as `listenWhen` instead, with the same replacements as for
+> `RebuildPolicy` (`onChangeListen(sel)` -> `whenChanged(sel)`,
+> `whenListen(p)` -> `p`, `alwaysListen()` -> omit `listenWhen`, and so on).
+> `whenListen` clashes with `whenListen` from `bloc_test`; until 1.0, import
+> this package with `hide whenListen` in tests that use both. The text below
+> describes the deprecated API.
+
 Abstract policy for controlling when listeners should be called based on state changes.
 
 ### API Specification
 
 ```dart
+@Deprecated('...')
 abstract class ListenPolicy<S> {
   const ListenPolicy();
 
   bool shouldListen(S previous, S current);
+
+  ListenPolicy<S> and(ListenPolicy<S> other);
+  ListenPolicy<S> or(ListenPolicy<S> other);
+  ListenPolicy<S> not();
 }
 ```
 
-Built-in policies are exposed as top-level factory functions:
+Built-in policies are exposed as top-level factory functions, all
+deprecated:
 ```dart
 ListenPolicy<S> distinctListen<S>();
 ListenPolicy<S> onChangeListen<S, T>(T Function(S state) selector);
+ListenPolicy<S> onChangeListenBy<S, T>(
+  T Function(S state) selector, {
+  required bool Function(T previous, T current) equals,
+});
 ListenPolicy<S> alwaysListen<S>();
 ListenPolicy<S> neverListen<S>();
+ListenPolicy<S> whenListen<S>(bool Function(S previous, S current) predicate);
 ```
 
 ### Built-in Policies
@@ -639,10 +838,19 @@ Listen variants of rebuild policies:
 ### Usage Example
 
 ```dart
+// Deprecated:
 BlocListenerWithBloc<AuthBloc, AuthState>(
   listenWhen: onChangeListen<AuthState, bool>(
     (state) => state.isAuthenticated,
   ).shouldListen,
+  listener: (context, bloc, state) {
+    // Only called when isAuthenticated changes
+  },
+)
+
+// Since 0.3.0:
+BlocListenerWithBloc<AuthBloc, AuthState>(
+  listenWhen: whenChanged((state) => state.isAuthenticated),
   listener: (context, bloc, state) {
     // Only called when isAuthenticated changes
   },
@@ -655,6 +863,13 @@ BlocListenerWithBloc<AuthBloc, AuthState>(
 
 Extension methods on `BuildContext` providing null-safe access to bloc instances.
 
+Since 0.3.0, `readOrNull`, `watchOrNull` and `withBloc` work for any provided
+type, such as a repository, and `selectOrNull` for any `StateStreamableSource<S>`
+(the type `BlocProvider` accepts).
+All of them return `null` only when there is no provider of `B` above the
+context; other errors, such as one thrown while the provider creates the
+bloc, are rethrown (since 0.2.2).
+
 ### API Specification
 
 #### readOrNull<B>()
@@ -663,13 +878,14 @@ Safely reads a bloc instance without throwing if not found.
 
 ```dart
 extension BlocContextExtension on BuildContext {
-  B? readOrNull<B extends BlocBase<Object?>>();
+  B? readOrNull<B extends Object>();
 }
 ```
 
 **Returns**: The bloc instance of type `B`, or `null` if not found in widget tree.
 
-**Behavior**: Never throws. Returns `null` if bloc is not provided in context.
+**Behavior**: Does not throw for a missing provider. Returns `null` if bloc is
+not provided in context. Other errors are rethrown.
 
 **Example Usage**:
 ```dart
@@ -685,15 +901,17 @@ Safely watches a bloc instance without throwing if not found.
 
 ```dart
 extension BlocContextExtension on BuildContext {
-  B? watchOrNull<B extends BlocBase<Object?>>();
+  B? watchOrNull<B extends Object>();
 }
 ```
 
 **Returns**: The bloc instance of type `B`, or `null` if not found.
 
 **Behavior**: 
--   Never throws
--   Rebuilds widget when bloc state changes
+-   Does not throw for a missing provider; other errors are rethrown
+-   Rebuilds widget when bloc state changes (like `context.watch<B>()` under
+    a `BlocProvider`)
+-   Also rebuilds when a provider of `B` appears later
 -   Returns `null` if bloc is not provided
 
 **Example Usage**:
@@ -702,7 +920,7 @@ Widget build(BuildContext context) {
   final bloc = context.watchOrNull<CounterBloc>();
   if (bloc == null) return Text('Bloc not available');
   
-  return BlocBuilder(
+  return BlocBuilder<CounterBloc, CounterState>(
     bloc: bloc,
     builder: (context, state) => Text('${state.count}'),
   );
@@ -715,7 +933,7 @@ Safely selects a value from bloc state without throwing if not found.
 
 ```dart
 extension BlocContextExtension on BuildContext {
-  T? selectOrNull<B extends BlocBase<S>, S, T>(
+  T? selectOrNull<B extends StateStreamableSource<S>, S, T>(
     T Function(S state) selector,
   );
 }
@@ -727,8 +945,11 @@ extension BlocContextExtension on BuildContext {
 **Returns**: Selected value of type `T`, or `null` if bloc not found.
 
 **Behavior**:
--   Never throws
--   Rebuilds widget only when selected value changes
+-   Does not throw for a missing provider; errors thrown by `selector` or
+    while creating the bloc are rethrown
+-   Rebuilds widget only when selected value changes, after the provider
+    notifies; `BlocProvider` does on every state, while `Provider` and
+    `RepositoryProvider` never do
 -   Returns `null` if bloc is not provided
 
 **Example Usage**:
@@ -748,7 +969,7 @@ Executes a function with bloc instance, returning null if bloc not found.
 
 ```dart
 extension BlocContextExtension on BuildContext {
-  R? withBloc<B extends BlocBase<Object?>, R>(
+  R? withBloc<B extends Object, R>(
     R Function(B bloc) fn,
   );
 }
@@ -760,7 +981,8 @@ extension BlocContextExtension on BuildContext {
 **Returns**: Result of `fn(bloc)`, or `null` if bloc not found.
 
 **Behavior**:
--   Never throws
+-   Does not throw for a missing provider; like `readOrNull`, it rethrows
+    other errors (errors thrown by `fn` propagate)
 -   Returns `null` if bloc is not provided
 -   Useful for conditional bloc operations
 
@@ -773,11 +995,14 @@ final result = context.withBloc<CounterBloc, String>(
 if (result != null) {
   print('Count: $result');
 }
+
+// Any provided type, with B inferred from the parameter type:
+final user = context.withBloc((AuthRepository repo) => repo.currentUser);
 ```
 
 ### Edge Cases
 
--   All methods return `null` if bloc is not in widget tree
+-   All methods return `null` if bloc is not in widget tree, and only then
 -   Methods are safe for missing providers, but must only be called with a valid live `BuildContext`
 -   `watchOrNull` and `selectOrNull` will stop rebuilding if bloc is removed from tree
 
@@ -793,6 +1018,8 @@ Mixin providing safe emit operations that check if bloc is closed before emittin
 
 ```dart
 mixin SafeEmitMixin<S> on BlocBase<S> {
+  @protected
+  @visibleForTesting
   void safeEmit(S state);
   
   Future<T?> guarded<T>(
@@ -800,6 +1027,14 @@ mixin SafeEmitMixin<S> on BlocBase<S> {
   );
 }
 ```
+
+`safeEmit` is `@protected` and `@visibleForTesting` (since 0.3.0), like
+`emit`: call it from inside the bloc, or from tests. Calls from elsewhere,
+extension methods on the bloc included, get analyzer warnings.
+
+The examples below use a `Cubit`. Inside `Bloc` event handlers, use the
+handler's `emit` (and check `emit.isDone` after an `await`) rather than
+`safeEmit` from a public method of the `Bloc`.
 
 ### Methods
 
@@ -813,16 +1048,19 @@ Safely emits a state only if bloc is not closed.
 **Behavior**:
 -   Checks if bloc is closed before emitting
 -   Silently ignores emit if bloc is closed
--   Throws `StateError` if bloc is not initialized (same as standard `emit`)
+-   Otherwise behaves like `emit`
 
 **Example Usage**:
 ```dart
-class CounterBloc extends Bloc<CounterEvent, CounterState> 
+class CounterCubit extends Cubit<CounterState>
     with SafeEmitMixin<CounterState> {
-  
+  CounterCubit(this.repository) : super(const CounterState());
+
+  final CounterRepository repository;
+
   Future<void> loadData() async {
     final data = await repository.fetchData();
-    // Safe even if bloc was closed during fetch
+    // Safe even if the cubit was closed during fetch
     safeEmit(CounterState(data: data));
   }
 }
@@ -830,7 +1068,8 @@ class CounterBloc extends Bloc<CounterEvent, CounterState>
 
 #### guarded<T>(operation)
 
-Executes an async operation and safely emits state only if bloc is still open.
+Executes an async operation and returns its result only if bloc is still
+open. It does not emit anything itself.
 
 **Parameters**:
 -   `operation`: Async function to execute
@@ -838,16 +1077,21 @@ Executes an async operation and safely emits state only if bloc is still open.
 **Returns**: `Future<T?>` - Result of operation, or `null` if bloc was closed
 
 **Behavior**:
--   Executes operation
+-   Does not start `operation` on a closed bloc; returns `null`
 -   If bloc is closed during operation, returns `null`
 -   If bloc is still open, returns operation result
--   Prevents post-close state emissions
+-   A failure of `operation` after the bloc was closed is dropped like its
+    result; a failure while the bloc is open is rethrown
+-   When `T` is nullable or `void`, `null` is ambiguous: check `isClosed`
+    after the call, or wrap the result in a record
 
 **Example Usage**:
 ```dart
-class DataBloc extends Bloc<DataEvent, DataState> 
-    with SafeEmitMixin<DataState> {
-  
+class DataCubit extends Cubit<DataState> with SafeEmitMixin<DataState> {
+  DataCubit(this.api) : super(const DataState());
+
+  final DataApi api;
+
   Future<void> loadData() async {
     final result = await guarded(() => api.fetchData());
     if (result != null) {
@@ -855,6 +1099,11 @@ class DataBloc extends Bloc<DataEvent, DataState>
     }
   }
 }
+
+// Nullable result: a record so that null only means "closed".
+final result = await guarded(() async => (item: await find(query)));
+if (result == null) return; // closed
+emit(state.copyWith(item: result.item)); // may be null: not found
 ```
 
 ------------------------------------------------------------------------
@@ -863,11 +1112,20 @@ class DataBloc extends Bloc<DataEvent, DataState>
 
 Token for cancelling async operations, useful for preventing post-close operations.
 
+Cancellation is cooperative: `cancel` releases the callers waiting in `run`
+but does not stop the work itself. The work keeps running, so check
+`isCancelled` before any side effect, or pass `whenCancelled` to the I/O so
+it can abort.
+
 ### API Specification
 
 ```dart
 class CancellationToken {
+  CancellationToken();
+
   bool get isCancelled;
+
+  Future<void> get whenCancelled;
   
   void cancel();
   
@@ -876,6 +1134,10 @@ class CancellationToken {
   );
 }
 ```
+
+The `cancellation_token` package also exports a `CancellationToken`; when
+both are imported, add `hide CancellationToken` to one import or use a
+prefix.
 
 ### Properties
 
@@ -887,6 +1149,20 @@ Returns `true` if token has been cancelled.
 
 **Behavior**: Read-only property, set by `cancel()` method.
 
+#### whenCancelled
+
+Added in 0.3.0. Completes when `cancel()` is first called; never completes
+otherwise.
+
+**Type**: `Future<void>`
+
+**Behavior**:
+-   Pass it to the underlying work to abort it, for example as the
+    `abortTrigger` of a `package:http` request, or call `cancel` on a dio
+    `CancelToken` from it
+-   Listeners stay attached until the token is cancelled, so give each
+    operation its own token (as `runOutcome` and `runLatestOutcome` do)
+
 ### Methods
 
 #### cancel()
@@ -894,9 +1170,9 @@ Returns `true` if token has been cancelled.
 Marks the token as cancelled.
 
 **Behavior**: 
--   Sets `isCancelled` to `true`
--   Cannot be uncancelled
--   Thread-safe
+-   Sets `isCancelled` to `true` and completes `whenCancelled`
+-   Releases the callers still waiting in `run`
+-   Cannot be uncancelled; calls after the first one do nothing
 
 #### run<T>(task)
 
@@ -908,22 +1184,30 @@ Executes a task and checks cancellation before completion.
 **Returns**: `Future<T?>` - Task result if not cancelled, `null` if cancelled
 
 **Behavior**:
--   Executes task
--   If cancelled before task completes, returns `null`
+-   Does not start `task` on a cancelled token; returns `null`
+-   Completes with `null` as soon as the token is cancelled, without waiting
+    for `task` (since 0.3.0)
 -   If task completes before cancellation, returns result
 -   Does not cancel running task, only prevents using result
+-   A failure of `task` after cancellation is dropped; a failure of a task
+    that was not cancelled is rethrown
+-   When `T` is nullable or `void`, `null` is ambiguous: check `isCancelled`
+    after the call, or wrap the result in a record
 
 **Example Usage**:
 ```dart
-class DataBloc extends Bloc<DataEvent, DataState> {
+class DataCubit extends Cubit<DataState> {
+  DataCubit(this.api) : super(const DataState());
+
+  final DataApi api;
   CancellationToken? _token;
   
   Future<void> loadData() async {
     _token?.cancel();
-    _token = CancellationToken();
+    final token = _token = CancellationToken();
     
-    final result = await _token!.run(() => api.fetchData());
-    if (result != null && !_token!.isCancelled) {
+    final result = await token.run(() => api.fetchData());
+    if (result != null && !token.isCancelled && !isClosed) {
       emit(DataState(data: result));
     }
   }
@@ -940,16 +1224,24 @@ class DataBloc extends Bloc<DataEvent, DataState> {
 
 ## RestartableTask
 
-Manages a restartable async task that automatically cancels previous task when new one starts.
+Manages a restartable async task: starting a new run supersedes the previous
+one. The superseded caller is released at once and its result is dropped,
+but its work keeps running (cooperative cancellation).
 
 ### API Specification
 
 ```dart
 class RestartableTask<T> {
+  RestartableTask();
+
   bool get isRunning;
   
   Future<T?> run(
     Future<T> Function() task,
+  );
+
+  Future<TaskOutcome<T>> runOutcome(
+    Future<T> Function(CancellationToken token) task,
   );
   
   void cancel();
@@ -962,7 +1254,7 @@ class RestartableTask<T> {
 
 #### isRunning
 
-Returns `true` if task is currently running.
+Returns `true` if the latest scheduled task is still running.
 
 **Type**: `bool`
 
@@ -970,27 +1262,35 @@ Returns `true` if task is currently running.
 
 #### run(task)
 
-Starts a new task, cancelling any previously running task.
+Starts a new task, cancelling the result of any previous task.
 
 **Parameters**:
 -   `task`: Async function to execute
 
-**Returns**: `Future<T?>` - Task result, or `null` if cancelled
+**Returns**: `Future<T?>` - Task result, or `null` if superseded, cancelled
+or disposed
 
 **Behavior**:
--   Cancels previous task if running
+-   Cancels the previous run's token and releases its caller with `null` at
+    once, without waiting for its task (since 0.3.0)
 -   Starts new task
 -   Returns result of new task
--   Previous task result is discarded
+-   Previous task result is discarded, and so is its later failure; only the
+    failure of the latest run is rethrown
+-   The previous task itself is not interrupted and keeps running
+-   When `T` is nullable or `void`, `null` is ambiguous: use `runOutcome`
 
 **Example Usage**:
 ```dart
-class SearchBloc extends Bloc<SearchEvent, SearchState> {
+class SearchCubit extends Cubit<SearchState> {
+  SearchCubit(this.api) : super(const SearchState());
+
+  final SearchApi api;
   final _searchTask = RestartableTask<List<Item>>();
   
   Future<void> search(String query) async {
     final results = await _searchTask.run(() => api.search(query));
-    if (results != null) {
+    if (results != null && !isClosed) {
       emit(SearchState(results: results));
     }
   }
@@ -1003,33 +1303,61 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
 }
 ```
 
+#### runOutcome(task)
+
+Added in 0.3.0. Like `run`, but passes the run's `CancellationToken` to
+`task` and completes with a `TaskOutcome<T>`.
+
+**Parameters**:
+-   `task`: Async function that receives the run's token
+
+**Returns**: `Future<TaskOutcome<T>>` - `TaskOutcome.completed(value)` for
+the latest run, `TaskOutcome.cancelled()` as soon as the run is superseded
+
+**Behavior**:
+-   The token is cancelled when a newer run, `cancel` or `dispose` supersedes
+    this run before it completes
+-   Tells a discarded run apart from a `null` value
+-   Does not start `task` after `dispose`
+-   The failure of the latest run is rethrown; a failure of a superseded run
+    is dropped
+-   The abandoned task keeps running: check `token.isCancelled` before any
+    side effect, or pass `token.whenCancelled` to the I/O so it can abort
+-   A superseded caller resumes at once, while the newer run is still in
+    flight, so a `finally` block that resets state shared with the newer run
+    must check the outcome first
+
 #### cancel()
 
 Cancels the currently running task.
 
 **Behavior**:
--   Cancels task if running
+-   Cancels the result of the task if running and releases its caller
 -   No-op if no task running
 -   Does not prevent starting new task
+-   Does not interrupt the task's work
 
 #### dispose()
 
 Disposes the task manager and cancels any running task.
 
 **Behavior**:
--   Cancels running task
--   Prevents new tasks from being started
+-   Cancels the running task's result and releases its caller
+-   Later runs do not start their task and complete with `null` or
+    `TaskOutcome.cancelled()`
 -   Should be called in bloc's `close()` method
 
 ### Lifecycle Integration
 
 ```dart
-class MyBloc extends Bloc<MyEvent, MyState> {
+class MyCubit extends Cubit<MyState> {
+  MyCubit() : super(const MyState());
+
   final _task = RestartableTask<String>();
   
   Future<void> performOperation() async {
     final result = await _task.run(() => longRunningOperation());
-    if (result != null) {
+    if (result != null && !isClosed) {
       emit(MyState(data: result));
     }
   }
@@ -1038,6 +1366,123 @@ class MyBloc extends Bloc<MyEvent, MyState> {
   Future<void> close() {
     _task.dispose(); // Important: dispose in close()
     return super.close();
+  }
+}
+```
+
+------------------------------------------------------------------------
+
+## TaskOutcome
+
+Added in 0.3.0. The result of `RestartableTask.runOutcome` and
+`RestartableTasksMixin.runLatestOutcome`: either the run completed with a
+value, or it was cancelled (superseded, cancelled explicitly, disposed or
+closed) and its result was discarded.
+
+### API Specification
+
+```dart
+final class TaskOutcome<T> {
+  const TaskOutcome.completed(T value);
+  const TaskOutcome.cancelled();
+
+  final bool isCompleted;
+
+  T get value;
+}
+```
+
+### Behavior
+
+-   `value` throws a `StateError` on a cancelled outcome; check
+    `isCompleted` first
+-   Unlike a `null` result, it tells a cancelled run apart from a run that
+    completed with `null` or with a `void` value
+-   A failure is not an outcome: the failure of the latest run is rethrown by
+    the call that started it; a failure of a cancelled run is dropped
+-   Two outcomes are equal when both are cancelled, or both completed with
+    equal values; the type argument is not compared
+
+### Example Usage
+
+```dart
+if (outcome.isCompleted) use(outcome.value);
+// or
+if (outcome case TaskOutcome(isCompleted: true, :final value)) use(value);
+```
+
+------------------------------------------------------------------------
+
+## RestartableTasksMixin
+
+Added in 0.2.0. Tracks keyed restartable tasks for "latest request wins"
+workflows in Cubits and Blocs.
+
+### API Specification
+
+```dart
+mixin RestartableTasksMixin<S> on BlocBase<S> {
+  bool isTaskRunning(Object key);
+
+  Future<T?> runLatest<T>(Object key, Future<T> Function() task);
+
+  Future<TaskOutcome<T>> runLatestOutcome<T>(
+    Object key,
+    Future<T> Function(CancellationToken token) task,
+  );
+
+  void cancelLatest(Object key);
+
+  void cancelAllLatest();
+
+  @override
+  Future<void> close();
+}
+```
+
+### Behavior
+
+-   `runLatest` runs `task` as the latest task for `key` and completes with
+    `null` as soon as a newer run for `key`, `cancelLatest`,
+    `cancelAllLatest` or `close` supersedes it, without waiting for `task`
+-   `runLatestOutcome` (since 0.3.0) passes the run's `CancellationToken`
+    and completes with a `TaskOutcome<T>`, with the same rules as
+    `RestartableTask.runOutcome`; `task` does not start once `close` was
+    called
+-   The failure of the latest run is rethrown; a failure of a superseded run
+    is dropped, and failed keys are not kept
+-   Keys are compared with `==`: a new `List` key never matches an earlier
+    one, while a string or a record with the same content does
+-   `close` cancels all tracked tasks and closes the bloc; a repeated call
+    returns the future of the first one
+-   Cancellation is cooperative: the abandoned work keeps running
+-   Inside `Bloc` event handlers, prefer the handler's `emit` with a
+    `bloc_concurrency` transformer such as `restartable()`. A task that calls
+    a handler's `emit` must check `emit.isDone` (or `token.isCancelled`)
+    first: a cancelled handler completes before its abandoned task, and bloc
+    rejects the late `emit` only with an assert
+
+### Example Usage
+
+```dart
+class SearchCubit extends Cubit<SearchState>
+    with SafeEmitMixin<SearchState>, RestartableTasksMixin<SearchState> {
+  SearchCubit(this.repository) : super(const SearchState());
+
+  final SearchRepository repository;
+
+  Future<void> search(String query) async {
+    safeEmit(state.copyWith(isLoading: true));
+
+    final outcome = await runLatestOutcome('search', (token) {
+      return repository.find(query, abortTrigger: token.whenCancelled);
+    });
+
+    // A superseded call resumes at once while the newer search is still
+    // loading, so only the latest one clears the flag.
+    if (outcome.isCompleted) {
+      safeEmit(state.copyWith(isLoading: false, item: outcome.value));
+    }
   }
 }
 ```
@@ -1053,12 +1498,26 @@ Mixin for blocs that emit one-shot effects (navigation, snackbars, dialogs) sepa
 ### API Specification
 
 ```dart
-mixin HasEffects<E> on BlocBase<Object?> {
+abstract interface class EffectsSource<E> {
+  Stream<E> get effects;
+}
+
+mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
+  @override
   Stream<E> get effects;
   
+  @protected
+  @visibleForTesting
   void emitEffect(E effect);
+
+  @override
+  Future<void> close();
 }
 ```
+
+The mixin owns a broadcast `StreamController<E>` and closes it with the bloc;
+blocs do not declare their own controller. `EffectsSource<E>` is the
+interface that `BlocEffectListener` binds to.
 
 ### Properties
 
@@ -1088,51 +1547,62 @@ Emits a one-shot effect.
 **Behavior**:
 -   Emits effect to `effects` stream
 -   Safe to call even if no listeners
+-   No-op after the bloc is closed
 -   Effects are separate from state, don't trigger rebuilds
+-   `@protected` and `@visibleForTesting` (since 0.3.0), like `emit`: call it
+    from inside the bloc, or from a `mixin X on HasEffects<S, E>` that shares
+    helpers between blocs. Calls from elsewhere, extension methods on the
+    bloc included, get analyzer warnings; tests may call it
+
+#### close()
+
+**Behavior**:
+-   Closes the bloc, then waits until every effect subscriber has received
+    the effects emitted before `close` and the done event
+-   Like the bloc's own last states, effects emitted right before `close`
+    reach subscribers after the bloc is closed. A bloc method that a
+    subscriber calls in response should emit with `safeEmit`, and a
+    subscriber that adds an event to a `Bloc` should check `isClosed` first,
+    because `add` throws after `close`
+-   The bloc is closed right away even if an effect subscriber is paused;
+    only the returned future waits for that subscriber to resume
 
 ### Implementation Example
 
 ```dart
 // Define effect types
 sealed class NavigationEffect {}
-class NavigateToHome extends NavigationEffect {}
-class NavigateToProfile extends NavigationEffect {}
-class ShowSnackBar extends NavigationEffect {
-  final String message;
+final class NavigateToHome extends NavigationEffect {}
+final class NavigateToProfile extends NavigationEffect {}
+final class ShowSnackBar extends NavigationEffect {
   ShowSnackBar(this.message);
+  final String message;
 }
 
-// Implement in bloc
-class AuthBloc extends Bloc<AuthEvent, AuthState> 
-    with HasEffects<NavigationEffect> {
-  
-  final _effectsController = StreamController<NavigationEffect>.broadcast();
-  
-  @override
-  Stream<NavigationEffect> get effects => _effectsController.stream;
-  
-  void emitEffect(NavigationEffect effect) {
-    _effectsController.add(effect);
-  }
+// Implement in a cubit; the mixin provides effects, emitEffect and close.
+class AuthCubit extends Cubit<AuthState>
+    with HasEffects<AuthState, NavigationEffect> {
+  AuthCubit(this.authService) : super(const AuthState.initial());
+
+  final AuthService authService;
   
   Future<void> login(String email, String password) async {
     try {
       final user = await authService.login(email, password);
+      if (isClosed) return;
       emit(AuthState.authenticated(user));
       emitEffect(NavigateToHome()); // One-shot effect
     } catch (e) {
+      if (isClosed) return;
       emit(AuthState.error(e.toString()));
       emitEffect(ShowSnackBar('Login failed: $e')); // One-shot effect
     }
   }
-  
-  @override
-  Future<void> close() {
-    _effectsController.close();
-    return super.close();
-  }
 }
 ```
+
+In a `Bloc`, call `emitEffect` from an event handler, next to the handler's
+`emit`.
 
 ### Benefits
 
@@ -1143,23 +1613,145 @@ class AuthBloc extends Bloc<AuthEvent, AuthState>
 
 ------------------------------------------------------------------------
 
+## BlocEffectListener
+
+Added in 0.3.0. Widget that listens to the effect stream of a bloc that
+implements `EffectsSource<E>` (usually through `HasEffects`) and executes a
+callback once per effect emission.
+
+### API Specification
+
+```dart
+typedef EffectCondition<E> = bool Function(E effect);
+
+class BlocEffectListener<B extends EffectsSource<E>, E>
+    extends SingleChildStatefulWidget {
+  const BlocEffectListener({
+    required this.onEffect,
+    super.key,
+    this.bloc,
+    this.effectWhen,
+    this.child,
+  }) : super(child: child);
+
+  final B? bloc;
+  final void Function(BuildContext context, E effect) onEffect;
+  final EffectCondition<E>? effectWhen;
+  final Widget? child;
+}
+```
+
+Until 1.0 it also implements the deprecated `SingleChildEffectListener`, so
+`MultiEffectListener` users can migrate one listener at a time.
+
+### Parameters
+
+-   `bloc` (optional): The bloc instance. If not provided, will be looked up via `context.read<B>()`
+-   `onEffect`: Required callback function with signature `(context, effect) -> void`
+-   `effectWhen` (optional): Predicate that decides whether `onEffect` runs
+-   `child` (optional): Child widget to render
+
+### Behavior
+
+-   Subscribes to bloc's `effects` stream
+-   Calls `onEffect` once per effect that passes `effectWhen`
+-   Automatically unsubscribes when widget is disposed
+-   Resubscribes when `bloc` changes or a different instance is provided
+-   If bloc is null and not found, throws `ProviderNotFoundException`
+-   The bound `B extends EffectsSource<E>` makes a wrong effect type, or a
+    bloc without effects, a compile-time error
+-   Composes inside `MultiBlocListener` together with `BlocListener` and
+    `BlocListenerWithBloc`. `MultiBlocListener` asserts a non-empty list and
+    ignores a `child` passed to a listener inside it
+-   Always write both type arguments: below language version 3.7, `E` is not
+    inferred from `bloc`; it becomes `Object?` and the `switch` loses its
+    exhaustiveness check
+-   To react to a single subtype, listen to the supertype and match it with
+    an if-case pattern; `effectWhen` does not promote the effect type
+-   Effects are not replayed: effects emitted before the subscription are
+    not delivered
+
+### Example Usage
+
+```dart
+MultiBlocListener(
+  listeners: [
+    BlocListener<AuthCubit, AuthState>(listener: (context, state) {}),
+    BlocEffectListener<AuthCubit, NavigationEffect>(
+      onEffect: (context, effect) {
+        switch (effect) {
+          case NavigateToHome():
+            Navigator.pushReplacementNamed(context, '/home');
+          case NavigateToProfile():
+            Navigator.pushNamed(context, '/profile');
+          case ShowSnackBar(:final message):
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message)),
+            );
+        }
+      },
+    ),
+  ],
+  child: const LoginForm(),
+)
+
+// One subtype only:
+BlocEffectListener<AuthCubit, NavigationEffect>(
+  onEffect: (context, effect) {
+    if (effect case ShowSnackBar(:final message)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  },
+  child: const LoginForm(),
+)
+```
+
+------------------------------------------------------------------------
+
 ## EffectListener
+
+> Deprecated in 0.3.0, removed in 1.0, together with `MultiEffectListener`
+> and `SingleChildEffectListener`. Replacements:
+> `EffectListener<B, S, E>` -> `BlocEffectListener<B, E>`;
+> `MultiEffectListener` -> `MultiBlocListener` (which needs a non-empty
+> list); a listener for one effect subtype -> `BlocEffectListener` on the
+> supertype with `if (effect case Sub(...))` in `onEffect`. The text below
+> describes the deprecated API.
 
 Widget that listens to effect stream and executes callback once per effect emission.
 
 ### API Specification
 
 ```dart
-class EffectListener<B extends BlocBase<Object?>, E> extends StatelessWidget {
+@Deprecated('...')
+class EffectListener<B extends BlocBase<S>, S, E> extends StatefulWidget
+    implements SingleChildEffectListener {
   const EffectListener({
-    Key? key,
-    B? bloc,
-    required void Function(BuildContext context, E effect) onEffect,
-    Widget? child,
-  }) : super(key: key);
+    required this.onEffect,
+    super.key,
+    this.bloc,
+    this.effectWhen,
+    this.child,
+  });
 
-  @override
-  Widget build(BuildContext context);
+  final B? bloc;
+  final void Function(BuildContext context, E effect) onEffect;
+  final EffectCondition<E>? effectWhen;
+  final Widget? child;
+}
+
+@Deprecated('...')
+class MultiEffectListener extends StatelessWidget {
+  const MultiEffectListener({
+    required this.listeners,
+    required this.child,
+    super.key,
+  });
+
+  final List<SingleChildEffectListener> listeners;
+  final Widget child;
 }
 ```
 
@@ -1167,6 +1759,7 @@ class EffectListener<B extends BlocBase<Object?>, E> extends StatelessWidget {
 
 -   `bloc` (optional): The bloc instance. If not provided, will be looked up via `context.read<B>()`
 -   `onEffect`: Required callback function with signature `(context, effect) -> void`
+-   `effectWhen` (optional): Predicate that decides whether `onEffect` runs
 -   `child` (optional): Child widget to render
 
 ### Behavior
@@ -1175,7 +1768,9 @@ class EffectListener<B extends BlocBase<Object?>, E> extends StatelessWidget {
 -   Calls `onEffect` callback once per effect emission
 -   Automatically unsubscribes when widget is disposed
 -   If bloc is null and not found, throws `ProviderNotFoundException`
--   Requires bloc to implement `HasEffects<E>`
+-   Requires bloc to implement `EffectsSource<E>`; this is checked only at
+    runtime, and a bloc that does not throws a `StateError` when the widget
+    subscribes
 
 ### Example Usage
 
@@ -1184,8 +1779,8 @@ class LoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => AuthBloc(),
-      child: EffectListener<AuthBloc, NavigationEffect>(
+      create: (_) => AuthCubit(authService),
+      child: EffectListener<AuthCubit, AuthState, NavigationEffect>(
         onEffect: (context, effect) {
           switch (effect) {
             case NavigateToHome():
@@ -1207,14 +1802,20 @@ class LoginPage extends StatelessWidget {
 
 ### Multiple Effect Listeners
 
-Multiple `EffectListener` widgets can listen to the same bloc:
+Multiple `EffectListener` widgets can listen to the same bloc, but each must
+use the bloc's declared effect type `E`. A listener for a subtype of `E`
+(such as `EffectListener<AuthCubit, AuthState, ShowSnackBar>` on an
+`EffectsSource<NavigationEffect>`) compiles but throws a `StateError` when it
+subscribes. Since 0.3.0, use `BlocEffectListener` on the supertype with an
+if-case pattern instead (see above).
 
 ```dart
-EffectListener<AuthBloc, NavigationEffect>(
+EffectListener<AuthCubit, AuthState, NavigationEffect>(
   onEffect: (context, effect) {
     // Handle navigation effects
   },
-  child: EffectListener<AuthBloc, SnackBarEffect>(
+  child: EffectListener<AuthCubit, AuthState, NavigationEffect>(
+    effectWhen: (effect) => effect is ShowSnackBar,
     onEffect: (context, effect) {
       // Handle snackbar effects
     },
@@ -1225,10 +1826,88 @@ EffectListener<AuthBloc, NavigationEffect>(
 
 ### Cleanup
 
-`EffectListener` automatically:
--   Unsubscribes from stream when widget is disposed
--   Handles bloc disposal gracefully
--   Prevents memory leaks
+`EffectListener` and `BlocEffectListener` automatically:
+-   Unsubscribe from stream when widget is disposed
+-   Handle bloc disposal gracefully
+-   Prevent memory leaks
+
+------------------------------------------------------------------------
+
+## BlocConsumerWithEffects
+
+Combines state building, optional state listening and one-off effect handling
+for a bloc that mixes in `HasEffects`. Added in 0.2.0; since 0.3.0 it
+requires `B extends HasEffects<S, E>`, `listener` is optional, and the bloc is
+resolved once per build. The widget is exported with the `ui_with_bloc`
+widgets.
+
+### API Specification
+
+```dart
+typedef BlocEffectListenerWithBloc<B extends StateStreamable<S>, S, E> =
+    void Function(BuildContext context, B bloc, E effect);
+
+class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
+    extends StatelessWidget {
+  const BlocConsumerWithEffects({
+    required this.onEffect,
+    required this.builder,
+    super.key,
+    this.listener,
+    this.bloc,
+    this.buildWhen,
+    this.listenWhen,
+    this.effectWhen,
+  });
+
+  final B? bloc;
+  final BlocBuilderCondition<S>? buildWhen;
+  final BlocListenerCondition<S>? listenWhen;
+  final EffectCondition<E>? effectWhen;
+  final BlocWidgetListenerWithBloc<B, S>? listener;
+  final BlocEffectListenerWithBloc<B, S, E> onEffect;
+  final BlocWidgetBuilderWithBloc<B, S> builder;
+}
+```
+
+### Parameters
+
+-   `bloc` (optional): The bloc instance. If not provided, will be looked up via `context.read<B>()`
+-   `onEffect`: Required callback `(context, bloc, effect) -> void`
+-   `builder`: Required builder `(context, bloc, state) -> Widget`
+-   `listener` (optional): Callback `(context, bloc, state) -> void` for state
+    changes
+-   `buildWhen`, `listenWhen`, `effectWhen` (optional): Conditions for the
+    builder, the listener and `onEffect`
+
+### Behavior
+
+-   States, effects and every callback come from one bloc instance, resolved
+    once per build, also right after `bloc` changes from an instance to
+    `null`
+-   `listenWhen` without `listener` fails an assert
+-   If bloc is null and not found, throws `ProviderNotFoundException`
+-   A bloc that implements `EffectsSource` by hand does not compile here:
+    mix in `HasEffects<S, E>`
+-   Write all three type arguments: below language version 3.7 they are not
+    inferred from `bloc`
+
+### Example Usage
+
+```dart
+BlocConsumerWithEffects<CounterCubit, CounterState, CounterEffect>(
+  onEffect: (context, bloc, effect) {
+    if (effect case ShowSnack(:final message)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  },
+  builder: (context, bloc, state) {
+    return Text('${state.count}');
+  },
+)
+```
 
 ------------------------------------------------------------------------
 
@@ -1244,8 +1923,8 @@ Use `bloc_plus` widgets when:
 -   You need direct bloc instance access in callbacks (avoids `context.read()` calls)
 -   You want null-safe extensions for optional blocs (`readOrNull`, `watchOrNull`, etc.)
 -   You need async safety utilities (`SafeEmitMixin`, `CancellationToken`, `RestartableTask`)
--   You want to use the effects pattern (`HasEffects`, `EffectListener`)
--   You want to use rebuild/listen policies for cleaner code
+-   You want to use the effects pattern (`HasEffects`, `BlocEffectListener`)
+-   You want reusable rebuild/listen conditions (`whenChanged`) for cleaner code
 
 Continue using `flutter_bloc` widgets when:
 -   Existing code works well and doesn't need changes
@@ -1329,7 +2008,7 @@ Widget build(BuildContext context) {
   if (bloc == null) return Text('Bloc not available');
   
   // Using standard flutter_bloc widget
-  return BlocBuilder(
+  return BlocBuilder<CounterBloc, CounterState>(
     bloc: bloc,
     builder: (context, state) => Text('${state.count}'),
   );
@@ -1338,13 +2017,15 @@ Widget build(BuildContext context) {
 
 **Example 3: Using async safety with existing blocs**
 
-Add `SafeEmitMixin` to existing blocs without changing widget usage:
+Add `SafeEmitMixin` to existing cubits without changing widget usage:
 
 ```dart
-// Bloc with async safety
-class DataBloc extends Bloc<DataEvent, DataState> 
-    with SafeEmitMixin<DataState> {
-  
+// Cubit with async safety
+class DataCubit extends Cubit<DataState> with SafeEmitMixin<DataState> {
+  DataCubit(this.repository) : super(const DataState());
+
+  final DataRepository repository;
+
   Future<void> loadData() async {
     final data = await repository.fetchData();
     safeEmit(DataState(data: data)); // Safe emit
@@ -1352,9 +2033,12 @@ class DataBloc extends Bloc<DataEvent, DataState>
 }
 
 // Can use with either widget type
-BlocBuilder<DataBloc, DataState>(...) // Standard widget works
-BlocBuilderWithBloc<DataBloc, DataState>(...) // Plus widget also works
+BlocBuilder<DataCubit, DataState>(...) // Standard widget works
+BlocBuilderWithBloc<DataCubit, DataState>(...) // Plus widget also works
 ```
+
+In a `Bloc`, emit from event handlers with the handler's `emit`, and check
+`emit.isDone` after an `await`.
 
 ### 6.5 Compatibility notes
 
@@ -1363,7 +2047,11 @@ BlocBuilderWithBloc<DataBloc, DataState>(...) // Plus widget also works
 -   Both libraries use the same `BlocProvider` for dependency injection
 -   No conflicts or breaking changes when mixing widgets
 -   Full type safety maintained across both libraries
--   Both `Bloc` and `Cubit` types are supported via `BlocBase`-based contracts
+-   Both `Bloc` and `Cubit` types are supported: the `*WithBloc` widgets
+    accept any `StateStreamable<S>` and `selectOrNull` any
+    `StateStreamableSource<S>` (since 0.3.0), and the
+    mixins (`SafeEmitMixin`, `RestartableTasksMixin`, `HasEffects`) apply
+    `on BlocBase<S>`
 
 ------------------------------------------------------------------------
 
@@ -1400,11 +2088,13 @@ BlocProvider(
 
 **Problem**: Emitting state after bloc is closed causes crash.
 
-**Solution**: Use `SafeEmitMixin`:
+**Solution**: Use `SafeEmitMixin` in a `Cubit`:
 ```dart
-class MyBloc extends Bloc<MyEvent, MyState> 
-    with SafeEmitMixin<MyState> {
-  
+class MyCubit extends Cubit<MyState> with SafeEmitMixin<MyState> {
+  MyCubit(this.api) : super(const MyState());
+
+  final MyApi api;
+
   Future<void> loadData() async {
     final data = await api.fetchData();
     safeEmit(MyState(data: data)); // Safe, ignores if closed
@@ -1412,19 +2102,26 @@ class MyBloc extends Bloc<MyEvent, MyState>
 }
 ```
 
+In a `Bloc` event handler, use the handler's `emit` and check `emit.isDone`
+after an `await`.
+
 ### 7.3 Effect Errors
 
 #### Missing HasEffects Implementation
 
-**When**: Using `EffectListener` with bloc that doesn't implement `HasEffects`.
+**When**: Using `BlocEffectListener` or `BlocConsumerWithEffects` with a bloc
+that doesn't implement `HasEffects`, or with the wrong effect type.
 
-**Handling**: Ensure bloc implements `HasEffects<E>` mixin.
+**Handling**: Ensure bloc mixes in `HasEffects<S, E>`. With
+`BlocEffectListener` and `BlocConsumerWithEffects` a missing mixin or a wrong
+effect type is a compile-time error. The deprecated `EffectListener` throws a
+`StateError` at runtime instead.
 
 **Example**:
 ```dart
 // Correct implementation
-class AuthBloc extends Bloc<AuthEvent, AuthState> 
-    with HasEffects<NavigationEffect> {
+class AuthCubit extends Cubit<AuthState>
+    with HasEffects<AuthState, NavigationEffect> {
   // ... implementation
 }
 ```
@@ -1434,6 +2131,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState>
 #### Null Returns
 
 All extension methods (`readOrNull`, `watchOrNull`, etc.) return `null` if bloc not found.
+Other errors, such as one thrown while the provider creates the bloc, are
+rethrown.
 
 **Handling**: Always check for null:
 ```dart
@@ -1453,7 +2152,9 @@ bloc.add(SomeEvent());
 
 **Solution**: Always dispose in `close()`:
 ```dart
-class MyBloc extends Bloc<MyEvent, MyState> {
+class MyCubit extends Cubit<MyState> {
+  MyCubit() : super(const MyState());
+
   final _task = RestartableTask<String>();
   
   @override
@@ -1464,13 +2165,27 @@ class MyBloc extends Bloc<MyEvent, MyState> {
 }
 ```
 
+#### Superseded Callers
+
+**Problem**: Since 0.3.0 a superseded, cancelled or closed run releases its
+caller at once, while the newer run is still in flight, and the abandoned
+work keeps running.
+
+**Solution**: Check the outcome before code after the `await` (a `finally`
+included) resets shared state such as a loading flag. Check
+`token.isCancelled` before side effects inside the task, or pass
+`token.whenCancelled` to the I/O.
+
 ### 7.6 Common Mistakes
 
 1.  **Not checking null from extensions**: Always check `readOrNull()` result
-2.  **Forgetting SafeEmitMixin**: Use for all async emits
+2.  **Forgetting SafeEmitMixin**: Use for all async emits in Cubits; in `Bloc`
+    handlers use the handler's `emit` and check `emit.isDone`
 3.  **Not disposing tasks**: Always dispose `RestartableTask` in `close()`
-4.  **Missing HasEffects**: Implement `HasEffects` before using `EffectListener`
-5.  **Mixing effect types**: Use separate effect types or separate listeners
+4.  **Missing HasEffects**: Mix in `HasEffects<S, E>` before using `BlocEffectListener`
+5.  **Mixing effect types**: Use one `sealed` effect type per bloc and handle
+    it with an exhaustive `switch`, or listen to the supertype and match one
+    subtype with an if-case pattern
 
 ------------------------------------------------------------------------
 
@@ -1497,7 +2212,8 @@ class MyBloc extends Bloc<MyEvent, MyState> {
 
 **Behavior with SafeEmitMixin**: All emits are silently ignored.
 
-**Best Practice**: Use `guarded()` for operations that should be cancelled:
+**Best Practice**: Use `guarded()` to drop the result of an operation that
+completes after the bloc is closed (it does not stop the operation):
 ```dart
 final result = await guarded(() => api.fetchData());
 if (result != null) {
@@ -1509,26 +2225,29 @@ if (result != null) {
 
 #### Multiple Listeners
 
-**Scenario**: Multiple `EffectListener` widgets listening to same bloc.
+**Scenario**: Multiple `BlocEffectListener` widgets listening to same bloc.
 
 **Behavior**: Each listener receives all effects (broadcast stream).
 
-**Best Practice**: Filter effects in listener callback or use separate effect types.
+**Best Practice**: Filter effects with `effectWhen` or an if-case pattern in
+`onEffect`; all listeners of one bloc use its declared effect type.
 
 ### 8.4 Policies
 
 #### Policy Reuse
 
-**Scenario**: Reusing same policy instance across multiple widgets.
+**Scenario**: Reusing same condition across multiple widgets.
 
-**Behavior**: Policies are stateless, safe to reuse.
+**Behavior**: Conditions (and the deprecated policies) are stateless, safe to
+reuse.
 
-**Best Practice**: Create policy instances once and reuse:
+**Best Practice**: Create the condition once and reuse it. Stored in a
+variable, `whenChanged` needs the selector's parameter type:
 ```dart
-final policy = distinct<CounterState>();
+final countChanged = whenChanged((CounterState state) => state.count);
 
-BlocBuilderWithBloc(..., buildWhen: policy.shouldRebuild);
-BlocBuilderWithBloc(..., buildWhen: policy.shouldRebuild);
+BlocBuilderWithBloc<CounterBloc, CounterState>(..., buildWhen: countChanged);
+BlocBuilderWithBloc<CounterBloc, CounterState>(..., buildWhen: countChanged);
 ```
 
 ### 8.5 Selector Performance
@@ -1537,14 +2256,15 @@ BlocBuilderWithBloc(..., buildWhen: policy.shouldRebuild);
 
 **Scenario**: Selector function performs expensive computation.
 
-**Behavior**: Selector is called on every state change, even if result doesn't change.
+**Behavior**: Selector is called once on every state change, even if result
+doesn't change.
 
 **Best Practice**: Keep selectors lightweight, use `selectorShouldRebuild` for complex logic:
 ```dart
 BlocSelectorWithBloc<DataBloc, DataState, ExpensiveResult>(
   selector: (state) => computeExpensive(state),
   selectorShouldRebuild: (previous, current) => 
-    previous.dataHash != current.dataHash, // Only recompute when needed
+    previous.dataHash != current.dataHash, // Only rebuild when needed
   builder: (context, bloc, result) => ...,
 )
 ```
@@ -1555,9 +2275,11 @@ BlocSelectorWithBloc<DataBloc, DataState, ExpensiveResult>(
 
 **Scenario**: Cancelling token while task is running.
 
-**Behavior**: Task continues running, but `run()` returns `null`.
+**Behavior**: Task continues running, but `run()` returns `null` at once,
+without waiting for the task (since 0.3.0).
 
-**Best Practice**: Check `isCancelled` inside long-running tasks:
+**Best Practice**: Check `isCancelled` inside long-running tasks, or pass
+`whenCancelled` to I/O that can abort:
 ```dart
 final result = await token.run(() async {
   for (var item in items) {
@@ -1579,21 +2301,26 @@ final result = await token.run(() async {
 
 ### 9.2 Memory Usage
 
--   `EffectListener` automatically unsubscribes on dispose - no leaks
--   `RestartableTask` cancels previous tasks - prevents memory buildup
+-   `BlocEffectListener` automatically unsubscribes on dispose - no leaks
+-   `RestartableTask` discards the results of superseded runs and releases
+    their callers, but does not stop their work: an abandoned task keeps
+    running, and keeps its memory, until it completes. Pass
+    `token.whenCancelled` to the I/O to abort it
 -   `SafeEmitMixin` adds minimal overhead (single boolean check)
 
 ### 9.3 Async Operations
 
 -   `guarded()` adds minimal overhead (bloc state check)
--   `CancellationToken` is lightweight (single boolean flag)
+-   `CancellationToken` is lightweight (a completer plus the callbacks of
+    runs still waiting); listeners on `whenCancelled` stay attached until the
+    token is cancelled, so use one token per operation
 -   `RestartableTask` manages single task reference
 
 ### 9.4 Best Practices
 
 1.  Use `BlocSelectorWithBloc` when only part of state is needed
 2.  Implement `buildWhen`/`listenWhen` to prevent unnecessary rebuilds
-3.  Use policies for reusable rebuild logic
+3.  Use conditions (`whenChanged`) for reusable rebuild logic
 4.  Dispose tasks in bloc's `close()` method
 5.  Use effects instead of state for one-shot UI events
 
@@ -1602,6 +2329,10 @@ final result = await token.run(() async {
 # Testing Requirements
 
 ## 10.1 Coverage Requirements
+
+> Historical: CI measures coverage and uploads it to Codecov, which reports
+> patch and project coverage against the base branch; no fixed threshold is
+> configured. `lib/` line coverage has been 100% since 0.2.2.
 
 -   **Minimum Coverage**: ≥ 90% code coverage
 -   **Critical Paths**: 100% coverage for async safety utilities
@@ -1618,8 +2349,17 @@ final result = await token.run(() async {
 -   `CancellationToken` cancellation works correctly
 -   `RestartableTask` cancels previous task when new one starts
 -   `RestartableTask.dispose()` prevents new tasks
+-   Superseded, cancelled and closed callers are released at once, and
+    `runOutcome` / `runLatestOutcome` return `TaskOutcome.cancelled()` for
+    them
+-   Failures of superseded runs are dropped; the latest run's failure is
+    rethrown
 
-**Policies**:
+**Conditions**:
+-   `whenChanged` holds only when the selected value changes
+-   `whenChanged` uses `equals` when given
+
+**Policies** (deprecated, tested until their removal in 1.0):
 -   `distinct()` only rebuilds on state change
 -   `onChange()` rebuilds on selected value change
 -   `always()` always rebuilds
@@ -1649,11 +2389,12 @@ final result = await token.run(() async {
 -   `BlocSelectorWithBloc` only rebuilds when selected value changes
 -   Widgets throw `ProviderNotFoundException` when `bloc` is null and provider is missing
 
-**EffectListener**:
--   `EffectListener` calls callback on effect emission
--   `EffectListener` unsubscribes on dispose
--   `EffectListener` handles multiple effects correctly
--   `EffectListener` handles bloc disposal gracefully
+**BlocEffectListener** (and the deprecated `EffectListener`):
+-   `BlocEffectListener` calls callback on effect emission
+-   `BlocEffectListener` unsubscribes on dispose
+-   `BlocEffectListener` handles multiple effects correctly
+-   `BlocEffectListener` handles bloc disposal gracefully
+-   `BlocEffectListener` composes inside `MultiBlocListener`
 
 ### Integration Tests
 
@@ -1661,19 +2402,24 @@ final result = await token.run(() async {
 -   Multiple widgets can use same bloc instance
 -   Effects work correctly with multiple listeners
 -   Async safety prevents crashes in real scenarios
--   Policies work correctly with all widget types
+-   Conditions work correctly with all widget types
 
 ## 10.3 Test Examples
 
 ### Unit Test Example
 
 ```dart
-test('SafeEmitMixin ignores emit when bloc is closed', () {
-  final bloc = TestBloc();
-  bloc.close();
-  
-  expect(() => bloc.safeEmit(TestState()), returnsNormally);
-  expect(bloc.state, isNot(equals(TestState())));
+test('SafeEmitMixin ignores emit when bloc is closed', () async {
+  // Given
+  final cubit = TestCubit();
+  await cubit.close();
+
+  // When
+  // safeEmit is @visibleForTesting, so tests may call it.
+  cubit.safeEmit(TestState());
+
+  // Then
+  expect(cubit.state, isNot(equals(TestState())));
 });
 ```
 
@@ -1681,24 +2427,36 @@ test('SafeEmitMixin ignores emit when bloc is closed', () {
 
 ```dart
 testWidgets('BlocBuilderWithBloc provides bloc instance', (tester) async {
+  // Given
   final counterBloc = CounterBloc();
-  
+  addTearDown(counterBloc.close);
+  CounterBloc? receivedBloc;
+
+  // When
   await tester.pumpWidget(
-    BlocProvider.value(
-      value: counterBloc,
-      child: BlocBuilderWithBloc<CounterBloc, CounterState>(
-        builder: (context, bloc, state) {
-          expect(bloc, isNotNull);
-          expect(bloc, same(counterBloc));
-          return Text('${state.count}');
-        },
+    Directionality(
+      textDirection: TextDirection.ltr,
+      child: BlocProvider.value(
+        value: counterBloc,
+        child: BlocBuilderWithBloc<CounterBloc, CounterState>(
+          builder: (context, bloc, state) {
+            receivedBloc = bloc;
+            return Text('${state.count}');
+          },
+        ),
       ),
     ),
   );
+
+  // Then
+  expect(receivedBloc, same(counterBloc));
 });
 ```
 
 ## 10.4 Performance Tests
+
+> Historical: these were planned but never written; there are no
+> performance or benchmark tests and no benchmark gates.
 
 -   Widget rebuild performance matches `flutter_bloc`
 -   Selector performance is optimized
@@ -1712,6 +2470,9 @@ Each implementation PR must pass:
 -   `dart format --set-exit-if-changed .`
 -   `flutter analyze`
 -   `flutter test`
+
+CI (`.github/workflows/ci.yml`) also checks the lowest allowed dependency
+versions and the minimum Flutter SDK; see `AGENTS.md` section 7.
 
 ------------------------------------------------------------------------
 
@@ -1743,11 +2504,19 @@ Must provide example app demonstrating:
 -   All widget types
 -   Async safety usage
 -   Effects pattern
--   Policies usage
+-   Conditions usage (`whenChanged`; policies until 0.3.0)
 -   Extension methods
 -   Common patterns and best practices
 
+Current status: the example app shows `BlocBuilderWithBloc`,
+`BlocConsumerWithEffects`, `BlocEffectListener`, `whenChanged`,
+`SafeEmitMixin` and `RestartableTasksMixin`. The other widgets, the
+extension methods, `CancellationToken` and `guarded` are still open.
+
 ### 11.4 Documentation Structure
+
+> Historical: this tree was planned but never created. The usage docs live
+> in `README.md`, the dartdoc comments and the `example/` app.
 
 ```
 docs/
@@ -1767,6 +2536,11 @@ docs/
 ```
 
 ## 11.5 Pre-Implementation Checklist (Required)
+
+> Historical: this checklist was for the first implementation before 0.1.0.
+> Benchmarks with pass/fail thresholds and the benchmark part of the release
+> gate were never defined. The current release process is in `AGENTS.md`
+> section 16.
 
 Before running a code-generation agent, all items below must be marked complete:
 
@@ -1788,6 +2562,13 @@ Before running a code-generation agent, all items below must be marked complete:
 # Roadmap
 
 ## 12.1 Version Plan
+
+> Historical: this was the plan before 0.1.0; everything in v0.1.0 to v0.4.0
+> below shipped together in 0.1.x, and the version numbers below do not
+> match the released ones (0.2.0 added policy composition and async and
+> effect helpers; 0.3.0 added conditions, `BlocEffectListener` and
+> `TaskOutcome`). The deprecated APIs are to be removed in 1.0. Current
+> status: `CHANGELOG.md`.
 
 ### v0.1.0 - UI Widgets & Extensions (MVP)
 **Target**: Milestone M1 (first shippable cut)
@@ -1868,6 +2649,10 @@ Before running a code-generation agent, all items below must be marked complete:
 ------------------------------------------------------------------------
 
 # Success Metrics
+
+> Historical: these targets were set before 0.1.0 and are not tracked. CI
+> measures test coverage without a threshold; nothing measures adoption,
+> developer experience, bundle size or build time.
 
 ## 13.1 Adoption Metrics
 

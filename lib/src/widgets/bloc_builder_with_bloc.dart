@@ -3,12 +3,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Signature for building a widget with both the resolved bloc and current
 /// state.
-typedef BlocWidgetBuilderWithBloc<B extends BlocBase<S>, S> = Widget Function(
-    BuildContext context, B bloc, S state);
+typedef BlocWidgetBuilderWithBloc<B extends StateStreamable<S>, S> = Widget
+    Function(BuildContext context, B bloc, S state);
 
 /// A [BlocBuilderBase] variant that also passes the resolved bloc instance to
 /// [builder].
-class BlocBuilderWithBloc<B extends BlocBase<S>, S>
+///
+/// Like `BlocBuilder`, when [bloc] changes from an instance to `null` it keeps
+/// listening to that instance, while [builder] receives the provided bloc.
+/// Give the widget a new `key` when you switch between an explicit and a
+/// provided bloc.
+class BlocBuilderWithBloc<B extends StateStreamable<S>, S>
     extends BlocBuilderBase<B, S> {
   /// Creates a builder widget that exposes both bloc and state.
   const BlocBuilderWithBloc({

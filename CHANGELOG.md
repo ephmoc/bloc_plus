@@ -14,12 +14,23 @@
     a cancelled run apart from one that completed with `null`.
     `CancellationToken.whenCancelled` can abort the underlying I/O.
   - `BlocConsumerWithEffects.listener` is optional.
+  - A `const` constructor for `BlocListenerWithBloc`.
 - Changed:
   - A cancelled, superseded or closed run releases its caller at once (`null`
     or `TaskOutcome.cancelled()`) instead of waiting for the abandoned work,
     which keeps running. This fixes callers that hung on work that never
     completes.
   - `BlocConsumerWithEffects` requires `B extends HasEffects<S, E>`.
+  - The `*WithBloc` widgets and their callback typedefs accept
+    `B extends StateStreamable<S>`, like flutter_bloc's widgets.
+    `readOrNull`, `watchOrNull` and `withBloc` accept any provided type, such
+    as a repository: `withBloc((Repo repo) => ...)` now finds the repository
+    instead of inferring `Never` and returning `null`. `selectOrNull` accepts
+    any `StateStreamableSource<S>`, the type `BlocProvider` provides and
+    keeps up to date.
+  - `BlocConsumerWithBloc` and `BlocConsumerWithEffects` resolve the bloc once
+    per build, so states, effects and every callback come from one instance,
+    also right after `bloc:` changes from an instance to `null`.
   - `emitEffect` and `safeEmit` are `@protected` and `@visibleForTesting`,
     like `emit`.
   - New direct dependency: `provider` `>=6.0.0 <7.0.0`, the range
@@ -59,12 +70,19 @@ Migration impact:
   builds emit the stale state.
 - Write both type arguments of `BlocEffectListener`: below language version
   3.7, `E` is not inferred from `bloc:`.
+- After `bloc:` of `BlocConsumerWithBloc` or `BlocConsumerWithEffects` changes
+  from an instance to `null`, the widget follows the provided bloc at once
+  instead of the previous instance. `BlocBuilderWithBloc` and
+  `BlocListenerWithBloc` keep the previous instance, like `BlocBuilder` and
+  `BlocListener`, while their callback gets the provided one: give them a new
+  `key` when you switch.
 
 Release type rationale:
 
-- `minor`: new APIs and deprecations; the narrower consumer bound, the new
-  analyzer warnings and the earlier release of superseded callers are
-  behaviour changes that a 0.x minor allows.
+- `minor`: new APIs, wider type bounds and deprecations; the narrower consumer
+  bound, the new analyzer warnings, the earlier release of superseded callers
+  and the consumers following the provided bloc are behaviour changes that a
+  0.x minor allows.
 
 ## 0.2.2
 

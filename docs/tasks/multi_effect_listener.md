@@ -1,5 +1,12 @@
 # Task Spec - multi_effect_listener
 
+> Status: delivered in 0.2.0. In 0.3.0 `MultiEffectListener` and
+> `SingleChildEffectListener` are deprecated, removed in 1.0. Replacement:
+> `MultiBlocListener` with `BlocEffectListener<B, E>` entries, mixed freely
+> with `BlocListener` and `BlocListenerWithBloc`. `MultiBlocListener` needs a
+> non-empty list and ignores a `child` given to a listener inside it. This
+> spec is historical; do not extend `MultiEffectListener`.
+
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - Baseline `effects` module is already implemented and exported
@@ -10,7 +17,7 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
-- Implement `MultiEffectListener`
+- Implement `MultiEffectListener({required List<SingleChildEffectListener> listeners, required Widget child})`
 - Provide a public API for combining multiple effect listeners without manual
   nesting
 - Preserve the semantics of each individual `EffectListener`
@@ -46,7 +53,8 @@ Required cases:
 
 ## Example App Updates
 - Add one example screen section that replaces nested effect listeners with
-  `MultiEffectListener`
+  `MultiEffectListener` (the example app at 0.3.0 uses `MultiBlocListener`
+  instead)
 
 ## Acceptance Criteria (DoD)
 - New widget compiles, is exported, and is documented

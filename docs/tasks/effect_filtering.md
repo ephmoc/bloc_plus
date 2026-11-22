@@ -1,5 +1,14 @@
 # Task Spec - effect_filtering
 
+> Status: delivered in 0.2.0 as `effectWhen` (`EffectCondition<E>`, a
+> `bool Function(E effect)`) on `EffectListener`. In 0.3.0 `EffectListener`
+> is deprecated, removed in 1.0; the same `effectWhen` is on
+> `BlocEffectListener<B, E>` and `BlocConsumerWithEffects`. `effectWhen` does
+> not promote the effect type: to react to one subtype, listen to the
+> supertype and use `if (effect case Sub(...))` in `onEffect`. Change
+> filtering in `BlocEffectListener`; do not extend the deprecated
+> `EffectListener`.
+
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - Baseline `effects` module is already implemented and exported
@@ -9,9 +18,10 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
-- Extend `EffectListener` with optional effect filtering
+- Extend `EffectListener` with optional effect filtering (now also on
+  `BlocEffectListener`)
 - Add an explicit predicate API for deciding whether an emitted effect should
-  invoke `onEffect`
+  invoke `onEffect`: `effectWhen: (effect) => ...`
 - Preserve existing subscription, provider lookup, and disposal semantics
 
 ## Out Of Scope
@@ -30,11 +40,14 @@
 
 ## Target Files
 - `lib/src/effects/effect_listener.dart`
+- `lib/src/effects/bloc_effect_listener.dart` (0.3.0)
+- `lib/src/widgets/bloc_consumer_with_effects.dart` (0.3.0)
 - `lib/src/effects/effects.dart` (barrel, if API surface changes)
 - `lib/bloc_plus.dart` (exports, if required)
 
 ## Tests (Contract)
 - `test/widgets/effect_listener_test.dart`
+- `test/widgets/bloc_effect_listener_test.dart` (0.3.0)
 
 Required cases:
 - listener still receives all effects when no filter is provided
@@ -47,6 +60,8 @@ Required cases:
 
 ## Example App Updates
 - Add one example using effect filtering for navigation vs snackbar effects
+  (historical: the example app at 0.3.0 filters dialog, snackbar and info
+  effects with `effectWhen`; it has no navigation effect)
 
 ## Acceptance Criteria (DoD)
 - Existing `EffectListener` usage remains source-compatible
@@ -58,6 +73,7 @@ Required cases:
 - `dart format .`
 - `flutter analyze`
 - `flutter test test/widgets/effect_listener_test.dart`
+- `flutter test test/widgets/bloc_effect_listener_test.dart`
 
 ## Agent Constraints
 - Keep filtering API explicit; avoid hidden type-based dispatch unless it is a
