@@ -75,19 +75,19 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
       effectWhen: effectWhen,
       onEffect: (context, effect) =>
           onEffect(context, bloc ?? context.read<B>(), effect),
-      child: listener == null
-          ? BlocBuilderWithBloc<B, S>(
-              bloc: bloc,
-              buildWhen: buildWhen,
-              builder: builder,
-            )
-          : BlocConsumerWithBloc<B, S>(
-              bloc: bloc,
-              buildWhen: buildWhen,
-              listenWhen: listenWhen,
-              listener: listener,
-              builder: builder,
-            ),
+      // One child type with or without a listener, so toggling [listener]
+      // between null and a callback keeps the builder's subtree and state.
+      child: BlocConsumerWithBloc<B, S>(
+        bloc: bloc,
+        buildWhen: buildWhen,
+        listenWhen: listener == null ? _never : listenWhen,
+        listener: listener ?? _ignore,
+        builder: builder,
+      ),
     );
   }
 }
+
+bool _never(Object? previous, Object? current) => false;
+
+void _ignore(BuildContext context, Object? bloc, Object? state) {}

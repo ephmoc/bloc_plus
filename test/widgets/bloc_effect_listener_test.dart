@@ -253,6 +253,33 @@ void main() {
     expect(calls, ['state:1', 'withBloc:1', 'toast:saved']);
   });
 
+  testWidgets(
+      'resubscribes when only the provider above a reused listener '
+      'changes', (tester) async {
+    // Given
+    final first = _UiCubit();
+    final second = _UiCubit();
+    addTearDown(first.close);
+    addTearDown(second.close);
+    final log = <String>[];
+    // The same instance on every pump: didUpdateWidget does not run, so only
+    // the provider dependency can trigger the resubscription.
+    final listener = BlocEffectListener<_UiCubit, _UiEffect>(
+      onEffect: (context, effect) => log.add(_describe(effect)),
+      child: const SizedBox.shrink(),
+    );
+    await tester.pumpWidget(BlocProvider.value(value: first, child: listener));
+
+    // When
+    await tester.pumpWidget(BlocProvider.value(value: second, child: listener));
+    first.toast('old');
+    second.toast('new');
+    await tester.pump();
+
+    // Then
+    expect(log, ['toast:new']);
+  });
+
   testWidgets('MultiBlocListener: resubscribes when the provider is swapped',
       (tester) async {
     // Given
@@ -404,7 +431,7 @@ void main() {
             onEffect: (context, effect) => effects.add(_describe(effect)),
           ),
         ],
-        child: const SizedBox.shrink(),
+        child: const Text('screen', textDirection: TextDirection.ltr),
       ),
     );
 
@@ -414,5 +441,6 @@ void main() {
 
     // Then
     expect(effects, ['toast:saved']);
+    expect(find.text('screen'), findsOneWidget);
   });
 }

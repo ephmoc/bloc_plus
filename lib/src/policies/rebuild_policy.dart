@@ -101,9 +101,9 @@ class _NotRebuildPolicy<S> extends RebuildPolicy<S> {
 }
 
 /// Rebuilds only when the full state value changes.
-@Deprecated('Pass (previous, current) => previous != current, or omit the '
-    'parameter when the bloc is a Bloc or Cubit (emit already skips '
-    'equal states). Will be removed in 1.0.')
+@Deprecated('Pass (previous, current) => previous != current. Omitting '
+    'buildWhen differs only for a first emitted state equal to the initial '
+    'one, which emit does not skip. Will be removed in 1.0.')
 RebuildPolicy<S> distinct<S>() => _DistinctRebuildPolicy<S>();
 
 /// Rebuilds only when the selected value changes.

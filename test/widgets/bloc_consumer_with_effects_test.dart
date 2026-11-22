@@ -230,4 +230,46 @@ void main() {
     // Then
     expect(effects, isEmpty);
   });
+
+  testWidgets('keeps the builder state when listener toggles to non-null',
+      (tester) async {
+    // Given
+    final cubit = _EffectCounterCubit();
+    addTearDown(cubit.close);
+    Widget consumer({required bool withListener}) => Directionality(
+          textDirection: TextDirection.ltr,
+          child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+            bloc: cubit,
+            listener: withListener ? (context, bloc, state) {} : null,
+            onEffect: (context, bloc, effect) {},
+            builder: (context, bloc, state) => const _TapCounter(),
+          ),
+        );
+    await tester.pumpWidget(consumer(withListener: false));
+    await tester.tap(find.byType(_TapCounter));
+    await tester.pump();
+
+    // When
+    await tester.pumpWidget(consumer(withListener: true));
+
+    // Then
+    expect(find.text('taps: 1'), findsOneWidget);
+  });
+}
+
+class _TapCounter extends StatefulWidget {
+  const _TapCounter();
+
+  @override
+  State<_TapCounter> createState() => _TapCounterState();
+}
+
+class _TapCounterState extends State<_TapCounter> {
+  int _taps = 0;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: () => setState(() => _taps++),
+        child: Text('taps: $_taps'),
+      );
 }

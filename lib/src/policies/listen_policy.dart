@@ -100,9 +100,9 @@ class _NotListenPolicy<S> extends ListenPolicy<S> {
 }
 
 /// Listens only when the full state value changes.
-@Deprecated('Pass (previous, current) => previous != current, or omit the '
-    'parameter when the bloc is a Bloc or Cubit (emit already skips '
-    'equal states). Will be removed in 1.0.')
+@Deprecated('Pass (previous, current) => previous != current. Omitting '
+    'listenWhen differs only for a first emitted state equal to the initial '
+    'one, which emit does not skip. Will be removed in 1.0.')
 ListenPolicy<S> distinctListen<S>() => _DistinctListenPolicy<S>();
 
 /// Listens only when the selected value changes.

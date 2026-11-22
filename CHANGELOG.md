@@ -18,7 +18,7 @@
   - A cancelled, superseded or closed run releases its caller at once (`null`
     or `TaskOutcome.cancelled()`) instead of waiting for the abandoned work,
     which keeps running. This fixes callers that hung on work that never
-    completes, and cancelled `Bloc` handlers that emitted a stale state.
+    completes.
   - `BlocConsumerWithEffects` requires `B extends HasEffects<S, E>`.
   - `emitEffect` and `safeEmit` are `@protected` and `@visibleForTesting`,
     like `emit`.
@@ -35,10 +35,10 @@ Migration impact:
   - `onChange(sel)` / `onChangeListen(sel)` -> `whenChanged(sel)`; the `...By`
     forms -> `whenChanged(sel, equals: eq)`; `whenRebuild(p)` /
     `whenListen(p)` -> `p`; `always()` -> omit the parameter; `never()` ->
-    `(previous, current) => false`; `distinct()` -> omit the parameter
-    (`emit` already skips equal states) or pass
-    `(previous, current) => previous != current`; `a.and(b)` -> a plain
-    predicate or a record selector.
+    `(previous, current) => false`; `distinct()` ->
+    `(previous, current) => previous != current` (omitting the parameter
+    differs only for a first emitted state equal to the initial one);
+    `a.and(b)` -> a plain predicate or a record selector.
   - `EffectListener<B, S, E>` -> `BlocEffectListener<B, E>`;
     `MultiEffectListener` -> `MultiBlocListener`, which needs a non-empty
     list; a listener for one effect subtype -> the supertype with
@@ -52,6 +52,10 @@ Migration impact:
 - Code after the `await` of a superseded run, a `finally` included, now runs
   while the newer run is in flight: check the outcome before resetting a
   shared loading flag.
+- In a `Bloc` handler, a task that calls the handler's `emit` still needs an
+  `emit.isDone` (or `token.isCancelled`) check: the handler now completes
+  first, and bloc rejects the late `emit` only with an assert, so release
+  builds emit the stale state.
 - Write both type arguments of `BlocEffectListener`: below language version
   3.7, `E` is not inferred from `bloc:`.
 

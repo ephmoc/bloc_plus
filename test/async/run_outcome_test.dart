@@ -56,7 +56,10 @@ class _EmitInTaskBloc extends Bloc<_Event, String>
     on<_Load>((event, emit) async {
       await runLatest('load', () async {
         await event.gate;
-        emit('stale');
+        emitDoneWhenTaskResumed = emit.isDone;
+        // The documented guard: bloc rejects a late emit only with an assert,
+        // so without it a release build would emit the stale state.
+        if (!emit.isDone) emit('stale');
         return 1;
       });
       handlerDone = true;
@@ -65,6 +68,7 @@ class _EmitInTaskBloc extends Bloc<_Event, String>
   }
 
   bool handlerDone = false;
+  bool? emitDoneWhenTaskResumed;
 }
 
 void main() {
@@ -510,8 +514,9 @@ void main() {
       expect(cache, 'b');
     });
 
-    test('a cancelled Bloc handler completes and cannot emit a stale state',
-        () async {
+    test(
+        'a cancelled Bloc handler completes at once and emit.isDone guards '
+        'the abandoned task', () async {
       // Given
       final bloc = _EmitInTaskBloc();
       final states = <String>[];
@@ -531,6 +536,7 @@ void main() {
 
       // Then
       expect(handlerDoneBeforeGate, isTrue);
+      expect(bloc.emitDoneWhenTaskResumed, isTrue);
       expect(states, isEmpty);
       expect(bloc.state, 'initial');
     });

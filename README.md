@@ -154,7 +154,7 @@ be removed in 1.0:
 | `whenRebuild(p).shouldRebuild`, `whenListen(p).shouldListen` | `p` |
 | `always()`, `alwaysListen()` | omit `buildWhen` / `listenWhen` |
 | `never()`, `neverListen()` | `(previous, current) => false` |
-| `distinct()`, `distinctListen()` | `(previous, current) => previous != current`, or omit the parameter for a `Bloc` or `Cubit` (`emit` already skips equal states) |
+| `distinct()`, `distinctListen()` | `(previous, current) => previous != current` (omitting the parameter differs only for a first emitted state equal to the initial one, which `emit` does not skip) |
 | `a.and(b)`, `a.or(b)`, `a.not()` | `(p, c) => a(p, c) && b(p, c)`, `\|\|`, `!` |
 
 Until 1.0, `whenListen` clashes with `whenListen` from `bloc_test`. In tests
@@ -212,8 +212,12 @@ works in tests.
   so use `try`/`catch`; a failure of a cancelled run is dropped.
 - **Inside `Bloc` event handlers**, prefer the handler's `emit` with a
   `bloc_concurrency` transformer such as `restartable()`. If a handler does
-  call `runLatest`, the handler now completes as soon as the run is cancelled,
-  so a cancelled task can no longer emit a stale state through its `emit`.
+  call `runLatest`, it now completes as soon as the run is cancelled, but the
+  abandoned task can still call the handler's `emit`: bloc rejects that call
+  only with an assert, so release builds emit the stale state, and in debug
+  the assert's error is dropped along with the abandoned task's other
+  failures. Check `emit.isDone` (or `token.isCancelled` with
+  `runLatestOutcome`) before calling `emit` inside the task.
 
 `runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
 complete with `null` when the work was superseded, cancelled or outlived the

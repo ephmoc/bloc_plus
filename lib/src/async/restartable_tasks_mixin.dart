@@ -14,7 +14,10 @@ import 'task_outcome.dart';
 ///
 /// Inside `Bloc` event handlers, prefer the handler's `emit` with an event
 /// transformer from `bloc_concurrency` such as `restartable()`; use this mixin
-/// for Cubits and for work that is not tied to one event.
+/// for Cubits and for work that is not tied to one event. A task that calls a
+/// handler's `emit` must check `emit.isDone` first: a cancelled handler
+/// completes before its abandoned task, and bloc rejects the late `emit` only
+/// with an assert, so release builds would emit the stale state.
 mixin RestartableTasksMixin<S> on BlocBase<S> {
   final Map<Object, RestartableTask<Object?>> _tasks = {};
   Future<void>? _closing;

@@ -30,6 +30,11 @@ class CancellationToken {
   /// Pass it to the underlying work to abort it, for example as the
   /// `abortTrigger` of a `package:http` request, or call `cancel` on a dio
   /// `CancelToken` from it.
+  ///
+  /// Listeners attached to this future stay attached until the token is
+  /// cancelled, so give each operation its own token (as `runOutcome` and
+  /// `runLatestOutcome` do) rather than passing one long-lived token to many
+  /// requests.
   Future<void> get whenCancelled => _cancelled.future;
 
   /// Marks this token as cancelled. Calls after the first one do nothing.
