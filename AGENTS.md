@@ -199,11 +199,13 @@ If something could not be completed, state the blocker and attempted workaround.
 - Never push a release tag without explicit user approval: pushing `vX.Y.Z` publishes the package.
 - A release tag is `vX.Y.Z` (or `vX.Y.Z-dev.N` for a prerelease) and must equal `version` in `pubspec.yaml`.
 - Steps:
-  1. on `develop`, set `version` and the `## X.Y.Z` section in `CHANGELOG.md`;
+  1. on `develop`, set `version` and a `## <version>` section with notes in `CHANGELOG.md`, using the exact version string (`## X.Y.Z-dev.N` for a prerelease);
   2. merge `develop` into `main` through a PR titled `Release: X.Y.Z` (squash);
   3. when CI on `main` is green for that commit, tag it and push the tag;
   4. merge `main` back into `develop` with a real merge commit pushed directly (`git switch develop && git merge origin/main && git push origin develop`, admin bypass). Never through a PR: a squash merge does not record the merge, and the next release PR would conflict.
 - `.github/workflows/release.yml` then checks the tag, the CHANGELOG section, that the commit is on `main` and that `ci-gate` passed on it, publishes to pub.dev with GitHub's OIDC token (environment `pub.dev`, no stored credentials) and creates the GitHub Release from the CHANGELOG section.
 - `Actions > Release > Run workflow` builds and checks the package archive without publishing.
-- One-time setup on pub.dev: `Admin > Automated publishing`, repository `ephmoc/bloc_plus`, tag pattern `v{{version}}`, required environment `pub.dev`.
+- One-time setup:
+  - pub.dev: `Admin > Automated publishing`, repository `ephmoc/bloc_plus`, tag pattern `v{{version}}`, required environment `pub.dev`;
+  - GitHub: a tag ruleset that lets only admins create, move or delete `v*` tags, and a deployment tag rule `v*` on the `pub.dev` environment. The ruleset is the gate that matters: a tag runs the `release.yml` of the commit it points to, so anyone who can push a `v*` tag controls what gets checked and published.
 - `scripts/pubdev_publish.sh` is the manual fallback. It does not create the GitHub Release; after using it, push the tag if needed and run `gh release create vX.Y.Z --notes-file <the CHANGELOG section>`.

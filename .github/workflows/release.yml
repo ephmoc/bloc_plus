@@ -42,12 +42,19 @@ jobs:
             exit 1
           fi
 
-      - name: CHANGELOG has a section for this version
+      - name: CHANGELOG has notes for this version
         run: |
           version="${GITHUB_REF_NAME#v}"
-          # Exact heading: '## 0.2.1' must not match '## 0.2.10'.
-          if ! awk -v h="## $version" '$0 == h || index($0, h " ") == 1 { found = 1 } END { exit !found }' CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no '## $version' section."
+          # Exact heading: '## 0.2.1' must not match '## 0.2.10'. The section
+          # must also have text, checked here because the GitHub Release that
+          # takes it as notes is created only after the publish.
+          if ! awk -v h="## $version" '
+            $0 == h || index($0, h " ") == 1 { found = 1; next }
+            found && /^## / { exit }
+            found && NF { notes = 1 }
+            END { exit !notes }
+          ' CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## $version' section with notes."
             exit 1
           fi
 
