@@ -1,3 +1,6 @@
+// Tests of the deprecated family until its removal in 1.0.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:bloc_plus/bloc_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 
