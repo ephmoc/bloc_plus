@@ -134,6 +134,42 @@ void main() {
     expect(log, unorderedEquals(['state provided:3', 'effect provided:b']));
   });
 
+  testWidgets('follows a new provided bloc', (tester) async {
+    // Given
+    final first = _EffectCounterCubit();
+    final second = _EffectCounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(first.close);
+    addTearDown(second.close);
+    final log = <String>[];
+    String name(_EffectCounterCubit bloc) =>
+        identical(bloc, second) ? 'second' : 'first';
+    // One instance, as under a const screen: only the provider above changes.
+    final consumer = BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+      listener: (context, bloc, state) => log.add('state ${name(bloc)}:$state'),
+      onEffect: (context, bloc, effect) =>
+          log.add('effect ${name(bloc)}:$effect'),
+      builder: (context, bloc, state) =>
+          Text('${name(bloc)}:$state', textDirection: TextDirection.ltr),
+    );
+    await tester.pumpWidget(BlocProvider.value(value: first, child: consumer));
+
+    // When
+    await tester.pumpWidget(BlocProvider.value(value: second, child: consumer));
+    first
+      ..increment()
+      ..emitEffect('a');
+    second
+      ..increment()
+      ..emitEffect('b');
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(log, unorderedEquals(['state second:3', 'effect second:b']));
+    expect(find.text('second:3'), findsOneWidget);
+  });
+
   testWidgets('uses the latest onEffect and effectWhen after a rebuild',
       (tester) async {
     // Given
@@ -203,6 +239,35 @@ void main() {
     expect(find.text('1'), findsOneWidget);
     expect(listened, [1]);
     expect(effects, ['explicit']);
+  });
+
+  testWidgets('does not rebuild for a state that buildWhen rejects', (
+    tester,
+  ) async {
+    // Given
+    final cubit = _EffectCounterCubit();
+    addTearDown(cubit.close);
+    var builds = 0;
+    await tester.pumpWidget(
+      BlocProvider.value(
+        value: cubit,
+        child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+          buildWhen: (previous, current) => false,
+          onEffect: (context, bloc, effect) {},
+          builder: (context, bloc, state) {
+            builds++;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    // When
+    cubit.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(builds, 1);
   });
 
   testWidgets('builds and handles effects without a state listener', (

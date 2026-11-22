@@ -24,9 +24,10 @@
   - The `*WithBloc` widgets and their callback typedefs accept
     `B extends StateStreamable<S>`, like flutter_bloc's widgets.
     `readOrNull`, `watchOrNull` and `withBloc` accept any provided type, such
-    as a repository, and `selectOrNull` any `StateStreamable<S>`:
-    `withBloc((Repo repo) => ...)` now finds the repository instead of
-    inferring `Never` and returning `null`.
+    as a repository: `withBloc((Repo repo) => ...)` now finds the repository
+    instead of inferring `Never` and returning `null`. `selectOrNull` accepts
+    any `StateStreamableSource<S>`, the type `BlocProvider` provides and
+    keeps up to date.
   - `BlocConsumerWithBloc` and `BlocConsumerWithEffects` resolve the bloc once
     per build, so states, effects and every callback come from one instance,
     also right after `bloc:` changes from an instance to `null`.

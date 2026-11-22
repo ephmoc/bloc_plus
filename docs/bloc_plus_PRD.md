@@ -295,7 +295,7 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `BlocCondition` + `whenChanged` | stable (0.3.0) | Plain `bool Function(S previous, S current)`, passed directly as `buildWhen` / `listenWhen` / `selectorShouldRebuild` |
 | `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
-| `BuildContext` nullable extensions | stable | Return `null` only on a missing provider; rethrow other errors; any provided type |
+| `BuildContext` nullable extensions | stable | Return `null` only on a missing provider; rethrow other errors; any provided type (`selectOrNull`: a `StateStreamableSource<S>`) |
 | `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`) |
 | `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled` |
 | `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
@@ -864,7 +864,8 @@ BlocListenerWithBloc<AuthBloc, AuthState>(
 Extension methods on `BuildContext` providing null-safe access to bloc instances.
 
 Since 0.3.0, `readOrNull`, `watchOrNull` and `withBloc` work for any provided
-type, such as a repository, and `selectOrNull` for any `StateStreamable<S>`.
+type, such as a repository, and `selectOrNull` for any `StateStreamableSource<S>`
+(the type `BlocProvider` accepts).
 All of them return `null` only when there is no provider of `B` above the
 context; other errors, such as one thrown while the provider creates the
 bloc, are rethrown (since 0.2.2).
@@ -932,7 +933,7 @@ Safely selects a value from bloc state without throwing if not found.
 
 ```dart
 extension BlocContextExtension on BuildContext {
-  T? selectOrNull<B extends StateStreamable<S>, S, T>(
+  T? selectOrNull<B extends StateStreamableSource<S>, S, T>(
     T Function(S state) selector,
   );
 }
@@ -946,7 +947,9 @@ extension BlocContextExtension on BuildContext {
 **Behavior**:
 -   Does not throw for a missing provider; errors thrown by `selector` or
     while creating the bloc are rethrown
--   Rebuilds widget only when selected value changes
+-   Rebuilds widget only when selected value changes, after the provider
+    notifies; `BlocProvider` does on every state, while `Provider` and
+    `RepositoryProvider` never do
 -   Returns `null` if bloc is not provided
 
 **Example Usage**:
@@ -2044,8 +2047,9 @@ In a `Bloc`, emit from event handlers with the handler's `emit`, and check
 -   Both libraries use the same `BlocProvider` for dependency injection
 -   No conflicts or breaking changes when mixing widgets
 -   Full type safety maintained across both libraries
--   Both `Bloc` and `Cubit` types are supported: the widgets and
-    `selectOrNull` accept any `StateStreamable<S>` (since 0.3.0), and the
+-   Both `Bloc` and `Cubit` types are supported: the `*WithBloc` widgets
+    accept any `StateStreamable<S>` and `selectOrNull` any
+    `StateStreamableSource<S>` (since 0.3.0), and the
     mixins (`SafeEmitMixin`, `RestartableTasksMixin`, `HasEffects`) apply
     `on BlocBase<S>`
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc_plus/bloc_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,15 +17,24 @@ class _Repo {
   final String name;
 }
 
-/// A [StateStreamable] that is not a bloc.
-class _Store implements StateStreamable<int> {
-  const _Store(this.state);
+/// A [StateStreamableSource] that is not a bloc, so `BlocProvider` accepts it.
+class _Store implements StateStreamableSource<int> {
+  final _controller = StreamController<int>.broadcast();
+  int _state = 0;
 
   @override
-  final int state;
+  int get state => _state;
 
   @override
-  Stream<int> get stream => const Stream.empty();
+  Stream<int> get stream => _controller.stream;
+
+  @override
+  bool get isClosed => _controller.isClosed;
+
+  @override
+  Future<void> close() => _controller.close();
+
+  void increment() => _controller.add(++_state);
 }
 
 void main() {
@@ -172,15 +183,16 @@ void main() {
     expect(names, [null]);
   });
 
-  testWidgets('selectOrNull selects from a provided store that is not a bloc',
-      (tester) async {
+  testWidgets('selectOrNull follows a store that is not a bloc', (
+    tester,
+  ) async {
     // Given
+    final store = _Store();
+    addTearDown(store.close);
     final selected = <bool?>[];
-
-    // When
     await tester.pumpWidget(
-      RepositoryProvider.value(
-        value: const _Store(3),
+      BlocProvider.value(
+        value: store,
         child: Builder(
           builder: (context) {
             selected.add(
@@ -192,7 +204,13 @@ void main() {
       ),
     );
 
+    // When
+    store.increment();
+    await tester.pumpAndSettle();
+    store.increment();
+    await tester.pumpAndSettle();
+
     // Then
-    expect(selected, [true]);
+    expect(selected, [false, true, false]);
   });
 }

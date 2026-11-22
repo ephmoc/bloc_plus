@@ -151,8 +151,9 @@ Planned, in this order. Items marked *proposed* still need a decision.
     `CancellationToken` to the task, `whenCancelled`, and callers released as
     soon as their run is cancelled;
   - `@protected` and `@visibleForTesting` on `emitEffect` and `safeEmit`;
-  - `StateStreamable<S>` bounds on the widgets and `Object` bounds on the
-    extensions, a `const` `BlocListenerWithBloc` constructor, one bloc
+  - `StateStreamable<S>` bounds on the widgets, `Object` bounds on
+    `readOrNull`, `watchOrNull` and `withBloc` (`StateStreamableSource<S>` on
+    `selectOrNull`), a `const` `BlocListenerWithBloc` constructor, one bloc
     instance per `build` in the consumers, and the PRD and task specs brought
     in line with the code.
 - Later 0.x (*proposed*): a debug warning when nobody listens to effects, a

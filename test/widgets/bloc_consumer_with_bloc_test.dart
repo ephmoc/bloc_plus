@@ -75,6 +75,35 @@ void main() {
     expect(find.text('second:3'), findsOneWidget);
   });
 
+  testWidgets('does not rebuild for a state that buildWhen rejects', (
+    tester,
+  ) async {
+    // Given
+    final cubit = _CounterCubit();
+    addTearDown(cubit.close);
+    var builds = 0;
+    await tester.pumpWidget(
+      BlocProvider.value(
+        value: cubit,
+        child: BlocConsumerWithBloc<_CounterCubit, int>(
+          buildWhen: (previous, current) => false,
+          listener: (context, bloc, state) {},
+          builder: (context, bloc, state) {
+            builds++;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    // When
+    cubit.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(builds, 1);
+  });
+
   testWidgets('builds and listens with bloc instance', (tester) async {
     // Given
     final cubit = _CounterCubit();

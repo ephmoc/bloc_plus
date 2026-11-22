@@ -13,7 +13,7 @@ conditions, cooperative async helpers, and explicit effect handling primitives.
 
 - `BlocBuilderWithBloc`, `BlocListenerWithBloc`, `BlocConsumerWithBloc`,
   `BlocSelectorWithBloc`, `BlocConsumerWithEffects`
-- BuildContext extensions, for blocs and any other provided type:
+- BuildContext extensions:
   - `readOrNull<B>()`
   - `watchOrNull<B>()`
   - `selectOrNull<B, S, T>(selector)`
@@ -73,8 +73,8 @@ class CounterView extends StatelessWidget {
 }
 ```
 
-The widgets accept any `StateStreamable<S>`, like flutter_bloc's, and
-`BlocListenerWithBloc` has a `const` constructor.
+The `*WithBloc` widgets accept any `StateStreamable<S>`, like flutter_bloc's,
+and `BlocListenerWithBloc` has a `const` constructor.
 
 `BlocConsumerWithBloc` and `BlocConsumerWithEffects` resolve the bloc once per
 build, so after `bloc:` changes from an instance to `null` they follow the

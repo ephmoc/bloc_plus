@@ -22,8 +22,10 @@ extension BlocContextExtension on BuildContext {
   /// Selects a value from the state of the nearest [B], or returns `null` when
   /// there is no provider of [B] above this context.
   ///
-  /// Errors thrown by [selector] or while creating the bloc are rethrown.
-  T? selectOrNull<B extends StateStreamable<S>, S, T>(
+  /// The widget rebuilds when the selected value changes after the provider
+  /// notifies, which `BlocProvider` does on every state. Errors thrown by
+  /// [selector] or while creating the bloc are rethrown.
+  T? selectOrNull<B extends StateStreamableSource<S>, S, T>(
     T Function(S state) selector,
   ) {
     return select<B?, T?>(

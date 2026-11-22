@@ -3,7 +3,8 @@
 > Status: delivered in 0.1.0. Since 0.2.2 they return `null` only when no
 > provider exists. In 0.3.0 the bounds widened: `readOrNull`, `watchOrNull`
 > and `withBloc` accept any provided type, such as a repository, and
-> `selectOrNull` any `StateStreamable<S>`.
+> `selectOrNull` any `StateStreamableSource<S>`, the type `BlocProvider`
+> provides and keeps up to date.
 
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
@@ -15,7 +16,7 @@
 ## Scope
 - Implement `readOrNull<B extends Object>()`
 - Implement `watchOrNull<B extends Object>()`
-- Implement `selectOrNull<B extends StateStreamable<S>, S, T>(T Function(S state) selector)`
+- Implement `selectOrNull<B extends StateStreamableSource<S>, S, T>(T Function(S state) selector)`
 - Implement `withBloc<B extends Object, R>(R Function(B bloc) fn)`
 
 ## Out Of Scope
