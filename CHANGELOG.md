@@ -1,3 +1,66 @@
+## 0.3.0
+
+- Added:
+  - `BlocCondition<S>` and `whenChanged(selector, {equals})`. The result goes
+    straight into `buildWhen`, `listenWhen` and `selectorShouldRebuild`, also
+    on `BlocBuilder`, `BlocListener` and `BlocConsumer`, without type
+    arguments. Select a record for several fields; pass `equals:` for
+    collections.
+  - `BlocEffectListener<B extends EffectsSource<E>, E>`: a wrong effect type
+    or a bloc without effects no longer compiles, and the listener composes
+    inside `MultiBlocListener`.
+  - `RestartableTask.runOutcome` and `RestartableTasksMixin.runLatestOutcome`:
+    the task gets a `CancellationToken`, and the `TaskOutcome<T>` result tells
+    a cancelled run apart from one that completed with `null`.
+    `CancellationToken.whenCancelled` can abort the underlying I/O.
+  - `BlocConsumerWithEffects.listener` is optional.
+- Changed:
+  - A cancelled, superseded or closed run releases its caller at once (`null`
+    or `TaskOutcome.cancelled()`) instead of waiting for the abandoned work,
+    which keeps running. This fixes callers that hung on work that never
+    completes, and cancelled `Bloc` handlers that emitted a stale state.
+  - `BlocConsumerWithEffects` requires `B extends HasEffects<S, E>`.
+  - `emitEffect` and `safeEmit` are `@protected` and `@visibleForTesting`,
+    like `emit`.
+  - New direct dependency: `provider` `>=6.0.0 <7.0.0`, the range
+    `flutter_bloc` already requires.
+- Deprecated, removed in 1.0: `RebuildPolicy`, `ListenPolicy` and their 12
+  factories (including `whenListen`, which clashes with `bloc_test`),
+  `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`.
+
+Migration impact:
+
+- Deprecated APIs keep working; each use is a `deprecated_member_use` info,
+  which fails `flutter analyze` until migrated:
+  - `onChange(sel)` / `onChangeListen(sel)` -> `whenChanged(sel)`; the `...By`
+    forms -> `whenChanged(sel, equals: eq)`; `whenRebuild(p)` /
+    `whenListen(p)` -> `p`; `always()` -> omit the parameter; `never()` ->
+    `(previous, current) => false`; `distinct()` -> omit the parameter
+    (`emit` already skips equal states) or pass
+    `(previous, current) => previous != current`; `a.and(b)` -> a plain
+    predicate or a record selector.
+  - `EffectListener<B, S, E>` -> `BlocEffectListener<B, E>`;
+    `MultiEffectListener` -> `MultiBlocListener`, which needs a non-empty
+    list; a listener for one effect subtype -> the supertype with
+    `if (effect case Sub(...))` in `onEffect`.
+  - With `bloc_test`, import `bloc_plus` with `hide whenListen` until 1.0.
+- `BlocConsumerWithEffects` no longer compiles with a bloc that implements
+  `EffectsSource` by hand: mix in `HasEffects<S, E>`.
+- `emitEffect` and `safeEmit` called from outside the bloc, extension methods
+  on it included, now warn (tests are exempt): move the call into the bloc or
+  into a `mixin X on HasEffects<S, E>`.
+- Code after the `await` of a superseded run, a `finally` included, now runs
+  while the newer run is in flight: check the outcome before resetting a
+  shared loading flag.
+- Write both type arguments of `BlocEffectListener`: below language version
+  3.7, `E` is not inferred from `bloc:`.
+
+Release type rationale:
+
+- `minor`: new APIs and deprecations; the narrower consumer bound, the new
+  analyzer warnings and the earlier release of superseded callers are
+  behaviour changes that a 0.x minor allows.
+
 ## 0.2.2
 
 - Fixes:

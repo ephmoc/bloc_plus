@@ -158,9 +158,10 @@ class ExamplePage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: const [
             Text(
-              'This example shows the new policy helpers, effect filtering, '
-              'multi-effect composition, restartable async helpers, and the '
-              'combined state-and-effect consumer.',
+              'This example shows whenChanged conditions, effect filtering, '
+              'effect listeners in a MultiBlocListener, restartable async '
+              'helpers with TaskOutcome, and the combined state-and-effect '
+              'consumer.',
             ),
             SizedBox(height: 16),
             CounterSection(),
@@ -191,8 +192,8 @@ class CounterSection extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               'Uses BlocConsumerWithEffects for snack effects, '
-              'MultiEffectListener for dialog effects, and policy helpers for '
-              'targeted rebuilds.',
+              'BlocEffectListener in a MultiBlocListener for dialog effects, '
+              'and whenChanged conditions for targeted rebuilds.',
             ),
             const SizedBox(height: 16),
             BlocConsumerWithEffects<CounterCubit, CounterState, String>(

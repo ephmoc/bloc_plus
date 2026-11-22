@@ -6,8 +6,8 @@
 [![style: flutter_lints](https://img.shields.io/badge/style-flutter__lints-40c4ff)](https://pub.dev/packages/flutter_lints)
 [![codecov](https://codecov.io/gh/ephmoc/bloc_plus/branch/main/graph/badge.svg)](https://codecov.io/gh/ephmoc/bloc_plus)
 
-`bloc_plus` extends `flutter_bloc` with ergonomic widgets, reusable policies,
-cooperative async helpers, and explicit effect handling primitives.
+`bloc_plus` extends `flutter_bloc` with ergonomic widgets, rebuild and listen
+conditions, cooperative async helpers, and explicit effect handling primitives.
 
 ## Features
 
@@ -18,22 +18,21 @@ cooperative async helpers, and explicit effect handling primitives.
   - `watchOrNull<B>()`
   - `selectOrNull<B, S, T>(selector)`
   - `withBloc<B, R>(fn)`
-- Reusable policies:
-  - Rebuild: `distinct`, `onChange`, `onChangeBy`, `whenRebuild`, `always`,
-    `never`
-  - Listen: `distinctListen`, `onChangeListen`, `onChangeListenBy`,
-    `whenListen`, `alwaysListen`, `neverListen`
-  - Composition: `and`, `or`, `not`
+- Conditions for `buildWhen`, `listenWhen` and `selectorShouldRebuild`:
+  `BlocCondition`, `whenChanged`
 - Async safety:
   - `SafeEmitMixin`
-  - `CancellationToken`
-  - `RestartableTask`
-  - `RestartableTasksMixin`
+  - `CancellationToken` (with `whenCancelled`)
+  - `RestartableTask` (`run`, `runOutcome`)
+  - `RestartableTasksMixin` (`runLatest`, `runLatestOutcome`)
+  - `TaskOutcome`
 - Effects:
   - `HasEffects`
-  - `EffectListener`
-  - `MultiEffectListener`
+  - `BlocEffectListener`, which composes inside `MultiBlocListener`
   - `effectWhen` filtering
+- Deprecated, removed in 1.0: `RebuildPolicy`, `ListenPolicy` and their
+  factories, `EffectListener`, `MultiEffectListener`,
+  `SingleChildEffectListener`
 
 Delivery notes, next steps and guardrails are tracked in
 [`docs/library_improvement_plan.md`](docs/library_improvement_plan.md).
@@ -44,7 +43,7 @@ Add dependency:
 
 ```yaml
 dependencies:
-  bloc_plus: ^0.2.2
+  bloc_plus: ^0.3.0
 ```
 
 Run the example app:
