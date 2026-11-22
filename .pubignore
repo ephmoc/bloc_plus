@@ -1,3 +1,5 @@
+# pub reads this file instead of .gitignore, so it repeats the .gitignore
+# patterns pub does not skip on its own (it skips dot-files and pubspec.lock).
 AGENTS.md
 docs/
 .idea/
@@ -5,3 +7,11 @@ build/
 *.iml
 coverage/
 scripts/
+*.log
+*.swp
+migrate_working_dir/
+**/doc/api/
+*.class
+*.pyc
+*.ipr
+*.iws
