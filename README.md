@@ -95,13 +95,13 @@ class CounterView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumerWithEffects<CounterCubit, CounterState, String>(
-      effectWhen: (effect) => effect.startsWith('snack:'),
-      listener: (context, bloc, state) {},
+    return BlocConsumerWithEffects<CounterCubit, CounterState, CounterEffect>(
       onEffect: (context, bloc, effect) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(effect)),
-        );
+        if (effect case ShowSnack(:final message)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
       },
       builder: (context, bloc, state) {
         return Text('${state.count}');
@@ -110,6 +110,10 @@ class CounterView extends StatelessWidget {
   }
 }
 ```
+
+The bloc must mix in `HasEffects<S, E>`. `listener` is optional; pass it,
+with an optional `listenWhen`, to react to state changes as well.
+`listenWhen` without `listener` fails an assert.
 
 ### Policies
 
@@ -187,18 +191,65 @@ bloc. That also holds when such work fails, so only the latest run can throw.
 
 ### Effects
 
+Model effects as a `sealed` hierarchy and emit them from inside the bloc:
+
 ```dart
-MultiEffectListener(
+sealed class AuthEffect {}
+
+final class ShowError extends AuthEffect {
+  ShowError(this.message);
+  final String message;
+}
+
+final class GoHome extends AuthEffect {}
+
+class AuthCubit extends Cubit<AuthState> with HasEffects<AuthState, AuthEffect> {
+  AuthCubit() : super(const AuthState());
+
+  void signedIn() => emitEffect(GoHome());
+}
+```
+
+Listen with `BlocEffectListener<B, E>` and handle every effect with an
+exhaustive `switch`. It composes inside `MultiBlocListener` next to
+`BlocListener` and `BlocListenerWithBloc`:
+
+```dart
+MultiBlocListener(
   listeners: [
-    EffectListener<AuthCubit, AuthState, String>(
-      effectWhen: (effect) => effect.startsWith('snack:'),
-      onEffect: (context, effect) {},
-    ),
-    EffectListener<AuthCubit, AuthState, String>(
-      effectWhen: (effect) => effect.startsWith('dialog:'),
-      onEffect: (context, effect) {},
+    BlocListener<AuthCubit, AuthState>(listener: (context, state) {}),
+    BlocEffectListener<AuthCubit, AuthEffect>(
+      onEffect: (context, effect) {
+        switch (effect) {
+          case ShowError(:final message):
+            showError(context, message);
+          case GoHome():
+            goHome(context);
+        }
+      },
     ),
   ],
   child: const AuthView(),
 )
 ```
+
+- Write both type arguments. Below language version 3.7, `E` is not inferred
+  from `bloc:`: it becomes `Object?` and the `switch` is no longer checked for
+  exhaustiveness.
+- To react to one subtype, listen to the supertype and use an if-case
+  pattern: `if (effect case ShowError(:final message)) ...`. `effectWhen`
+  filters effects but does not promote their type.
+- `MultiBlocListener` asserts that `listeners` is not empty, and ignores a
+  `child` passed to a listener inside it.
+- `emitEffect` is `@protected` and `@visibleForTesting`, like `emit`. Calls
+  from outside the bloc, including extensions on the bloc and other
+  libraries, get analyzer warnings. Share helpers between blocs with a
+  `mixin AuthEffects on HasEffects<AuthState, AuthEffect>`.
+
+Migrating from the deprecated widgets (removed in 1.0):
+
+| Before | After |
+|---|---|
+| `EffectListener<B, S, E>` | `BlocEffectListener<B, E>` |
+| `MultiEffectListener` | `MultiBlocListener` |
+| `EffectListener` on a subtype of the declared effect type | `BlocEffectListener` on the supertype with an if-case pattern |

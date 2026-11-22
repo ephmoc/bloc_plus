@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Exposes a stream of one-off effects emitted outside the main bloc state.
@@ -19,6 +20,13 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
   Stream<E> get effects => _effectsController.stream;
 
   /// Emits a one-off [effect] to current listeners.
+  ///
+  /// Like `emit`, call it only from inside the bloc (or from a
+  /// `mixin X on HasEffects<S, E>` that shares helpers between blocs).
+  /// Calls from elsewhere, including extensions on the bloc and other
+  /// libraries, get analyzer warnings; tests may call it.
+  @protected
+  @visibleForTesting
   void emitEffect(E effect) {
     if (_effectsController.isClosed) return;
     _effectsController.add(effect);

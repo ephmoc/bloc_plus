@@ -139,6 +139,48 @@ void main() {
     expect(effects, ['explicit']);
   });
 
+  testWidgets('builds and handles effects without a state listener', (
+    tester,
+  ) async {
+    // Given
+    final cubit = _EffectCounterCubit();
+    addTearDown(cubit.close);
+    final effects = <String>[];
+    await tester.pumpWidget(
+      BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+        bloc: cubit,
+        onEffect: (context, bloc, effect) => effects.add(effect),
+        builder: (context, bloc, state) =>
+            Text('$state', textDirection: TextDirection.ltr),
+      ),
+    );
+
+    // When
+    cubit.increment();
+    cubit.emitEffect('toast');
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(find.text('1'), findsOneWidget);
+    expect(effects, ['toast']);
+  });
+
+  test('asserts when listenWhen is given without a listener', () {
+    // Given
+    bool listenWhen(int previous, int current) => true;
+
+    // When
+    BlocConsumerWithEffects<_EffectCounterCubit, int, String> construct() =>
+        BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+          listenWhen: listenWhen,
+          onEffect: (context, bloc, effect) {},
+          builder: (context, bloc, state) => const SizedBox.shrink(),
+        );
+
+    // Then
+    expect(construct, throwsAssertionError);
+  });
+
   testWidgets('throws when bloc is missing', (tester) async {
     // Given
     final widget = Directionality(
