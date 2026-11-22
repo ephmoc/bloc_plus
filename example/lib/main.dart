@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 void main() {
+  // Debug builds only: warns about effects that nothing listens to.
+  debugPrintUnheardEffects = true;
   runApp(const ExampleApp());
 }
 

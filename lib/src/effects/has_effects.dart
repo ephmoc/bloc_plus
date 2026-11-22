@@ -1,7 +1,18 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show protected, visibleForTesting;
+import 'package:flutter/foundation.dart'
+    show debugPrint, protected, visibleForTesting;
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+/// Whether [HasEffects.emitEffect] prints a warning in debug builds for an
+/// effect that nothing listens to.
+///
+/// Effects are not replayed, so such an effect is lost: for example one
+/// emitted from the bloc's constructor, or before the widget that listens to
+/// it is mounted. Off by default, because tests of a bloc often emit effects
+/// that they do not listen to. Turn it on while debugging, for example at the
+/// start of `main()`. Release builds never print it.
+bool debugPrintUnheardEffects = false;
 
 /// Exposes a stream of one-off effects emitted outside the main bloc state.
 abstract interface class EffectsSource<E> {
@@ -21,6 +32,9 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
 
   /// Emits a one-off [effect] to current listeners.
   ///
+  /// An effect that nothing listens to is lost; set
+  /// [debugPrintUnheardEffects] to get a warning about it in debug builds.
+  ///
   /// Like `emit`, call it only from inside the bloc (or from a
   /// `mixin X on HasEffects<S, E>` that shares helpers between blocs).
   /// Calls from elsewhere, including extensions on the bloc and other
@@ -29,6 +43,15 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
   @visibleForTesting
   void emitEffect(E effect) {
     if (_effectsController.isClosed) return;
+    assert(() {
+      if (debugPrintUnheardEffects && !_effectsController.hasListener) {
+        debugPrint(
+          '$runtimeType emitted the effect $effect, but nothing listens to '
+          'its effects, so the effect is lost: effects are not replayed.',
+        );
+      }
+      return true;
+    }());
     _effectsController.add(effect);
   }
 
