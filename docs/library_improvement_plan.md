@@ -1,7 +1,7 @@
 # Library Improvement Plan
 
-Delivery notes for the expansion items shipped in `0.2.0`, the planned next
-steps, and the guardrails for future work. API names and signatures are
+Delivery notes for `0.2.0`, `0.2.2` and `0.3.0`, the planned next steps, and
+the guardrails for future work. API names and signatures are
 defined by the code and its API docs, and per-version changes by
 `CHANGELOG.md`; where this file disagrees with them, they win.
 
@@ -131,31 +131,36 @@ Fixes for superseded async work, `HasEffects.close()` ordering,
 lowest dependency versions and the minimum SDK; contract tests; releases
 published from tags through OIDC. Details are in `CHANGELOG.md`.
 
+## Delivered in 0.3.0
+
+Released 2026-11-22 (minor). Details and migration notes are in
+`CHANGELOG.md`.
+
+- conditions: `BlocCondition` and `whenChanged`; `RebuildPolicy`,
+  `ListenPolicy` and their 12 factories deprecated, which also retires the
+  `whenListen` name that clashes with `bloc_test`. No `and` / `or` / `not` on
+  the function type: an untyped lambda as their receiver would compile as
+  `dynamic`, so typos would only fail at run time;
+- effects: `BlocEffectListener<B extends EffectsSource<E>, E>` as a
+  `SingleChildWidget` that composes inside `MultiBlocListener` (direct
+  dependency on `provider`, the range `flutter_bloc` requires);
+  `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`
+  deprecated; `BlocConsumerWithEffects` bound to `HasEffects<S, E>` with an
+  optional `listener`;
+- async: `TaskOutcome`, `runOutcome` / `runLatestOutcome` passing a
+  `CancellationToken` to the task, `whenCancelled`, and callers released as
+  soon as their run is cancelled;
+- `@protected` and `@visibleForTesting` on `emitEffect` and `safeEmit`;
+- `StateStreamable<S>` bounds on the widgets, `Object` bounds on
+  `readOrNull`, `watchOrNull` and `withBloc` (`StateStreamableSource<S>` on
+  `selectOrNull`), a `const` `BlocListenerWithBloc` constructor, and one bloc
+  instance per `build` in the consumers;
+- the PRD and task specs brought in line with the code.
+
 ## Next
 
 Planned, in this order. Items marked *proposed* still need a decision.
 
-- `0.3.0` (minor, decided 2026-11-22, on `develop`, not yet released):
-  - conditions: `BlocCondition` and `whenChanged`; `RebuildPolicy`,
-    `ListenPolicy` and their 12 factories deprecated, which also retires the
-    `whenListen` name that clashes with `bloc_test`. No `and` / `or` / `not` on
-    the function type: an untyped lambda as their receiver would compile as
-    `dynamic`, so typos would only fail at run time;
-  - effects: `BlocEffectListener<B extends EffectsSource<E>, E>` as a
-    `SingleChildWidget` that composes inside `MultiBlocListener` (direct
-    dependency on `provider`, the range `flutter_bloc` requires);
-    `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`
-    deprecated; `BlocConsumerWithEffects` bound to `HasEffects<S, E>` with an
-    optional `listener`;
-  - async: `TaskOutcome`, `runOutcome` / `runLatestOutcome` passing a
-    `CancellationToken` to the task, `whenCancelled`, and callers released as
-    soon as their run is cancelled;
-  - `@protected` and `@visibleForTesting` on `emitEffect` and `safeEmit`;
-  - `StateStreamable<S>` bounds on the widgets, `Object` bounds on
-    `readOrNull`, `watchOrNull` and `withBloc` (`StateStreamableSource<S>` on
-    `selectOrNull`), a `const` `BlocListenerWithBloc` constructor, one bloc
-    instance per `build` in the consumers, and the PRD and task specs brought
-    in line with the code.
 - Later 0.x (*proposed*): a debug warning when nobody listens to effects, a
   testing recipe for effects, a selector-based listener, and more async modes
   (ignore while running, a queue per key); renaming the
