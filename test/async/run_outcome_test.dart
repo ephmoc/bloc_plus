@@ -116,6 +116,23 @@ void main() {
       // Then
       expect(await run, isNull);
     });
+
+    test('run drops a value when cancel lands before the caller resumes',
+        () async {
+      // Given
+      final token = CancellationToken();
+      // Delivers the value at once, so the cancel below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = token.run(() => work.future);
+
+      // When
+      work.complete(7);
+      token.cancel();
+
+      // Then
+      expect(await run, isNull);
+    });
   });
 
   group('RestartableTask.runOutcome', () {
@@ -162,6 +179,50 @@ void main() {
       expect(await _isReleased(run), isTrue);
       expect(await run, const TaskOutcome<int>.cancelled());
       expect(task.isRunning, isFalse);
+    });
+
+    test('cancel between the value and the caller resuming cancels the run',
+        () async {
+      // Given
+      final task = RestartableTask<int>();
+      // Delivers the value at once, so the cancel below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = task.runOutcome((_) => work.future);
+
+      // When
+      work.complete(7);
+      task.cancel();
+
+      // Then
+      expect(await run, const TaskOutcome<int>.cancelled());
+    });
+
+    test('does not cancel the token of a finished run', () async {
+      // Given
+      final task = RestartableTask<int>();
+      late CancellationToken succeeded;
+      late CancellationToken failed;
+      await task.runOutcome((token) async {
+        succeeded = token;
+        return 1;
+      });
+      await expectLater(
+        task.runOutcome((token) async {
+          failed = token;
+          throw StateError('boom');
+        }),
+        throwsStateError,
+      );
+
+      // When
+      await task.runOutcome((_) async => 2);
+      task.cancel();
+      await task.dispose();
+
+      // Then
+      expect(succeeded.isCancelled, isFalse);
+      expect(failed.isCancelled, isFalse);
     });
 
     test('dispose releases a never-ending run', () async {
@@ -340,6 +401,23 @@ void main() {
       expect(await _isReleased(run), isTrue);
       expect(await run, const TaskOutcome<int>.cancelled());
       expect(token.isCancelled, isTrue);
+    });
+
+    test('close between the value and the caller resuming cancels the run',
+        () async {
+      // Given
+      final cubit = _TrackedCubit();
+      // Delivers the value at once, so the close below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = cubit.runLatestOutcome<int>('k', (_) => work.future);
+
+      // When
+      work.complete(7);
+      await cubit.close();
+
+      // Then
+      expect(await run, const TaskOutcome<int>.cancelled());
     });
 
     test('does not start the task on a closed cubit', () async {

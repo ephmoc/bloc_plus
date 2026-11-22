@@ -157,6 +157,36 @@ void main() {
     expect(effects, ['go:/home']);
   });
 
+  testWidgets('uses the latest onEffect and effectWhen after a rebuild',
+      (tester) async {
+    // Given
+    final cubit = _UiCubit();
+    addTearDown(cubit.close);
+    final effects = <String>[];
+    Widget build(String tag, {required String blocked}) {
+      return BlocProvider.value(
+        value: cubit,
+        child: BlocEffectListener<_UiCubit, _UiEffect>(
+          effectWhen: (effect) => _describe(effect) != blocked,
+          onEffect: (context, effect) =>
+              effects.add('$tag:${_describe(effect)}'),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(build('v1', blocked: 'toast:a'));
+
+    // When
+    await tester.pumpWidget(build('v2', blocked: 'toast:b'));
+    cubit
+      ..toast('a')
+      ..toast('b');
+    await tester.pump();
+
+    // Then
+    expect(effects, ['v2:toast:a']);
+  });
+
   testWidgets('explicit bloc wins over the provided one', (tester) async {
     // Given
     final provided = _UiCubit();

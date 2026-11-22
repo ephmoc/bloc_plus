@@ -4,8 +4,8 @@
   - `BlocCondition<S>` and `whenChanged(selector, {equals})`. The result goes
     straight into `buildWhen`, `listenWhen` and `selectorShouldRebuild`, also
     on `BlocBuilder`, `BlocListener` and `BlocConsumer`, without type
-    arguments. Select a record for several fields; pass `equals:` for
-    collections.
+    arguments when the widget has its own. Select a record for several
+    fields; pass `equals:` for collections.
   - `BlocEffectListener<B extends EffectsSource<E>, E>`: a wrong effect type
     or a bloc without effects no longer compiles, and the listener composes
     inside `MultiBlocListener`.
@@ -32,7 +32,8 @@ Migration impact:
 
 - Deprecated APIs keep working; each use is a `deprecated_member_use` info,
   which fails `flutter analyze` until migrated:
-  - `onChange(sel)` / `onChangeListen(sel)` -> `whenChanged(sel)`; the `...By`
+  - `onChange(sel)` / `onChangeListen(sel)` -> `whenChanged(sel)`, keeping
+    `<S, T>` when the widget has no type arguments; the `...By`
     forms -> `whenChanged(sel, equals: eq)`; `whenRebuild(p)` /
     `whenListen(p)` -> `p`; `always()` -> omit the parameter; `never()` ->
     `(previous, current) => false`; `distinct()` ->

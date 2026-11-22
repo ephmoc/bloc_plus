@@ -44,8 +44,8 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   }
 
   /// Runs [task] as the latest task for [key] with a token that is cancelled
-  /// when this run is superseded, and tells a discarded run apart from a
-  /// `null` value.
+  /// when this run is superseded before it completes, and tells a discarded
+  /// run apart from a `null` value.
   ///
   /// Completes with [TaskOutcome.completed] for the latest run, and with
   /// [TaskOutcome.cancelled] as soon as a newer run for [key], [cancelLatest],

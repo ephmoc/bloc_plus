@@ -32,8 +32,8 @@ class RestartableTask<T> {
   }
 
   /// Starts [task] with a token that is cancelled when a newer run, [cancel]
-  /// or [dispose] supersedes this run, and tells a discarded run apart from a
-  /// `null` value.
+  /// or [dispose] supersedes this run before it completes, and tells a
+  /// discarded run apart from a `null` value.
   ///
   /// Completes with [TaskOutcome.completed] for the latest run, and with
   /// [TaskOutcome.cancelled] as soon as the run is superseded, without waiting
@@ -63,6 +63,9 @@ class RestartableTask<T> {
     } finally {
       if (generation == _generation) {
         _isRunning = false;
+        // A later run, cancel or dispose must not cancel a finished run's
+        // token.
+        _activeToken = null;
       }
     }
   }

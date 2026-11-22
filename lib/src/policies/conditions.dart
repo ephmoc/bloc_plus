@@ -13,8 +13,11 @@ typedef BlocCondition<S> = bool Function(S previous, S current);
 ///
 /// The result works as `buildWhen`, `listenWhen` and `selectorShouldRebuild`,
 /// in this package's widgets and in the upstream `BlocBuilder`,
-/// `BlocListener` and `BlocConsumer`. No type arguments are needed: the state
-/// type comes from the widget, so a typo in the selector is a compile error.
+/// `BlocListener` and `BlocConsumer`. When the widget has its type arguments,
+/// `whenChanged` needs none: the state type comes from the widget, so a typo
+/// in the selector is a compile error. When the widget infers them from
+/// `bloc:`, or the condition is stored in a variable, type the selector's
+/// parameter: `whenChanged((CounterState state) => state.count)`.
 ///
 /// ```dart
 /// BlocBuilder<CounterCubit, CounterState>(

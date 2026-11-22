@@ -94,6 +94,32 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
+  testWidgets('uses the latest onEffect and effectWhen after a rebuild',
+      (tester) async {
+    // Given
+    final cubit = _EffectCounterCubit();
+    addTearDown(cubit.close);
+    final effects = <String>[];
+    Widget consumer(String tag, {required String blocked}) =>
+        BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+          bloc: cubit,
+          effectWhen: (effect) => effect != blocked,
+          onEffect: (context, bloc, effect) => effects.add('$tag:$effect'),
+          builder: (context, bloc, state) => const SizedBox.shrink(),
+        );
+    await tester.pumpWidget(consumer('v1', blocked: 'a'));
+
+    // When
+    await tester.pumpWidget(consumer('v2', blocked: 'b'));
+    cubit
+      ..emitEffect('a')
+      ..emitEffect('b');
+    await tester.pump();
+
+    // Then
+    expect(effects, ['v2:a']);
+  });
+
   testWidgets('explicit bloc overrides provider lookup', (tester) async {
     // Given
     final providerCubit = _EffectCounterCubit();

@@ -119,8 +119,11 @@ with an optional `listenWhen`, to react to state changes as well.
 `whenChanged` returns a `BlocCondition<S>`, a plain
 `bool Function(previous, current)`. It goes straight into `buildWhen`,
 `listenWhen` and `selectorShouldRebuild`, in this package's widgets and in
-`BlocBuilder`, `BlocListener` and `BlocConsumer`, without type arguments: the
-state type comes from the widget, so a typo in the selector is a compile error.
+`BlocBuilder`, `BlocListener` and `BlocConsumer`. When the widget has its type
+arguments, `whenChanged` needs none: the state type comes from the widget, so a
+typo in the selector is a compile error. When the widget infers them from
+`bloc:`, or the condition is stored in a variable, type the selector's
+parameter: `whenChanged((CounterState state) => state.count)`.
 
 ```dart
 BlocBuilder<CounterCubit, CounterState>(
@@ -156,6 +159,9 @@ be removed in 1.0:
 | `never()`, `neverListen()` | `(previous, current) => false` |
 | `distinct()`, `distinctListen()` | `(previous, current) => previous != current` (omitting the parameter differs only for a first emitted state equal to the initial one, which `emit` does not skip) |
 | `a.and(b)`, `a.or(b)`, `a.not()` | `(p, c) => a(p, c) && b(p, c)`, `\|\|`, `!` |
+
+Where the widget has no type arguments, keep them on the condition:
+`onChange<S, T>(sel).shouldRebuild` becomes `whenChanged<S, T>(sel)`.
 
 Until 1.0, `whenListen` clashes with `whenListen` from `bloc_test`. In tests
 that import both, hide this package's one:
@@ -295,7 +301,7 @@ MultiBlocListener(
 Migrating from the deprecated widgets (removed in 1.0):
 
 | Before | After |
-|---|---|
+| --- | --- |
 | `EffectListener<B, S, E>` | `BlocEffectListener<B, E>` |
 | `MultiEffectListener` | `MultiBlocListener` |
 | `EffectListener` on a subtype of the declared effect type | `BlocEffectListener` on the supertype with an if-case pattern |
