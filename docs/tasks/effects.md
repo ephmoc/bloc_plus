@@ -5,7 +5,9 @@
 > is deprecated, removed in 1.0. Replacement:
 > `BlocEffectListener<B extends EffectsSource<E>, E>`, which checks the effect
 > type at compile time and composes inside `MultiBlocListener`. 0.3.0 also
-> makes `emitEffect` `@protected` and `@visibleForTesting`.
+> makes `emitEffect` `@protected` and `@visibleForTesting`. 0.3.1 adds the
+> opt-in `debugPrintUnheardEffects` debug warning for effects that nothing
+> listens to.
 
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)

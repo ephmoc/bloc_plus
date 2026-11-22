@@ -1,3 +1,23 @@
+## 0.3.1
+
+- Added:
+  - `debugPrintUnheardEffects`: set it to `true` and `emitEffect` prints a
+    warning in debug builds for an effect that nothing listens to. Effects
+    are not replayed, so such an effect is lost, for example one emitted from
+    the bloc's constructor or before the listening widget is mounted. Off by
+    default; release builds never print it.
+  - README: a recipe for testing effects in unit and widget tests.
+
+Migration impact:
+
+- None.
+
+Release type rationale:
+
+- `patch`: one additive, opt-in debug flag (a new public top-level variable)
+  and docs; nothing changes unless the flag is set. Under the 0.x convention
+  `^0.3.0` already allows it; code that uses the flag needs `^0.3.1`.
+
 ## 0.3.0
 
 - Added:

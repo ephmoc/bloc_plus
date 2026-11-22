@@ -17,7 +17,7 @@
 -   Optional rebuild/listen conditions to reduce boilerplate and increase
     correctness
 
-This document describes the API at version 0.3.0. When it and the code
+This document describes the API at version 0.3.1. When it and the code
 disagree, `lib/` and `CHANGELOG.md` win; fix this document.
 
 The package must be:
@@ -302,6 +302,7 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future` |
 | `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation |
 | `EffectsSource` + `HasEffects` | stable | One-shot effect stream separated from state stream; `emitEffect` is `@protected`, `@visibleForTesting` |
+| `debugPrintUnheardEffects` | stable (0.3.1) | Opt-in debug warning for an effect that nothing listens to; off by default; never prints in release builds |
 | `BlocEffectListener` | stable (0.3.0) | `B extends EffectsSource<E>`; composes inside `MultiBlocListener`; supports effect filtering |
 | `EffectListener` | deprecated (0.3.0, removed in 1.0) | Replaced by `BlocEffectListener` |
 | `MultiEffectListener`, `SingleChildEffectListener` | deprecated (0.3.0, removed in 1.0) | Replaced by `MultiBlocListener` with `BlocEffectListener` |
@@ -1534,6 +1535,10 @@ Stream of effects emitted by the bloc.
 -   Effects are consumed once per listener subscription
 -   Stream completes when bloc is closed
 -   Delivery is non-replay by default (effects emitted before subscription are not replayed)
+-   Since 0.3.1, setting the top-level `debugPrintUnheardEffects` to `true`
+    makes `emitEffect` print a warning in debug builds for an effect that
+    nothing listens to; it is off by default and never prints in release
+    builds
 
 ### Methods
 

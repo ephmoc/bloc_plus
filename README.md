@@ -30,6 +30,8 @@ conditions, cooperative async helpers, and explicit effect handling primitives.
   - `HasEffects`
   - `BlocEffectListener`, which composes inside `MultiBlocListener`
   - `effectWhen` filtering
+  - `debugPrintUnheardEffects`, an opt-in debug warning for effects that
+    nothing listens to
 - Deprecated, removed in 1.0: `RebuildPolicy`, `ListenPolicy` and their
   factories, `EffectListener`, `MultiEffectListener`,
   `SingleChildEffectListener`
@@ -43,7 +45,7 @@ Add dependency:
 
 ```yaml
 dependencies:
-  bloc_plus: ^0.3.0
+  bloc_plus: ^0.3.1
 ```
 
 Run the example app:
@@ -317,3 +319,55 @@ Migrating from the deprecated widgets (removed in 1.0):
 | `EffectListener<B, S, E>` | `BlocEffectListener<B, E>` |
 | `MultiEffectListener` | `MultiBlocListener` |
 | `EffectListener` on a subtype of the declared effect type | `BlocEffectListener` on the supertype with an if-case pattern |
+
+### Testing effects
+
+Effects are not replayed, so subscribe before you trigger them.
+`expectLater` subscribes at once:
+
+```dart
+test('signedIn sends GoHome', () async {
+  // Given
+  final cubit = AuthCubit();
+  addTearDown(cubit.close);
+  final effects = expectLater(cubit.effects, emits(isA<GoHome>()));
+
+  // When
+  cubit.signedIn();
+
+  // Then
+  await effects;
+});
+```
+
+`blocTest` from `bloc_test` has no parameter for effects: call `expectLater` in
+`build:` and await its future in `verify:`.
+
+`emitEffect` is `@visibleForTesting`, so a widget test can send an effect
+straight to the screen under test:
+
+```dart
+testWidgets('AuthPage shows the error', (tester) async {
+  // Given
+  final cubit = AuthCubit();
+  addTearDown(cubit.close);
+  await tester.pumpWidget(
+    MaterialApp(
+      home: BlocProvider.value(value: cubit, child: const AuthPage()),
+    ),
+  );
+
+  // When
+  cubit.emitEffect(ShowError('Wrong password'));
+  await tester.pumpAndSettle();
+
+  // Then
+  expect(find.text('Wrong password'), findsOneWidget);
+});
+```
+
+An effect that nothing listens to is lost, for example one emitted from the
+bloc's constructor or before the listening widget is mounted. Set
+`debugPrintUnheardEffects = true`, for example at the start of `main()`, to get
+a warning about it in debug builds. It is off by default, because tests of a
+bloc often emit effects that they do not listen to.
