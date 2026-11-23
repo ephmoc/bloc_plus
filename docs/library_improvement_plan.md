@@ -176,7 +176,8 @@ to an app.
 The second review found that the async helpers for Cubits and the effects
 carry the package, that the `BuildContext` helpers repeat what provider
 documents, and that some signatures can only be tightened before a freeze.
-So 0.4.0 tightens and shrinks the API, and 1.0 waits for real use.
+So 0.4.0 tightens and shrinks the API and is tried on real code before it
+is published, and 1.0 follows four weeks later.
 
 ### 0.4.0, planned as the last 0.x minor
 
@@ -185,6 +186,36 @@ that 1.0 removes, so that 1.0 itself only removes what 0.4.0 marked. Code
 that compiles on 0.4.0 without deprecation warnings needs one kind of edit
 for 1.0: names that 1.0 removes have to leave the `hide` lists of its imports
 (see below).
+
+It lands on `develop` as separate pull requests: one for each breaking
+change, one for the deprecations, one for the new docs and the rest of the
+example. Each one passes CI on its own, so it carries its tests, its
+CHANGELOG entry, the README, dartdoc, PRD and task-spec edits of its change
+(AGENTS.md sections 6, 10 and 12) and the edit of the example that its
+warnings force: the deprecations remove `effectWhen` from the example, the
+`@protected` change removes its two reads of `isTaskRunning`. The last pull
+request holds what belongs to no single change: the recipes, the table,
+"Compared with", "Versioning" and the sealed effects in the example.
+
+Before it is published it carries real code: one feature of an existing bloc
+application is migrated to the `develop` commit that holds all of them,
+through a git or a path dependency. The feature contains:
+
+- one Cubit with a multi-step "latest wins" flow whose intermediate result is
+  nullable;
+- one `Future<void>` action that must not emit after it was superseded or
+  after `close()`;
+- one screen that moves from the application's current one-off events to
+  `HasEffects` with `BlocEffectListener` or `BlocConsumerWithEffects`, with a
+  widget test that mocks the cubit and stubs `effects`.
+
+What the migration asks for is folded into 0.4.0 before publishing, unless
+the owner declines it and records why under "Reviewed and kept": an API
+change, a missing recipe, a confusing diagnostic. 0.4.0 is published when no
+request is undecided and the application's tests pass on the commit that is
+released. If the application cannot depend on an unpublished commit, the
+migration follows the publication instead, and what it asks for is released
+as described under 1.0.0.
 
 Breaking changes, allowed inside 0.x, each with its migration in the
 CHANGELOG:
@@ -195,29 +226,54 @@ CHANGELOG:
   `await runLatest('save', save); emit(saved);` compiles, emits although the
   run was superseded, and throws after `close()`. With the bound such a call
   is a compile error. Migration: the outcome methods and a check of
-  `isCompleted`; for `guarded` and `CancellationToken.run`, which have no
-  outcome twin, a task that returns a non-null value, such as the record in
-  the README. A generic helper that forwards its own type parameter needs the
-  same bound (`Future<T?> load<T extends Object>(...)`), and so does an
-  override of `runLatest` or `guarded` and a function type that names the old
-  signature. The analyzer does not report a helper that returns the call
+  `isCompleted`. `guarded` and `CancellationToken.run` have no outcome twin:
+  void or nullable work is awaited plainly and followed by `safeEmit`, or by
+  a check of `isClosed` or of `token.isCancelled` before anything else. A
+  task that returns a non-null value, such as the record in the README, is
+  needed only to keep what the two methods add: the operation is not
+  started, a late failure is dropped and, for `CancellationToken.run`, the
+  caller is released at `cancel()` instead of when the work ends. A generic
+  helper that forwards its own type parameter needs the same bound
+  (`Future<T?> load<T extends Object>(...)`), and so does an override of
+  `runLatest` or `guarded` and a function type that names the old signature.
+  The analyzer does not report a helper that returns the call
   (`=> runLatest(key, task)`, `=> guarded(task)`, `=> token.run(task)`):
   `flutter analyze` stays clean and the build fails with "Inferred type
   argument 'T' doesn't conform to the bound 'Object'". The CHANGELOG says so
   and asks the reader to compile (`flutter test` or a build) after upgrading.
 - `SafeEmitMixin` is declared `on Cubit<S>`. In a `Bloc` the handler's `emit`
-  is already a no-op after `close()` and after a transformer cancels the
-  handler, while `safeEmit` skips those checks and `onTransition`: under
+  is already a no-op once `close()` or a transformer has cancelled the
+  handler, while `safeEmit` skips that check and `onTransition`: under
   `restartable()` a superseded handler emits its stale state. Migration for a
-  `Bloc`: remove the mixin, call the handler's `emit`, replace `guarded` with
-  `if (emit.isDone) return;` after the `await`, and outside a handler use
-  `if (!isClosed) add(event)`. `guarded` also dropped a failure that arrives
-  after `close()`; a handler that relied on that wraps the `await` in
-  `try`/`catch` with `if (emit.isDone) return; rethrow;` in the `catch`,
-  otherwise the failure reaches `onError` and the zone. A direct subclass of
-  `BlocBase` loses the mixin as well: it extends `Cubit` instead, or checks
-  `isClosed` before `emit` by hand. `RestartableTasksMixin` and `HasEffects`
-  stay `on BlocBase<S>`.
+  `Bloc`: remove the mixin and check `isClosed`, which is what `safeEmit` and
+  `guarded` checked. It is true from the call of `close()`, but `close()`
+  cancels the handlers only later: a few microtasks later under the default
+  transformer, `concurrent()`, `droppable()` and `restartable()`, and only
+  after the running and the queued handlers have finished while any handler
+  of the bloc uses `sequential()`. Until then `emit.isDone` is `false` and
+  the handler's `emit` still delivers. So:
+  - `safeEmit(state)` becomes `if (!isClosed) emit(state);`, which now also
+    calls `onTransition`;
+  - `await guarded(operation)` becomes `if (isClosed) return;` before
+    `await operation()` and again after it. The first check keeps the
+    operation from starting on a closed bloc, which happens after an earlier
+    `await` and in an event that `sequential()` queued before `close()`;
+  - `guarded` also dropped a failure that arrives after `close()` was
+    called: wrap the `await` in `try`/`catch` with
+    `if (isClosed) return; rethrow;` in the `catch`, or put
+    `if (isClosed) return;` first in a `catch` the handler already has.
+    Without it the failure reaches that `catch`, whose `emit` may still
+    deliver an error state, or else `onError` and the zone;
+  - a public method, and a callback that outlives its handler (a stream
+    subscription: the handler's `emit` fails an assertion there), adds an
+    event instead, `if (!isClosed) add(event)`, with a handler that emits.
+    The state then changes when that handler runs, not during the call.
+
+  Checking `emit.isDone` as well stops a handler that a transformer
+  cancelled, which `guarded` never did. A direct subclass of `BlocBase`
+  loses the mixin as well: it extends `Cubit` instead, or checks `isClosed`
+  before `emit` by hand. `RestartableTasksMixin` and `HasEffects` stay
+  `on BlocBase<S>`.
 - `BlocBuilderWithBloc` and `BlocListenerWithBloc` follow the provided bloc
   after `bloc:` changes from an instance to `null`, like the consumers and
   the selector. This replaces the documented "give it a new `key`"
@@ -243,6 +299,20 @@ CHANGELOG:
   (`CancellationToken()` and `cancel()`). There is no `@sealed` step and no
   `meta` dependency: this release breaks compilation in other places anyway,
   and generated mocks would not show the warning.
+- `isTaskRunning`, `runLatest`, `runLatestOutcome`, `cancelLatest`,
+  `cancelAllLatest` and `guarded` are marked `@protected` and
+  `@visibleForTesting`, as `safeEmit` and `emitEffect` already are. A call
+  from outside the cubit, such as `isTaskRunning` read in `build` or
+  `cancelLatest` called from a widget, becomes two analyzer warnings
+  (`invalid_use_of_protected_member` and
+  `invalid_use_of_visible_for_testing_member`), so `flutter analyze` fails
+  on it. A call from an extension on the cubit is reported as well; a call
+  from a mixin declared `on` the package's mixin is not. Files under
+  `test/`, `integration_test/` and `test_driver/` may still call them; a
+  test helper under `lib/` may not. Migration: a method in the body of the
+  cubit class that makes the call, and a field of the state for what the UI
+  shows. After 1.0 the same annotation would put new warnings into the CI of
+  every user, so it is done now.
 
 Deprecations, removed in 1.0:
 
@@ -306,6 +376,8 @@ Tests:
   `BlocConsumerWithEffects` forwards `effectWhen` to `BlocEffectListener`
   under the same file-level ignore until 1.0, and `withBloc` calls
   `read<B?>()` instead of the deprecated `readOrNull`.
+- A test guards the recipe for a flow with several awaits (see Docs): a
+  superseded flow neither emits a stale state nor cancels the newer flow.
 
 Docs:
 
@@ -318,13 +390,15 @@ Docs:
 - the README and the dartdoc follow every change above in the same change set
   (AGENTS.md section 12). In the README: the feature list with its list of
   deprecated APIs, the paragraph on the methods that return `null` (they take
-  a non-null `T` only), the two notes on `effectWhen` and the version in the
-  install snippet. In the dartdoc: `SafeEmitMixin` ("after a cubit has been
-  closed"), the "When `T` is nullable or `void`" paragraphs of `guarded`,
-  `runLatest` and `CancellationToken.run`, `HasEffects.close` (which
-  recommends `safeEmit` in "a bloc method"), the `effectWhen` sentences of
-  `BlocEffectListener`, and `BlocCondition`, which names
-  `BlocSelectedCondition`;
+  a non-null `T` only; for void or nullable work it shows the plain form
+  first and keeps the record only for what `guarded` and
+  `CancellationToken.run` add), the two notes on `effectWhen` and the version
+  in the install snippet. In the dartdoc: `SafeEmitMixin` ("after a cubit has
+  been closed"), the "When `T` is nullable or `void`" paragraphs of
+  `guarded`, `runLatest` and `CancellationToken.run`, which give the same
+  order, `HasEffects.close` (which recommends `safeEmit` in "a bloc
+  method"), the `effectWhen` sentences of `BlocEffectListener`, and
+  `BlocCondition`, which names `BlocSelectedCondition`;
 - a "Compared with" section in the README, with differences that were
   measured against the version current at the time: `bloc_presentation` for
   effects (here `emitEffect` after `close()` is a no-op, the listener follows
@@ -339,10 +413,36 @@ Docs:
 - the example app shows what the README recommends: effects as a sealed
   hierarchy handled by an exhaustive `switch`, without string prefixes and
   `effectWhen`, and the running flag kept in state instead of
-  `isTaskRunning` read in `build`. Until the example drops `effectWhen`,
-  `flutter analyze` fails on its deprecation warnings;
+  `isTaskRunning` read in `build`. Until the example drops `effectWhen` and
+  its two reads of `isTaskRunning`, `flutter analyze` fails on their
+  warnings;
 - the README async sample handles the failure path, so that the loading flag
-  is cleared when the task throws;
+  is cleared when the task throws. It shows "latest wins" with
+  `RestartableTasksMixin` alone and says where `safeEmit` still matters in
+  such a flow (an emit before the first `await`), instead of applying both
+  mixins without a reason;
+- a README recipe for a flow with several awaits: one `runLatestOutcome`
+  around the whole flow, a check of `token.isCancelled` after every `await`,
+  the emits inside the task. A key names a whole flow, not a step: with one
+  run per step under the same key, a superseded flow that has any other
+  `await` between its steps resumes and starts its next step. That step
+  cancels the newer flow when the newer flow is inside a run, and emits its
+  stale state otherwise. The dartdoc of `runLatest` and `runLatestOutcome`
+  says so in one sentence;
+- a short table in the README that says which helper to use: `safeEmit` for
+  an emit after an `await`; `guarded` for work whose non-null result is used
+  afterwards; `runLatestOutcome` for "latest wins", or `runLatest` when the
+  result is non-null; `RestartableTask` outside a bloc. It also says what the
+  package does not replace: a plain `if (isClosed) return;` before further
+  logic stays;
+- the CHANGELOG migration and the dartdoc of `runLatest` show the whole
+  replacement for void work, with `if (!outcome.isCompleted) return;`: an
+  ignored outcome compiles and emits the superseded result;
+- the README states the rule for the effect callbacks:
+  `BlocEffectListener.onEffect` gets `(context, effect)`,
+  `BlocConsumerWithEffects` hands the bloc to `builder`, `listener` and
+  `onEffect` (its conditions get the two states), and it needs the
+  `HasEffects` mixin while the listener accepts any `EffectsSource`;
 - a README recipe for "ignore while running": `isTaskRunning` checked before
   the first `await`, and a pointer to `bloc_concurrency` for a `Bloc`.
   `isTaskRunning` is not reactive, so it is read inside the cubit and not in
@@ -351,6 +451,11 @@ Docs:
   stubbed with a stream, or the widget fails with a `TypeError`. The test
   that guards the recipe writes its mock by hand, so that no dev dependency
   is added;
+- the dartdoc of `guarded`, `runLatest` and `CancellationToken.run` says to
+  handle `null` first, with an early return. An `else` or a `default` branch
+  takes a discarded run (a closed cubit, a superseded or a cancelled run)
+  for a failed result, and the analyzer's hint for the missing `null` case
+  suggests such a branch;
 - the dartdoc of `emitEffect` says that a `Bloc` handler cancelled by a
   transformer still delivers its effect unless it checks `emit.isDone` first;
 - the note on type inference, in the README, in the class dartdoc of
@@ -375,7 +480,12 @@ Docs:
   `build(context, state)` and the `listener` getter, in the PRD and in
   `docs/tasks/ui_with_bloc.md`, and the notes "matches `BlocBuilder`
   exactly", "parity with `BlocBuilder`", "no overhead" and "give it a new
-  `key`"), the two typedefs, the inference notes, the version that the PRD
+  `key`"), the two typedefs, the six members that become `@protected` and
+  `@visibleForTesting` (the declarations of `RestartableTasksMixin` and of
+  `guarded` in the PRD, the rows of its API freeze table, which name the
+  annotations only for `safeEmit` and `emitEffect`, and the member lists in
+  `docs/tasks/async_helpers.md` and `docs/tasks/async_safety.md`), the
+  inference notes, the version that the PRD
   says it describes, and the PRD's own "v1.0.0 - API Freeze" entry, which
   points here instead. The PRD is edited first in that change set, as its
   section 5.6 asks.
@@ -388,22 +498,15 @@ Released when both conditions hold:
   that changes code under `lib/` (anything but comments) restarts them, a bug
   fix included; a release that changes only documentation, the example or
   tests does not;
-- the package has carried real code: one feature of an existing bloc
-  application is migrated to 0.4.x, and that application's tests pass. The
-  feature has two or three Cubits that move from hand-written `isClosed`
-  guards or generation counters to `safeEmit`, `guarded`, `runLatest` or
-  `runLatestOutcome`, and one screen that moves from the application's
-  current one-off events to `HasEffects` with `BlocEffectListener` or
-  `BlocConsumerWithEffects`. The migration must not ask for an API change,
-  that is for anything that the versioning policy below puts into a minor or
-  a major: a new, changed or removed export, member, parameter or documented
-  behaviour. A bug fix or a documentation change does not count.
+- the migration of a real feature, described under 0.4.0, is done, and it
+  leaves no change open that would need a major after 1.0: a removed or
+  renamed export, an incompatible signature, a changed documented behaviour.
 
-If the migration does ask for an API change, the change is released first: in
-a 0.4.x patch when it only adds API, in 0.5.0 when it breaks, and then this
-section reads 0.5 wherever it says 0.4. Both conditions start again from that
-release: the four weeks count from its publication, and the same feature is
-migrated again on it without asking for a further change.
+Such a change is released in 0.5.0 first, and then this section reads 0.5
+wherever it says 0.4: the four weeks count from the publication of 0.5.0,
+and the same feature is migrated again on it. A change that only adds API
+needs no new migration: it comes in a 0.4.x patch, which restarts the four
+weeks as any change of `lib/` does, or in a 1.x minor.
 
 There is no `-dev` prerelease: releases are cut from `main`, so a prerelease
 there would close the 0.4.x line for fixes. The removals wait on their own
@@ -464,10 +567,17 @@ Published in the README:
 The second review proposed to cut or reshape these as well. Each one stays as
 it is, for a reason that a replacement would have to match:
 
-- `guarded` does not start the operation on a closed cubit and drops a
-  failure that arrives after `close()`. The manual
-  `final r = await op(); if (isClosed) return;` does neither, and inside a
-  `try`/`catch` that emits an error state it throws after `close()`.
+- `guarded` makes the closed check part of the type. Its result is `T?`, so
+  where the result is used (an exhaustive `switch` over a sealed result,
+  `.match` on an `Either`, a member, a non-nullable parameter) a forgotten
+  check is a compile error. The manual
+  `final r = await op(); if (isClosed) return;` compiles without its check
+  and then throws or runs on after `close()`. `guarded` also does not start
+  the operation on a closed cubit and drops a failure that arrives after
+  `close()`. The first has a one-line manual replacement; the second is one
+  line in a `catch` that exists and a `try`/`catch` around the `await`
+  otherwise. It is for work with a non-null result: void work keeps the
+  manual guard.
 - `BlocConsumerWithEffects` resolves the bloc once for the builder, the
   listener and the effects. In the composed form a `bloc:` that is forgotten
   on one of the three widgets listens to another instance without an error.
@@ -484,6 +594,12 @@ it is, for a reason that a replacement would have to match:
 - `TaskOutcome` stays a `final class` with `isCompleted` and `value`. A
   sealed pair of subclasses, which would make the compiler force the check,
   can be added in a 1.x minor without breaking it.
+- `BlocEffectListener.onEffect` stays `(context, effect)`, although
+  `BlocConsumerWithEffects` hands the bloc to its callbacks. A third argument
+  would let `E` be inferred from `bloc:` in code at language version 3.7 or
+  later, but it would change every existing listener, and the case it helps
+  is an explicit `bloc:` without type arguments. A listener that hands over
+  the bloc can be added in a 1.x minor.
 
 ### Dropped from the plan
 
