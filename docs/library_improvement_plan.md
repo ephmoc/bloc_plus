@@ -1,7 +1,7 @@
 # Library Improvement Plan
 
-Delivery notes for `0.2.0`, `0.2.2` and `0.3.0`, the planned next steps, and
-the guardrails for future work. API names and signatures are
+Delivery notes for `0.2.0`, `0.2.2`, `0.3.0` and `0.3.1`, the planned next
+steps, and the guardrails for future work. API names and signatures are
 defined by the code and its API docs, and per-version changes by
 `CHANGELOG.md`; where this file disagrees with them, they win.
 
@@ -157,16 +157,19 @@ Released 2026-11-22 (minor). Details and migration notes are in
   instance per `build` in the consumers;
 - the PRD and task specs brought in line with the code.
 
+## Delivered in 0.3.1
+
+Released 2026-11-22 (patch): a recipe for testing effects and the opt-in
+`debugPrintUnheardEffects` warning for effects that nothing listens to.
+`dart fix` data for the 0.3.0 deprecations was dropped: the policy factories
+cannot be described, and renaming `EffectListener<B, S, E>` to
+`BlocEffectListener` keeps the extra type argument, so the result does not
+compile.
+
 ## Next
 
 Planned, in this order. Items marked *proposed* still need a decision.
 
-- `0.3.1` (patch, decided 2026-11-22, on `develop`, not yet released): a
-  recipe for testing effects and the opt-in `debugPrintUnheardEffects` warning
-  for effects that nothing listens to. `dart fix` data for the 0.3.0
-  deprecations was dropped: the policy factories cannot be described, and
-  renaming `EffectListener<B, S, E>` to `BlocEffectListener` keeps the extra
-  type argument, so the result does not compile.
 - Later 0.x (*proposed*): a selector-based listener and more async modes
   (ignore while running, a queue per key); renaming the
   `BlocEffectListenerWithBloc` typedef, which reads like a widget.
