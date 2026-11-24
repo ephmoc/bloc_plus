@@ -37,12 +37,14 @@ Migration impact:
     ```
 
   - `guarded` and `CancellationToken.run` have no outcome twin: await the
-    work plainly and emit with `safeEmit`, or check `isClosed` or
-    `token.isCancelled` before anything else. Return a non-null value, such
-    as a record, only to keep what the two methods add: the work does not
-    start on a closed bloc or a cancelled token, its later failure is
-    dropped, and `CancellationToken.run` releases its caller at `cancel()`
-    instead of when the work ends.
+    work plainly and then check what the method checked, before anything
+    else. For `guarded` that is `isClosed`, which `safeEmit` checks for you;
+    for `CancellationToken.run` it is `token.isCancelled`, which `safeEmit`
+    does not check. Return a non-null value, such as a record, only to keep
+    what the two methods add: the work does not start on a closed bloc or a
+    cancelled token, its later failure is dropped, and
+    `CancellationToken.run` releases its caller at `cancel()` instead of when
+    the work ends.
 - A generic helper that forwards its own type parameter needs the same bound
   (`Future<T?> load<T extends Object>(...)`), and so do an override of
   `runLatest` or `guarded` and a function type that names the old signature.

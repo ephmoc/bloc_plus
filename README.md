@@ -247,16 +247,25 @@ discarded work for a failed result.
 
 For `void` work or a nullable result, `null` would be ambiguous, so
 `runLatest`, `CancellationToken.run` and `guarded` do not accept it
-(`T extends Object`). Instead of `runLatest`, use `runLatestOutcome` as above
-(or `RestartableTask.runOutcome`) and check the outcome before anything else:
-an ignored outcome compiles, and the code after it then runs for a superseded
-run as well. Instead of `guarded` or `CancellationToken.run`, await such work
-plainly and emit with `safeEmit`, or check `isClosed` (or `token.isCancelled`)
-before anything else:
+(`T extends Object`); `RestartableTask.run` still accepts it, with the same
+ambiguity. Instead of `runLatest` or `RestartableTask.run`, use
+`runLatestOutcome` as above or `RestartableTask.runOutcome`, and check the
+outcome before anything else: an ignored outcome compiles, and the code after
+it then runs for a superseded run as well. Instead of `guarded` or
+`CancellationToken.run`, await such work plainly and then check what the
+method checked, before anything else: `isClosed` for `guarded`, which
+`safeEmit` checks for you, and `token.isCancelled` for
+`CancellationToken.run`, which `safeEmit` does not check:
 
 ```dart
+// Instead of guarded:
 final item = await repository.find(q); // may be null: not found
 safeEmit(state.copyWith(item: item));
+
+// Instead of CancellationToken.run:
+final found = await repository.find(q);
+if (token.isCancelled) return;
+safeEmit(state.copyWith(item: found));
 ```
 
 Wrap the result in a record only to keep what these two add: the work does
