@@ -17,7 +17,7 @@
 -   Optional rebuild/listen conditions to reduce boilerplate and increase
     correctness
 
-This document describes the API at version 0.3.1. When it and the code
+This document describes the API at version 0.4.0. When it and the code
 disagree, `lib/` and `CHANGELOG.md` win; fix this document.
 
 The package must be:
@@ -297,9 +297,9 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `BuildContext` nullable extensions | stable | Return `null` only on a missing provider; rethrow other errors; any provided type (`selectOrNull`: a `StateStreamableSource<S>`) |
 | `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`) |
-| `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled` |
+| `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0 |
 | `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
-| `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future` |
+| `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future`; `final class` since 0.4.0 |
 | `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation |
 | `EffectsSource` + `HasEffects` | stable | One-shot effect stream separated from state stream; `emitEffect` is `@protected`, `@visibleForTesting` |
 | `debugPrintUnheardEffects` | stable (0.3.1) | Opt-in debug warning for an effect that nothing listens to; off by default; never prints in release builds |
@@ -1118,10 +1118,13 @@ but does not stop the work itself. The work keeps running, so check
 `isCancelled` before any side effect, or pass `whenCancelled` to the I/O so
 it can abort.
 
+Since 0.4.0 it is a `final class`: it cannot be extended, implemented or
+mocked outside the package. Tests use a real token and call `cancel()`.
+
 ### API Specification
 
 ```dart
-class CancellationToken {
+final class CancellationToken {
   CancellationToken();
 
   bool get isCancelled;
@@ -1229,10 +1232,13 @@ Manages a restartable async task: starting a new run supersedes the previous
 one. The superseded caller is released at once and its result is dropped,
 but its work keeps running (cooperative cancellation).
 
+Since 0.4.0 it is a `final class`: it cannot be extended, implemented or
+mocked outside the package. Tests use a real instance.
+
 ### API Specification
 
 ```dart
-class RestartableTask<T> {
+final class RestartableTask<T> {
   RestartableTask();
 
   bool get isRunning;
