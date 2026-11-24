@@ -457,7 +457,7 @@ class BlocListenerWithBloc<B extends StateStreamable<S>, S>
 - `bloc` (optional): The bloc instance to use. If not provided, the nearest provided bloc is used
 - `listenWhen` (optional): Condition function to determine if listener should be called
 - `listener`: Required listener function with signature `(context, bloc, state) -> void`
-- `child` (optional): Child widget to render
+- `child` (optional): Child widget to render; required outside `MultiBlocListener`, which supplies it, and a missing child fails an assertion that names `BlocListenerWithBloc`
 
 #### Behavior
 

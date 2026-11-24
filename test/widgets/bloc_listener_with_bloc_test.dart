@@ -246,6 +246,31 @@ void main() {
     expect(created, isFalse);
   });
 
+  testWidgets('asserts with its own name when it has no child', (tester) async {
+    // Given
+    final cubit = _CounterCubit();
+    addTearDown(cubit.close);
+
+    // When
+    await tester.pumpWidget(
+      BlocListenerWithBloc<_CounterCubit, int>(
+        bloc: cubit,
+        listener: (context, bloc, state) {},
+      ),
+    );
+
+    // Then
+    expect(
+      tester.takeException(),
+      isA<AssertionError>().having(
+        (error) => error.message,
+        'message',
+        'BlocListenerWithBloc<_CounterCubit, int> used outside of '
+            'MultiBlocListener must specify a child',
+      ),
+    );
+  });
+
   testWidgets('composes inside MultiBlocListener', (tester) async {
     // Given
     final first = _CounterCubit();

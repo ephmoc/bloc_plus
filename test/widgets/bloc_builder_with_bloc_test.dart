@@ -119,8 +119,9 @@ void main() {
 
     // When
     await tester.pumpWidget(builder(bloc: null));
-    explicit.increment();
+    // The old bloc emits last, so a leftover subscription would show.
     provided.increment();
+    explicit.increment();
     await tester.pumpAndSettle();
 
     // Then
@@ -145,8 +146,9 @@ void main() {
 
     // When
     await tester.pumpWidget(BlocProvider.value(value: second, child: builder));
-    first.increment();
+    // The old bloc emits last, so a leftover subscription would show.
     second.increment();
+    first.increment();
     await tester.pumpAndSettle();
 
     // Then
