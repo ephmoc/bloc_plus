@@ -211,7 +211,9 @@ through a git or a path dependency. The feature contains:
 
 What the migration asks for is folded into 0.4.0 before publishing, unless
 the owner declines it and records why under "Reviewed and kept": an API
-change, a missing recipe, a confusing diagnostic. 0.4.0 is published when no
+change, a missing recipe, a confusing diagnostic. It also settles whether
+`runLatestOutcome` gets `@useResult`: an ignored outcome compiles today, and
+after 1.0 that annotation would need a major. 0.4.0 is published when no
 request is undecided and the application's tests pass on the commit that is
 released. If the application cannot depend on an unpublished commit, the
 migration follows the publication instead, and what it asks for is released
@@ -312,7 +314,7 @@ CHANGELOG:
   test helper under `lib/` may not. Migration: a method in the body of the
   cubit class that makes the call, and a field of the state for what the UI
   shows. After 1.0 the same annotation would put new warnings into the CI of
-  every user, so it is done now.
+  every user and need a major, so it is done now.
 
 Deprecations, removed in 1.0:
 
@@ -499,11 +501,10 @@ Released when both conditions hold:
   fix included; a release that changes only documentation, the example or
   tests does not;
 - the migration of a real feature, described under 0.4.0, is done, and it
-  leaves no change open that would need a major after 1.0 (a removed or
-  renamed export, an incompatible signature, a changed documented behaviour)
-  or that would only add analyzer warnings to user code after it (an
-  annotation such as `@protected`, which this plan counts among the breaking
-  changes).
+  leaves no change open that would need a major after 1.0: a removed or
+  renamed export, an incompatible signature, a changed documented behaviour,
+  or an annotation that makes the analyzer report code that was clean before
+  (such as `@protected`).
 
 Such a change is released in 0.5.0 first, and then this section reads 0.5
 wherever it says 0.4: the four weeks count from the publication of 0.5.0,
@@ -552,7 +553,9 @@ Published in the README:
 - the public API is everything exported from
   `package:bloc_plus/bloc_plus.dart`;
 - a major version is needed to remove or rename an export, to change a
-  signature incompatibly or to change documented behaviour;
+  signature incompatibly, to change documented behaviour, or to add an
+  annotation that makes the analyzer report code that was clean before, such
+  as `@protected`. `@Deprecated` is the exception (next item);
 - a minor version may add exports, members and optional parameters, support a
   new major of `flutter_bloc`, `bloc` or `provider` when no signature here
   changes, raise the minimum Dart or Flutter SDK, and deprecate an API, which
