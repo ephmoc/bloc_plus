@@ -1,11 +1,21 @@
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 
-/// Adds guarded emit helpers that no-op after a bloc has been closed.
-mixin SafeEmitMixin<S> on BlocBase<S> {
-  /// Emits [state] only when the bloc is still open.
+/// Adds guarded emit helpers that no-op after a cubit has been closed.
+///
+/// It applies to Cubits only. In a `Bloc`, use the handler's `emit`, which
+/// also calls `onTransition` and does nothing in a handler that a transformer
+/// such as `restartable()` has cancelled. Check `isClosed` first in the
+/// handler and again after every `await`: the handler's `emit` still delivers
+/// for a while after `close()` is called, also in a handler that starts
+/// afterwards for an event queued before it. With `emit.onEach`, check it in
+/// `onData` and `onError` too. `emit.forEach` emits every state its callbacks
+/// return, so a check there cannot stop the emit: where a value must not
+/// arrive after `close()`, use `emit.onEach`.
+mixin SafeEmitMixin<S> on Cubit<S> {
+  /// Emits [state] only when the cubit is still open.
   ///
-  /// Like `emit`, it is meant to be called from inside the bloc, and from
+  /// Like `emit`, it is meant to be called from inside the cubit, and from
   /// tests.
   @protected
   @visibleForTesting
@@ -14,14 +24,14 @@ mixin SafeEmitMixin<S> on BlocBase<S> {
     emit(state);
   }
 
-  /// Runs [operation] and returns its result only if the bloc is still open
+  /// Runs [operation] and returns its result only if the cubit is still open
   /// after completion.
   ///
-  /// [operation] does not start on a closed bloc. A failure of [operation]
-  /// after the bloc was closed is dropped like its result, so the call
-  /// completes with `null`; a failure while the bloc is open is rethrown.
+  /// [operation] does not start on a closed cubit. A failure of [operation]
+  /// after the cubit was closed is dropped like its result, so the call
+  /// completes with `null`; a failure while the cubit is open is rethrown.
   /// Handle `null` first, with an early return: an `else` or a `default`
-  /// branch would take a closed bloc for a failed result.
+  /// branch would take a closed cubit for a failed result.
   ///
   /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
   /// would be ambiguous. Await such work plainly and emit with [safeEmit], or
@@ -33,7 +43,7 @@ mixin SafeEmitMixin<S> on BlocBase<S> {
   /// ```
   ///
   /// Wrap the result in a record only to keep what `guarded` adds: the
-  /// operation does not start on a closed bloc, and its failure after close
+  /// operation does not start on a closed cubit, and its failure after close
   /// is dropped:
   ///
   /// ```dart

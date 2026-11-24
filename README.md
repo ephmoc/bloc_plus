@@ -21,7 +21,7 @@ conditions, cooperative async helpers, and explicit effect handling primitives.
 - Conditions for `buildWhen`, `listenWhen` and `selectorShouldRebuild`:
   `BlocCondition`, `whenChanged`
 - Async safety:
-  - `SafeEmitMixin`
+  - `SafeEmitMixin` (Cubits only)
   - `CancellationToken` (with `whenCancelled`)
   - `RestartableTask` (`run`, `runOutcome`)
   - `RestartableTasksMixin` (`runLatest`, `runLatestOutcome`)
@@ -238,6 +238,17 @@ works in tests.
   the assert's error is dropped along with the abandoned task's other
   failures. Check `emit.isDone` (or `token.isCancelled` with
   `runLatestOutcome`) before calling `emit` inside the task.
+- **`SafeEmitMixin` is for Cubits.** A `Bloc` cannot mix it in: the
+  handler's `emit` also calls `onTransition` and does nothing in a handler
+  that a transformer has cancelled, which `safeEmit` skipped. In a handler,
+  check `isClosed` first and again after every `await`, before `emit` and
+  before starting work: it is `true` from the call of `close()`, while the
+  handler's `emit` still delivers for a while, also in a handler that starts
+  after `close()` for an event queued before it. With `emit.onEach`, check it
+  in `onData` and `onError` too; `emit.forEach` emits every state its
+  callbacks return, so a check there cannot stop the emit: where a value must
+  not arrive after `close()`, use `emit.onEach`. The 0.4.0 entry of the
+  [CHANGELOG](CHANGELOG.md) has the full migration.
 
 `runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
 complete with `null` when the work was superseded, cancelled or outlived the

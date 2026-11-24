@@ -1,0 +1,10 @@
+// markdownlint settings for this repository, read by markdownlint-cli2 and by
+// the VS Code extension.
+{
+  // Prose is wrapped where it reads well; tables, links and code run longer.
+  // The VS Code extension disables this rule by default as well.
+  "MD013": false,
+  // The PRD repeats section names such as "API Specification" under each
+  // class; only headings under the same parent have to differ.
+  "MD024": { "siblings_only": true }
+}

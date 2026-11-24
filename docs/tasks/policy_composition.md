@@ -8,6 +8,7 @@
 > `not`. This spec is historical; do not extend it.
 
 ## Preconditions
+
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - Baseline `policies` module is already implemented and exported
 - If scaffold is missing, bootstrap first with:
@@ -16,6 +17,7 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
+
 - Extend `RebuildPolicy<S>` with composition helpers:
   - `and`
   - `or`
@@ -33,11 +35,13 @@
 - Keep compatibility with standard `flutter_bloc` `buildWhen` / `listenWhen`
 
 ## Out Of Scope
+
 - New widget types
 - Stateful or cached policy behavior
 - Reflection or dynamic dispatch tricks
 
 ## Public Contract
+
 - Policies remain stateless and reusable
 - Composition order is explicit and deterministic
 - `and`: returns `true` only when both component policies return `true`
@@ -51,16 +55,19 @@
   backward compatible
 
 ## Target Files
+
 - `lib/src/policies/rebuild_policy.dart`
 - `lib/src/policies/listen_policy.dart`
 - `lib/src/policies/policies.dart` (barrel)
 - `lib/bloc_plus.dart` (exports)
 
 ## Tests (Contract)
+
 - `test/policies/rebuild_policy_test.dart`
 - `test/policies/listen_policy_test.dart`
 
 Required cases:
+
 - `and` truth table for rebuild and listen policies
 - `or` truth table for rebuild and listen policies
 - `not` negates wrapped policy result
@@ -72,10 +79,12 @@ Required cases:
 - existing built-ins keep previous behavior
 
 ## Example App Updates
+
 - Add one example showing policy composition in a widget tree
 - Add one example showing custom equality for a derived selected value
 
 ## Acceptance Criteria (DoD)
+
 - New policy APIs are exported and documented
 - Existing policy behavior remains unchanged
 - Unit tests cover composition and custom equality paths
@@ -84,12 +93,14 @@ Required cases:
 - No hidden mutable state is introduced
 
 ## Validation Commands
+
 - `dart format .`
 - `flutter analyze`
 - `flutter test test/policies`
 - `flutter test test/widgets`
 
 ## Agent Constraints
+
 - Keep policies pure and side-effect free
 - Prefer explicit helper constructors/functions over magic operator overloads
 - Do not add dependencies

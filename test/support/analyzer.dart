@@ -42,9 +42,11 @@ String _dart() {
 
 List<String> _errors(ProcessResult result) {
   final stdout = '${result.stdout}';
-  // Older SDKs print an "Analyzing ..." line before the JSON.
+  // Older SDKs print an "Analyzing ..." line before the JSON, and only
+  // "No issues found!" when there is nothing to report.
   final start = stdout.indexOf('{');
   if (start < 0) {
+    if (result.exitCode == 0) return [];
     fail('dart analyze printed no JSON.\n$stdout\n${result.stderr}');
   }
   final json = jsonDecode(stdout.substring(start)) as Map<String, Object?>;

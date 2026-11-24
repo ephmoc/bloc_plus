@@ -8,16 +8,6 @@ class _SafeEmitCubit extends Cubit<int> with SafeEmitMixin<int> {
   _SafeEmitCubit() : super(0);
 }
 
-class _Event {}
-
-class _SafeBloc extends Bloc<_Event, int> with SafeEmitMixin<int> {
-  _SafeBloc() : super(0) {
-    on<_Event>((event, emit) {});
-  }
-
-  void push(int value) => safeEmit(value);
-}
-
 void main() {
   test('safeEmit does not throw after cubit is closed', () async {
     // Given
@@ -100,25 +90,5 @@ void main() {
     // Then
     expect(result, isNull);
     expect(calls, 0);
-  });
-
-  test('safeEmit drops states once close() has been called on a Bloc',
-      () async {
-    // Given
-    final bloc = _SafeBloc();
-    final states = <int>[];
-    final subscription = bloc.stream.listen(states.add);
-
-    // When
-    final closing = bloc.close();
-    bloc.push(1);
-    await Future<void>.microtask(() {});
-    bloc.push(2);
-    await closing;
-    await subscription.cancel();
-
-    // Then
-    expect(bloc.isClosed, isTrue);
-    expect(states, isEmpty);
   });
 }

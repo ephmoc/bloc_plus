@@ -59,7 +59,7 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
   /// the effects emitted before [close] and the done event.
   ///
   /// Like the bloc's own last states, effects emitted right before [close]
-  /// reach subscribers after the bloc is closed. A bloc method that a
+  /// reach subscribers after the bloc is closed. A cubit method that a
   /// subscriber calls in response should emit with `SafeEmitMixin.safeEmit`,
   /// and a subscriber that adds an event to a `Bloc` should check `isClosed`
   /// first, because `add` throws after [close]. The bloc is closed right away

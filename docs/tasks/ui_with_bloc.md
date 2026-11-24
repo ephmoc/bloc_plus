@@ -6,6 +6,7 @@
 > The signatures below are the ones in `lib/` at 0.3.0.
 
 ## Preconditions
+
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - If missing, bootstrap first with:
   - `flutter create --template=package bloc_plus` (from parent directory), or
@@ -13,6 +14,7 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
+
 - Implement `BlocBuilderWithBloc`
 - Implement `BlocListenerWithBloc`
 - Implement `BlocConsumerWithBloc`
@@ -20,6 +22,7 @@
 - Keep behavior parity with corresponding `flutter_bloc` widgets plus bloc instance in callbacks
 
 ## Signatures (0.3.0)
+
 - `const BlocBuilderWithBloc<B extends StateStreamable<S>, S>({required builder, bloc, buildWhen})`,
   extends `BlocBuilderBase<B, S>`; `builder(context, bloc, state)`
 - `const BlocListenerWithBloc<B extends StateStreamable<S>, S>({required listener, bloc, listenWhen, child})`,
@@ -31,11 +34,13 @@
   `BlocSelectorBuilderWithBloc<B, S, T>`, `BlocSelectedCondition<T>`
 
 ## Out Of Scope
+
 - `policies` module
 - `async_safety` utilities
 - `effects` module
 
 ## Public Contract
+
 - `bloc` is optional; when omitted, resolve from `BuildContext`
 - Missing bloc in context must throw provider-not-found error (same semantics as `flutter_bloc`)
 - `buildWhen` / `listenWhen` semantics must match `flutter_bloc`
@@ -48,6 +53,7 @@
   `key` when switching. `BlocConsumerWithBloc` follows the provided bloc at once.
 
 ## Target Files
+
 - `lib/src/widgets/bloc_builder_with_bloc.dart`
 - `lib/src/widgets/bloc_listener_with_bloc.dart`
 - `lib/src/widgets/bloc_consumer_with_bloc.dart`
@@ -56,6 +62,7 @@
 - `lib/bloc_plus.dart` (exports)
 
 ## Tests (Contract)
+
 - `test/widgets/bloc_builder_with_bloc_test.dart`
 - `test/widgets/bloc_listener_with_bloc_test.dart`
 - `test/widgets/bloc_consumer_with_bloc_test.dart`
@@ -64,6 +71,7 @@
 - `test/widgets/with_bloc_widgets_contract_test.dart`
 
 Required cases:
+
 - builder/listener receive bloc instance used by widget
 - explicit `bloc:` overrides context lookup
 - missing provider throws
@@ -75,12 +83,14 @@ Required cases:
   to null (0.3.0)
 
 ## Example App Updates
+
 - Historical: the example app at 0.3.0 shows only `BlocBuilderWithBloc` of
   these four widgets; the README lists all four.
 - Add a page/section showing all four widgets with one shared bloc
 - Show mixed usage with standard `flutter_bloc` widgets in the same tree
 
 ## Acceptance Criteria (DoD)
+
 - All public APIs compile and are exported
 - Widget tests pass for all required cases
 - `flutter analyze` has no new warnings/errors from this module
@@ -88,11 +98,13 @@ Required cases:
 - Dartdoc added for all public classes/params
 
 ## Validation Commands
+
 - `dart format .`
 - `flutter analyze`
 - `flutter test test/widgets`
 
 ## Agent Constraints
+
 - Do not change public API outside PRD contract
 - Prefer composition over fragile inheritance internals
 - Do not introduce extra dependencies

@@ -10,6 +10,7 @@
 > listens to.
 
 ## Preconditions
+
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - If missing, bootstrap first with:
   - `flutter create --template=package bloc_plus` (from parent directory), or
@@ -17,6 +18,7 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
+
 - Implement the `EffectsSource<E>` interface (`Stream<E> get effects`) and
   `mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E>` with
   `emitEffect(E effect)` for one-shot effects
@@ -28,10 +30,12 @@
   subscribers got the effects emitted before it
 
 ## Out Of Scope
+
 - Replacing state with effects
 - Cross-isolate/event-bus integrations
 
 ## Public Contract
+
 - Effects are emitted on separate stream from state
 - Effects do not trigger rebuild by themselves
 - Effects are not replayed: a listener gets only effects emitted while it is
@@ -42,6 +46,7 @@
 - Late emits after bloc close must not crash consumer code (well-defined no-op or handled close path)
 
 ## Target Files
+
 - `lib/src/effects/has_effects.dart`
 - `lib/src/effects/effect_listener.dart` (deprecated widget)
 - `lib/src/effects/bloc_effect_listener.dart` (0.3.0)
@@ -49,11 +54,13 @@
 - `lib/bloc_plus.dart` (exports)
 
 ## Tests (Contract)
+
 - `test/effects/has_effects_test.dart`
 - `test/widgets/effect_listener_test.dart`
 - `test/widgets/bloc_effect_listener_test.dart` (0.3.0)
 
 Required cases:
+
 - `emitEffect` emits event to stream
 - stream supports multiple listeners when expected by contract
 - listener callback called exactly once per emission
@@ -62,6 +69,7 @@ Required cases:
 - missing provider throws as expected
 
 ## Example App Updates
+
 - Historical: the example app at 0.3.0 uses `String` effects with prefixes
   (snack/dialog/info) and two `BlocEffectListener` entries in a
   `MultiBlocListener`; it has no auth/navigation example or effect types.
@@ -70,18 +78,21 @@ Required cases:
 - Multiple listeners example for different effect categories
 
 ## Acceptance Criteria (DoD)
+
 - Effect APIs compile and are exported
 - Widget + unit tests cover lifecycle and disposal edge cases
 - No stream controller leaks in repeated mount/unmount tests
 - Documentation clearly separates state vs effect responsibilities
 
 ## Validation Commands
+
 - `dart format .`
 - `flutter analyze`
 - `flutter test test/effects`
 - `flutter test test/widgets`
 
 ## Agent Constraints
+
 - Keep effect stream contract explicit (broadcast vs single-subscription) and test it
 - Do not couple effects with state equality/rebuild logic
 - No extra dependencies
