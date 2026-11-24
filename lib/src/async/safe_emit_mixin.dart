@@ -27,6 +27,9 @@ mixin SafeEmitMixin<S> on Cubit<S> {
   /// Runs [operation] and returns its result only if the cubit is still open
   /// after completion.
   ///
+  /// Like `emit`, it is meant to be called from inside the cubit, and from
+  /// tests.
+  ///
   /// [operation] does not start on a closed cubit. A failure of [operation]
   /// after the cubit was closed is dropped like its result, so the call
   /// completes with `null`; a failure while the cubit is open is rethrown.
@@ -51,6 +54,8 @@ mixin SafeEmitMixin<S> on Cubit<S> {
   /// if (result == null) return; // closed
   /// emit(state.copyWith(item: result.item)); // may be null: not found
   /// ```
+  @protected
+  @visibleForTesting
   Future<T?> guarded<T extends Object>(Future<T> Function() operation) async {
     if (isClosed) return null;
     try {

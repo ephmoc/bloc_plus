@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 
 import 'cancellation_token.dart';
 import 'restartable_task.dart';
@@ -18,11 +19,18 @@ import 'task_outcome.dart';
 /// handler's `emit` must check `emit.isDone` first: a cancelled handler
 /// completes before its abandoned task, and bloc rejects the late `emit` only
 /// with an assert, so release builds would emit the stale state.
+///
+/// Like `emit`, its methods are meant to be called from inside the bloc and
+/// from tests: they are `@protected` and `@visibleForTesting`. Keep what the
+/// UI shows, such as a loading flag, in the state rather than reading
+/// [isTaskRunning] in `build`.
 mixin RestartableTasksMixin<S> on BlocBase<S> {
   final Map<Object, RestartableTask<Object?>> _tasks = {};
   Future<void>? _closing;
 
   /// Returns `true` when the latest task for [key] is still running.
+  @protected
+  @visibleForTesting
   bool isTaskRunning(Object key) => _tasks[key]?.isRunning ?? false;
 
   /// Runs [task] as the latest task for [key], invalidating older results for
@@ -48,6 +56,8 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   ///
   /// Keys are compared with `==`: a new `List` key never matches an earlier
   /// one, while a string or a record with the same content does.
+  @protected
+  @visibleForTesting
   Future<T?> runLatest<T extends Object>(
     Object key,
     Future<T> Function() task,
@@ -82,6 +92,8 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// ```
   ///
   /// Keys are compared as in [runLatest].
+  @protected
+  @visibleForTesting
   Future<TaskOutcome<T>> runLatestOutcome<T>(
     Object key,
     Future<T> Function(CancellationToken token) task,
@@ -106,12 +118,16 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   }
 
   /// Cancels the latest tracked result for [key], if any.
+  @protected
+  @visibleForTesting
   void cancelLatest(Object key) {
     final task = _tasks.remove(key);
     task?.cancel();
   }
 
   /// Cancels and clears all tracked task results.
+  @protected
+  @visibleForTesting
   void cancelAllLatest() {
     for (final task in _tasks.values) {
       task.cancel();
