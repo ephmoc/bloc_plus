@@ -290,8 +290,8 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 
 | Symbol | Status | Contract Notes |
 | --- | --- | --- |
-| `BlocBuilderWithBloc` | stable | `B extends StateStreamable<S>`; `builder(context, bloc, state)`; parity with `BlocBuilder` semantics |
-| `BlocListenerWithBloc` | stable | `B extends StateStreamable<S>`; `const`; `listener(context, bloc, state)`; parity with `BlocListener` semantics |
+| `BlocBuilderWithBloc` | stable | `B extends StateStreamable<S>`; `builder(context, bloc, state)`; composes `BlocBuilder` and follows the provided bloc after `bloc` becomes `null` (since 0.4.0) |
+| `BlocListenerWithBloc` | stable | `B extends StateStreamable<S>`; `const`; `listener(context, bloc, state)`; composes `BlocListener` and follows the provided bloc after `bloc` becomes `null` (since 0.4.0) |
 | `BlocConsumerWithBloc` | stable | Combines builder/listener with independent conditions; resolves the bloc once per build |
 | `BlocSelectorWithBloc` | stable | Selects `T` and rebuilds on selected value inequality by default; parity with `BlocSelector` |
 | `BlocCondition` + `whenChanged` | stable (0.3.0) | Plain `bool Function(S previous, S current)`, passed directly as `buildWhen` / `listenWhen` / `selectorShouldRebuild` |
@@ -364,24 +364,27 @@ typedef BlocWidgetBuilderWithBloc<B extends StateStreamable<S>, S> =
     Widget Function(BuildContext context, B bloc, S state);
 
 class BlocBuilderWithBloc<B extends StateStreamable<S>, S>
-    extends BlocBuilderBase<B, S> {
+    extends StatelessWidget {
   const BlocBuilderWithBloc({
     required this.builder,
     super.key,
-    super.bloc,
-    super.buildWhen,
+    this.bloc,
+    this.buildWhen,
   });
 
+  final B? bloc;
+  final BlocBuilderCondition<S>? buildWhen;
   final BlocWidgetBuilderWithBloc<B, S> builder;
 
+  // Returns a BlocBuilder for bloc ?? context.select<B, B>((bloc) => bloc).
   @override
-  Widget build(BuildContext context, S state);
+  Widget build(BuildContext context);
 }
 ```
 
 #### Parameters
 
-- `bloc` (optional): The bloc instance to use. If not provided, will be looked up via `context.read<B>()`
+- `bloc` (optional): The bloc instance to use. If not provided, the nearest provided bloc is used
 - `buildWhen` (optional): Condition function to determine if rebuild is needed
 - `builder`: Required builder function with signature `(context, bloc, state) -> Widget`
 
@@ -389,13 +392,14 @@ class BlocBuilderWithBloc<B extends StateStreamable<S>, S>
 
 - If `bloc` is null and not found in context, throws `ProviderNotFoundException`
 - Builder receives both bloc instance and current state
-- Rebuild behavior matches `BlocBuilder` exactly
+- Rebuilds like `BlocBuilder`, which it returns: since 0.4.0 it composes
+  `BlocBuilder` instead of extending `BlocBuilderBase`
 - Full type safety maintained
 - Accepts any `StateStreamable<S>`, like `BlocBuilder` (since 0.3.0)
-- Like `BlocBuilder`, when `bloc` changes from an instance to `null` it keeps
-    listening to that instance, while `builder` receives the provided bloc.
-    Give the widget a new `key` when you switch between an explicit and a
-    provided bloc.
+- Since 0.4.0 it follows the provided bloc right after `bloc` changes from an
+  instance to `null`, and when a different instance is provided; `buildWhen`
+  then gets its previous state from the new bloc. A provided bloc that is
+  created lazily is not created while `bloc` is set
 
 #### Example Usage
 
@@ -428,41 +432,47 @@ typedef BlocWidgetListenerWithBloc<B extends StateStreamable<S>, S> =
     void Function(BuildContext context, B bloc, S state);
 
 class BlocListenerWithBloc<B extends StateStreamable<S>, S>
-    extends BlocListenerBase<B, S> {
+    extends SingleChildStatelessWidget {
   const BlocListenerWithBloc({
-    required BlocWidgetListenerWithBloc<B, S> listener,
+    required this.listener,
     super.key,
-    super.bloc,
-    super.listenWhen,
-    super.child,
-  });
+    this.bloc,
+    this.listenWhen,
+    this.child,
+  }) : super(child: child);
 
-  // Adapts the (context, bloc, state) callback to BlocListenerBase.
+  final B? bloc;
+  final BlocListenerCondition<S>? listenWhen;
+  final BlocWidgetListenerWithBloc<B, S> listener;
+  final Widget? child;
+
+  // Returns a BlocListener for bloc ?? context.select<B, B>((bloc) => bloc).
   @override
-  BlocWidgetListener<S> get listener;
+  Widget buildWithChild(BuildContext context, Widget? child);
 }
 ```
 
 #### Parameters
 
-- `bloc` (optional): The bloc instance to use. If not provided, will be looked up via `context.read<B>()`
+- `bloc` (optional): The bloc instance to use. If not provided, the nearest provided bloc is used
 - `listenWhen` (optional): Condition function to determine if listener should be called
 - `listener`: Required listener function with signature `(context, bloc, state) -> void`
-- `child` (optional): Child widget to render
+- `child` (optional): Child widget to render; required unless a multi widget such as `MultiBlocListener` supplies it, and a missing child fails an assertion that names `BlocListenerWithBloc`
 
 #### Behavior
 
 - If `bloc` is null and not found in context, throws `ProviderNotFoundException`
 - Listener receives both bloc instance and current state
-- Listen behavior matches `BlocListener` exactly
+- Listens like `BlocListener`, which it returns: since 0.4.0 it composes
+  `BlocListener` instead of extending `BlocListenerBase`
 - Listener is called once per state change when `listenWhen` returns true
 - Accepts any `StateStreamable<S>`, like `BlocListener`, and has a `const`
     constructor (both since 0.3.0)
 - Composes inside `MultiBlocListener`, like `BlocListener`
-- Like `BlocListener`, when `bloc` changes from an instance to `null` it
-    keeps listening to that instance, while the callback receives the
-    provided bloc. Give the widget a new `key` when you switch between an
-    explicit and a provided bloc.
+- Since 0.4.0 it follows the provided bloc right after `bloc` changes from an
+  instance to `null`, and when a different instance is provided; `listenWhen`
+  then gets its previous state from the new bloc. A provided bloc that is
+  created lazily is not created while `bloc` is set
 
 #### Example Usage
 
@@ -2394,7 +2404,9 @@ if (results == null) return; // cancelled
 
 ### 9.1 Widget Rebuilds
 
-- `BlocBuilderWithBloc` rebuilds same as `BlocBuilder` - no overhead
+- `BlocBuilderWithBloc` returns a `BlocBuilder`; without an explicit `bloc` it
+  adds one `context.select` that rebuilds only when a different instance is
+  provided
 - `BlocSelectorWithBloc` optimizes rebuilds by comparing selected values
 - Use `buildWhen` and `selectorShouldRebuild` to minimize rebuilds
 

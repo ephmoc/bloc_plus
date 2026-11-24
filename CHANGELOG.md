@@ -19,6 +19,14 @@
     that a transformer has cancelled, while `safeEmit` skipped both: under
     `restartable()` a superseded handler emitted its stale state.
     `RestartableTasksMixin` and `HasEffects` still apply to a `Bloc`.
+  - `BlocBuilderWithBloc` and `BlocListenerWithBloc` follow the provided
+    bloc right after `bloc:` changes from an instance to `null`, like the
+    consumers and the selector, and `buildWhen` and `listenWhen` then get
+    their previous state from the new bloc. Before, they kept listening to
+    the old instance while their callback got the provided one. They are now
+    a `StatelessWidget` and a `SingleChildStatelessWidget` that return
+    `BlocBuilder` and `BlocListener`; the constructors, `const`, the fields
+    and the composition inside `MultiBlocListener` stay.
 
 Migration impact:
 
@@ -102,13 +110,22 @@ Migration impact:
   `guarded` never did.
 - A direct subclass of `BlocBase` extends `Cubit` instead, or checks
   `isClosed` before `emit` by hand.
+- `BlocBuilderWithBloc` and `BlocListenerWithBloc` need no change in
+  ordinary use, and a `key` that was added only to switch between an
+  explicit and a provided bloc can go. Code that relied on them staying with
+  the old instance passes that instance as `bloc:`. Code that typed them as
+  `BlocBuilderBase` or `BlocListenerBase`, called `build(context, state)` or
+  read `listener` as a `(context, state)` callback adapts: `build` takes only
+  the context, and `listener` is the `(context, bloc, state)` callback. The
+  callbacks get the context of the inner `BlocBuilder` or `BlocListener`.
 
 Release type rationale:
 
 - `minor`: breaking changes of the class hierarchy, of three method
-  signatures and of the classes that `SafeEmitMixin` applies to, which a
-  0.x minor allows. A constraint such as `^0.3.1` does not resolve to
-  0.4.0, so nothing changes until a project raises it.
+  signatures, of the classes that `SafeEmitMixin` applies to and of the
+  superclasses of two widgets, which a 0.x minor allows. A constraint such
+  as `^0.3.1` does not resolve to 0.4.0, so nothing changes until a project
+  raises it.
 
 ## 0.3.1
 

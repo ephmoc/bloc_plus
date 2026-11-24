@@ -120,4 +120,201 @@ void main() {
     final exception = tester.takeException();
     expect(exception, isA<ProviderNotFoundException>());
   });
+
+  testWidgets('follows the provided bloc right after bloc changes to null', (
+    tester,
+  ) async {
+    // Given
+    final explicit = _CounterCubit();
+    final provided = _CounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(explicit.close);
+    addTearDown(provided.close);
+    final listened = <String>[];
+    String name(_CounterCubit bloc) =>
+        identical(bloc, provided) ? 'provided' : 'explicit';
+    Widget listener({required _CounterCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: BlocListenerWithBloc<_CounterCubit, int>(
+            bloc: bloc,
+            listener: (context, bloc, state) =>
+                listened.add('${name(bloc)}:$state'),
+            child: const SizedBox.shrink(),
+          ),
+        );
+    await tester.pumpWidget(listener(bloc: explicit));
+
+    // When
+    await tester.pumpWidget(listener(bloc: null));
+    explicit.increment();
+    provided.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(listened, ['provided:3']);
+  });
+
+  testWidgets('follows a new provided bloc', (tester) async {
+    // Given
+    final first = _CounterCubit();
+    final second = _CounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(first.close);
+    addTearDown(second.close);
+    final listened = <String>[];
+    String name(_CounterCubit bloc) =>
+        identical(bloc, second) ? 'second' : 'first';
+    final listener = BlocListenerWithBloc<_CounterCubit, int>(
+      listener: (context, bloc, state) => listened.add('${name(bloc)}:$state'),
+      child: const SizedBox.shrink(),
+    );
+    await tester.pumpWidget(BlocProvider.value(value: first, child: listener));
+
+    // When
+    await tester.pumpWidget(BlocProvider.value(value: second, child: listener));
+    first.increment();
+    second.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(listened, ['second:3']);
+  });
+
+  testWidgets('listenWhen gets the previous state from the new bloc', (
+    tester,
+  ) async {
+    // Given
+    final explicit = _CounterCubit();
+    for (var i = 0; i < 5; i++) {
+      explicit.increment();
+    }
+    final provided = _CounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(explicit.close);
+    addTearDown(provided.close);
+    final calls = <(int, int)>[];
+    Widget listener({required _CounterCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: BlocListenerWithBloc<_CounterCubit, int>(
+            bloc: bloc,
+            listenWhen: (previous, current) {
+              calls.add((previous, current));
+              return true;
+            },
+            listener: (context, bloc, state) {},
+            child: const SizedBox.shrink(),
+          ),
+        );
+    await tester.pumpWidget(listener(bloc: explicit));
+
+    // When
+    await tester.pumpWidget(listener(bloc: null));
+    provided.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(calls, [(2, 3)]);
+  });
+
+  testWidgets('does not create a lazily provided bloc while bloc is explicit', (
+    tester,
+  ) async {
+    // Given
+    final explicit = _CounterCubit();
+    addTearDown(explicit.close);
+    var created = false;
+
+    // When
+    await tester.pumpWidget(
+      BlocProvider<_CounterCubit>(
+        create: (_) {
+          created = true;
+          return _CounterCubit();
+        },
+        child: BlocListenerWithBloc<_CounterCubit, int>(
+          bloc: explicit,
+          listener: (context, bloc, state) {},
+          child: const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    // Then
+    expect(created, isFalse);
+  });
+
+  testWidgets('asserts with its own name when it has no child', (tester) async {
+    // Given
+    final cubit = _CounterCubit();
+    addTearDown(cubit.close);
+
+    // When
+    await tester.pumpWidget(
+      BlocListenerWithBloc<_CounterCubit, int>(
+        bloc: cubit,
+        listener: (context, bloc, state) {},
+      ),
+    );
+
+    // Then
+    expect(
+      tester.takeException(),
+      isA<AssertionError>().having(
+        (error) => error.message,
+        'message',
+        'BlocListenerWithBloc<_CounterCubit, int> used outside of '
+            'MultiBlocListener must specify a child',
+      ),
+    );
+  });
+
+  testWidgets('reports a missing provider before a missing child', (
+    tester,
+  ) async {
+    // Given
+    final widget = BlocListenerWithBloc<_CounterCubit, int>(
+      listener: (context, bloc, state) {},
+    );
+
+    // When
+    await tester.pumpWidget(widget);
+
+    // Then
+    expect(tester.takeException(), isA<ProviderNotFoundException>());
+  });
+
+  testWidgets('composes inside MultiBlocListener', (tester) async {
+    // Given
+    final first = _CounterCubit();
+    final second = _CounterCubit();
+    addTearDown(first.close);
+    addTearDown(second.close);
+    final listened = <String>[];
+    await tester.pumpWidget(
+      MultiBlocListener(
+        listeners: [
+          BlocListenerWithBloc<_CounterCubit, int>(
+            bloc: first,
+            listener: (context, bloc, state) => listened.add('first:$state'),
+          ),
+          BlocListenerWithBloc<_CounterCubit, int>(
+            bloc: second,
+            listener: (context, bloc, state) => listened.add('second:$state'),
+          ),
+        ],
+        child: const SizedBox.shrink(),
+      ),
+    );
+
+    // When
+    first.increment();
+    second.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(listened, ['first:1', 'second:1']);
+  });
 }

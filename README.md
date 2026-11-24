@@ -78,11 +78,11 @@ class CounterView extends StatelessWidget {
 The `*WithBloc` widgets accept any `StateStreamable<S>`, like flutter_bloc's,
 and `BlocListenerWithBloc` has a `const` constructor.
 
-`BlocConsumerWithBloc` and `BlocConsumerWithEffects` resolve the bloc once per
-build, so after `bloc:` changes from an instance to `null` they follow the
-provided bloc at once. `BlocBuilderWithBloc` and `BlocListenerWithBloc` keep
-the previous instance, like `BlocBuilder` and `BlocListener`, while their
-callback gets the provided one: give them a new `key` when you switch.
+`BlocBuilderWithBloc`, `BlocListenerWithBloc`, `BlocConsumerWithBloc` and
+`BlocConsumerWithEffects` resolve the bloc once per build, so after `bloc:`
+changes from an instance to `null` they follow the provided bloc at once, and
+their callbacks get the bloc whose states they receive. `BlocBuilder` and
+`BlocListener` keep the previous instance instead.
 
 ### Null-safe context access
 
