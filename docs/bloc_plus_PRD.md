@@ -1055,8 +1055,11 @@ direct subclass of `BlocBase` cannot mix it in. In a `Bloc`, the handler's
 transformer has cancelled, while `safeEmit` skipped both: under
 `restartable()` a superseded handler emitted its stale state. A `Bloc`
 handler checks `isClosed` first and again after every `await`, before its
-`emit` and before it starts work (and `emit.isDone` to stop a handler that a
-transformer cancelled); the 0.4.0 CHANGELOG has the migration.
+`emit` and before it starts work, and in the `onData` and `onError` of
+`emit.onEach` (and `emit.isDone` to stop a handler that a transformer
+cancelled). `emit.forEach` emits every state its callbacks return, so a check
+there cannot stop the emit: a handler that must not emit after `close()` uses
+`emit.onEach`. The 0.4.0 CHANGELOG has the migration.
 
 #### Methods
 
@@ -2110,8 +2113,10 @@ BlocBuilderWithBloc<DataCubit, DataState>(...) // Plus widget also works
 ```
 
 In a `Bloc`, emit from event handlers with the handler's `emit`, and check
-`isClosed` first and again after every `await` (and `emit.isDone` to stop a
-handler that a transformer cancelled).
+`isClosed` first, again after every `await` and in the `onData` and `onError`
+of `emit.onEach` (and `emit.isDone` to stop a handler that a transformer
+cancelled). Where a value must not arrive after `close()`, use `emit.onEach`
+rather than `emit.forEach`, which emits every state its callbacks return.
 
 ### 6.5 Compatibility notes
 
@@ -2178,9 +2183,11 @@ class MyCubit extends Cubit<MyState> with SafeEmitMixin<MyState> {
 ```
 
 In a `Bloc` event handler, use the handler's `emit`, and check `isClosed`
-first and again after every `await` (and `emit.isDone` to stop a handler that
-a transformer cancelled); the 0.4.0 CHANGELOG has the migration from
-`SafeEmitMixin`.
+first, again after every `await` and in the `onData` and `onError` of
+`emit.onEach` (and `emit.isDone` to stop a handler that a transformer
+cancelled). `emit.forEach` emits every state its callbacks return, so where a
+value must not arrive after `close()`, use `emit.onEach`. The 0.4.0 CHANGELOG
+has the migration from `SafeEmitMixin`.
 
 ### 7.3 Effect Errors
 
@@ -2261,7 +2268,10 @@ included) resets shared state such as a loading flag. Check
 1. **Not checking null from extensions**: Always check `readOrNull()` result
 2. **Forgetting SafeEmitMixin**: Use for all async emits in Cubits. A `Bloc`
     cannot mix it in (since 0.4.0): its handlers use the handler's `emit` and
-    check `isClosed` first and again after every `await` (and `emit.isDone`)
+    check `isClosed` first, again after every `await` and in the `onData` and
+    `onError` of `emit.onEach` (and `emit.isDone`); `emit.forEach` emits every
+    state its callbacks return, so use `emit.onEach` where a value must not
+    arrive after `close()`
 3. **Not disposing tasks**: Always dispose `RestartableTask` in `close()`
 4. **Missing HasEffects**: Mix in `HasEffects<S, E>` before using `BlocEffectListener`
 5. **Mixing effect types**: Use one `sealed` effect type per bloc and handle

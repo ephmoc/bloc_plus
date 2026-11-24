@@ -8,7 +8,10 @@ import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 /// such as `restartable()` has cancelled. Check `isClosed` first in the
 /// handler and again after every `await`: the handler's `emit` still delivers
 /// for a while after `close()` is called, also in a handler that starts
-/// afterwards for an event queued before it.
+/// afterwards for an event queued before it. With `emit.onEach`, check it in
+/// `onData` and `onError` too. `emit.forEach` emits every state its callbacks
+/// return, so a check there cannot stop the emit: where a value must not
+/// arrive after `close()`, use `emit.onEach`.
 mixin SafeEmitMixin<S> on Cubit<S> {
   /// Emits [state] only when the cubit is still open.
   ///

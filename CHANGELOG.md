@@ -69,7 +69,10 @@ Migration impact:
   and the queued handlers have finished. Until then the handler's `emit`
   still delivers. Inside a handler:
   - `safeEmit(state)` becomes `if (!isClosed) emit(state);`, which now also
-    calls `onTransition`;
+    calls `onTransition`. In the `onData` and `onError` of `emit.onEach` that
+    is the same check. `emit.forEach` emits every state its callbacks return,
+    so a check there cannot stop the emit: where a value must not arrive
+    after `close()`, use `emit.onEach`;
   - `await guarded(operation)` becomes `if (isClosed) return;` before
     `await operation()` and again after it. The first check keeps the
     operation from starting on a closed bloc, after an earlier `await` or

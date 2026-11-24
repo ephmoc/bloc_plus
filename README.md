@@ -244,7 +244,10 @@ works in tests.
   check `isClosed` first and again after every `await`, before `emit` and
   before starting work: it is `true` from the call of `close()`, while the
   handler's `emit` still delivers for a while, also in a handler that starts
-  after `close()` for an event queued before it. The 0.4.0 entry of the
+  after `close()` for an event queued before it. With `emit.onEach`, check it
+  in `onData` and `onError` too; `emit.forEach` emits every state its
+  callbacks return, so a check there cannot stop the emit: where a value must
+  not arrive after `close()`, use `emit.onEach`. The 0.4.0 entry of the
   [CHANGELOG](CHANGELOG.md) has the full migration.
 
 `runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`

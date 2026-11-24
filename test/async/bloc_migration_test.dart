@@ -1,8 +1,9 @@
 // A Bloc cannot mix in SafeEmitMixin since 0.4.0, and the CHANGELOG tells it
-// to check isClosed instead: first in the handler, after every await and
-// first in a catch. That relies on bloc 9.2.1 or later, where the isClosed of
-// a Bloc is true from the call of close(), which is why the bloc dependency
-// starts at 9.2.1: on bloc 9.2.0 the first four tests fail.
+// to check isClosed instead: first in the handler, after every await, in the
+// onData and onError of emit.onEach, and first in a catch. That relies on bloc
+// 9.2.1 or later, where the isClosed of a Bloc is true from the call of
+// close(), which is why the bloc dependency starts at 9.2.1: on bloc 9.2.0 the
+// first five tests fail.
 
 import 'dart:async';
 
@@ -39,6 +40,27 @@ class _MigratedBloc extends Bloc<_Load, String?> {
     errors.add(error);
     super.onError(error, stackTrace);
   }
+}
+
+/// A handler that relays a stream with `emit.onEach` and the check in
+/// `onData` and `onError`, again with `sequential()`.
+class _RelayBloc extends Bloc<_Load, String?> {
+  _RelayBloc(this.source) : super(null) {
+    on<_Load>(
+      (event, emit) => emit.onEach<String>(
+        source,
+        onData: (value) {
+          if (!isClosed) emit(value);
+        },
+        onError: (error, stackTrace) {
+          if (!isClosed) emit('error');
+        },
+      ),
+      transformer: (events, mapper) => events.asyncExpand(mapper),
+    );
+  }
+
+  final Stream<String> source;
 }
 
 void main() {
@@ -109,6 +131,30 @@ void main() {
 
     // Then
     expect(bloc.errors, isEmpty);
+  });
+
+  test('a handler relaying a stream emits nothing after close()', () async {
+    // Given
+    final source = StreamController<String>();
+    final bloc = _RelayBloc(source.stream);
+    final states = <String?>[];
+    final subscription = bloc.stream.listen(states.add);
+    bloc.add(_Load());
+    await Future<void>.delayed(Duration.zero);
+    source.add('open');
+    await Future<void>.delayed(Duration.zero);
+
+    // When
+    final closing = bloc.close();
+    source
+      ..add('late')
+      ..addError(StateError('late failure'));
+    await source.close();
+    await closing;
+    await subscription.cancel();
+
+    // Then
+    expect(states, ['open']);
   });
 
   test('the migrated handler emits while the bloc is open', () async {
