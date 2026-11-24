@@ -6,8 +6,8 @@
 > `@protected` and `@visibleForTesting`, and releases a cancelled or
 > superseded caller at once instead of waiting for the abandoned work, which
 > keeps running. 0.4.0 makes `CancellationToken` and `RestartableTask`
-> `final` classes, and `guarded` and `CancellationToken.run` take a non-null
-> `T` only (`T extends Object`).
+> `final` classes, `guarded` and `CancellationToken.run` take a non-null `T`
+> only (`T extends Object`), and `SafeEmitMixin` applies to Cubits only.
 
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
@@ -17,7 +17,7 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
-- Implement `SafeEmitMixin<S>` on `BlocBase<S>`
+- Implement `SafeEmitMixin<S>` on `Cubit<S>` (on `BlocBase<S>` before 0.4.0)
   - `safeEmit(S state)` (`@protected`, `@visibleForTesting` since 0.3.0)
   - `guarded<T extends Object>(Future<T> Function() operation)` (bound since
     0.4.0)
@@ -61,8 +61,9 @@
 - `test/async/cancellation_token_test.dart`
 - `test/async/restartable_task_test.dart`
 - `test/async/run_outcome_test.dart`, `test/async/task_outcome_test.dart` (0.3.0)
-- `test/async/final_classes_test.dart`, `test/async/object_bound_test.dart`
-  (0.4.0: compile-time contracts, checked with the analyzer)
+- `test/async/final_classes_test.dart`, `test/async/object_bound_test.dart`,
+  `test/async/safe_emit_cubit_only_test.dart` (0.4.0: compile-time
+  contracts, checked with the analyzer)
 
 Required cases:
 - safe emit after close does not throw

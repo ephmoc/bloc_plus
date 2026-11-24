@@ -91,8 +91,9 @@ improvements that preserve the lightweight design:
 ### 4.2 Dependencies
 
 -   **flutter_bloc**: >=9.0.0, <10.0.0
--   **bloc**: >=9.2.1, <10.0.0 (raised in 0.2.2, so `safeEmit` and `guarded`
-    also stop on a closing `Bloc`)
+-   **bloc**: >=9.2.1, <10.0.0 (raised in 0.2.2: from 9.2.1 the `isClosed` of
+    a `Bloc` is `true` from the call of `close()`, which the migration of a
+    `Bloc` away from `SafeEmitMixin` in 0.4.0 relies on)
 -   **provider**: >=6.0.0, <7.0.0 (direct since 0.3.0; the range
     `flutter_bloc` already requires)
 -   No additional heavy dependencies
@@ -296,7 +297,7 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `BuildContext` nullable extensions | stable | Return `null` only on a missing provider; rethrow other errors; any provided type (`selectOrNull`: a `StateStreamableSource<S>`) |
-| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` since 0.4.0 |
+| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` since 0.4.0; `on Cubit<S>` since 0.4.0 |
 | `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0; `run` takes a non-null `T` since 0.4.0 |
 | `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
 | `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future`; `final class` since 0.4.0 |
@@ -1018,7 +1019,7 @@ Mixin providing safe emit operations that check if bloc is closed before emittin
 ### API Specification
 
 ```dart
-mixin SafeEmitMixin<S> on BlocBase<S> {
+mixin SafeEmitMixin<S> on Cubit<S> {
   @protected
   @visibleForTesting
   void safeEmit(S state);
@@ -1030,12 +1031,17 @@ mixin SafeEmitMixin<S> on BlocBase<S> {
 ```
 
 `safeEmit` is `@protected` and `@visibleForTesting` (since 0.3.0), like
-`emit`: call it from inside the bloc, or from tests. Calls from elsewhere,
-extension methods on the bloc included, get analyzer warnings.
+`emit`: call it from inside the cubit, or from tests. Calls from elsewhere,
+extension methods on the cubit included, get analyzer warnings.
 
-The examples below use a `Cubit`. Inside `Bloc` event handlers, use the
-handler's `emit` (and check `emit.isDone` after an `await`) rather than
-`safeEmit` from a public method of the `Bloc`.
+Since 0.4.0 the mixin applies to Cubits only (`on Cubit<S>`): a `Bloc` and a
+direct subclass of `BlocBase` cannot mix it in. In a `Bloc`, the handler's
+`emit` also calls `onTransition` and does nothing in a handler that a
+transformer has cancelled, while `safeEmit` skipped both: under
+`restartable()` a superseded handler emitted its stale state. A `Bloc`
+handler checks `isClosed` before its `emit` after an `await` (and
+`emit.isDone` to stop a handler that a transformer cancelled); the 0.4.0
+CHANGELOG has the migration.
 
 ### Methods
 
@@ -1586,7 +1592,7 @@ Emits a one-shot effect.
 -   Closes the bloc, then waits until every effect subscriber has received
     the effects emitted before `close` and the done event
 -   Like the bloc's own last states, effects emitted right before `close`
-    reach subscribers after the bloc is closed. A bloc method that a
+    reach subscribers after the bloc is closed. A cubit method that a
     subscriber calls in response should emit with `safeEmit`, and a
     subscriber that adds an event to a `Bloc` should check `isClosed` first,
     because `add` throws after `close`
@@ -2075,9 +2081,9 @@ In a `Bloc`, emit from event handlers with the handler's `emit`, and check
 -   Full type safety maintained across both libraries
 -   Both `Bloc` and `Cubit` types are supported: the `*WithBloc` widgets
     accept any `StateStreamable<S>` and `selectOrNull` any
-    `StateStreamableSource<S>` (since 0.3.0), and the
-    mixins (`SafeEmitMixin`, `RestartableTasksMixin`, `HasEffects`) apply
-    `on BlocBase<S>`
+    `StateStreamableSource<S>` (since 0.3.0), and `RestartableTasksMixin`
+    and `HasEffects` apply `on BlocBase<S>`. `SafeEmitMixin` applies
+    `on Cubit<S>` since 0.4.0
 
 ------------------------------------------------------------------------
 
@@ -2205,8 +2211,9 @@ included) resets shared state such as a loading flag. Check
 ### 7.6 Common Mistakes
 
 1.  **Not checking null from extensions**: Always check `readOrNull()` result
-2.  **Forgetting SafeEmitMixin**: Use for all async emits in Cubits; in `Bloc`
-    handlers use the handler's `emit` and check `emit.isDone`
+2.  **Forgetting SafeEmitMixin**: Use for all async emits in Cubits. A `Bloc`
+    cannot mix it in (since 0.4.0): its handlers use the handler's `emit` and
+    check `isClosed` (and `emit.isDone`) after an `await`
 3.  **Not disposing tasks**: Always dispose `RestartableTask` in `close()`
 4.  **Missing HasEffects**: Mix in `HasEffects<S, E>` before using `BlocEffectListener`
 5.  **Mixing effect types**: Use one `sealed` effect type per bloc and handle
