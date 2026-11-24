@@ -6,7 +6,10 @@ import 'task_outcome.dart';
 /// Cancellation is cooperative: a superseded run releases its caller at once,
 /// but its task keeps running. Use [runOutcome] to get the run's
 /// [CancellationToken] and check it before any side effect.
-class RestartableTask<T> {
+///
+/// It is a `final` class, so it cannot be extended, implemented or mocked. In
+/// tests, use a real instance.
+final class RestartableTask<T> {
   /// Creates a task runner that keeps only the latest task result.
   RestartableTask();
 
