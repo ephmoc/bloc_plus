@@ -20,10 +20,10 @@ import 'task_outcome.dart';
 /// completes before its abandoned task, and bloc rejects the late `emit` only
 /// with an assert, so release builds would emit the stale state.
 ///
-/// Like `emit`, its methods are meant to be called from inside the bloc and
-/// from tests: they are `@protected` and `@visibleForTesting`. Keep what the
-/// UI shows, such as a loading flag, in the state rather than reading
-/// [isTaskRunning] in `build`.
+/// Like `emit`, its methods other than [close] are meant to be called from
+/// inside the bloc and from tests: they are `@protected` and
+/// `@visibleForTesting`. Keep what the UI shows, such as a loading flag, in
+/// the state rather than reading [isTaskRunning] in `build`.
 mixin RestartableTasksMixin<S> on BlocBase<S> {
   final Map<Object, RestartableTask<Object?>> _tasks = {};
   Future<void>? _closing;

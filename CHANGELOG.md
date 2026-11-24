@@ -129,7 +129,10 @@ Migration impact:
   `invalid_use_of_visible_for_testing_member`), so `flutter analyze` fails.
   Move the call into a method of the bloc, and keep what the UI shows, such
   as a loading flag, in the state, as the async example in the README does.
-  The bloc, its subclasses, a `mixin X on RestartableTasksMixin<S>` or
+  A method that cancels the run, such as `cancelPreview` in the example app,
+  clears that flag itself: the cancelled call completes with a cancelled
+  outcome, or `null` from `runLatest`, and leaves the state as it is. The
+  bloc, its subclasses, a `mixin X on RestartableTasksMixin<S>` or
   `on SafeEmitMixin<S>`, and files under `test/`, `integration_test/` and
   `test_driver/` may still call them; a test helper under `lib/` may not.
 
