@@ -3,7 +3,10 @@
 > Status: delivered in 0.1.0. In 0.3.0 the bounds widened to
 > `B extends StateStreamable<S>`, `BlocListenerWithBloc` got a `const`
 > constructor, and `BlocConsumerWithBloc` resolves the bloc once per build.
-> The signatures below are the ones in `lib/` at 0.3.0.
+> In 0.4.0 `BlocBuilderWithBloc` and `BlocListenerWithBloc` compose
+> `BlocBuilder` and `BlocListener` and resolve the bloc once per build as
+> well, so they follow the provided bloc after `bloc` becomes `null`. The
+> signatures below are the ones in `lib/` at 0.4.0.
 
 ## Preconditions
 
@@ -19,14 +22,15 @@
 - Implement `BlocListenerWithBloc`
 - Implement `BlocConsumerWithBloc`
 - Implement `BlocSelectorWithBloc`
-- Keep behavior parity with corresponding `flutter_bloc` widgets plus bloc instance in callbacks
+- Keep behavior parity with corresponding `flutter_bloc` widgets plus bloc instance in callbacks,
+  except that they follow the provided bloc after `bloc:` becomes `null` (0.4.0)
 
-## Signatures (0.3.0)
+## Signatures (0.4.0)
 
 - `const BlocBuilderWithBloc<B extends StateStreamable<S>, S>({required builder, bloc, buildWhen})`,
-  extends `BlocBuilderBase<B, S>`; `builder(context, bloc, state)`
+  a `StatelessWidget` that returns a `BlocBuilder`; `builder(context, bloc, state)`
 - `const BlocListenerWithBloc<B extends StateStreamable<S>, S>({required listener, bloc, listenWhen, child})`,
-  extends `BlocListenerBase<B, S>`; `listener(context, bloc, state)`
+  a `SingleChildStatelessWidget` that returns a `BlocListener`; `listener(context, bloc, state)`
 - `const BlocConsumerWithBloc<B extends StateStreamable<S>, S>({required listener, required builder, bloc, buildWhen, listenWhen})`
 - `const BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>({required selector, required builder, bloc, selectorShouldRebuild})`;
   `builder(context, bloc, selected)`, `selectorShouldRebuild(previous, current)`
@@ -47,10 +51,11 @@
 - `BlocSelectorWithBloc` rebuilds only on selected value change by default (`!=`)
 - `BlocSelectorWithBloc` accepts custom `selectorShouldRebuild(previous, current)`;
   `previous` is the last built selection (since 0.2.2)
-- When `bloc:` changes from an instance to `null`, `BlocBuilderWithBloc` and
-  `BlocListenerWithBloc` keep the previous instance, like `BlocBuilder` and
-  `BlocListener`, while their callback gets the provided bloc; give them a new
-  `key` when switching. `BlocConsumerWithBloc` follows the provided bloc at once.
+- When `bloc:` changes from an instance to `null`, `BlocBuilderWithBloc`,
+  `BlocListenerWithBloc` (both since 0.4.0) and `BlocConsumerWithBloc` follow
+  the provided bloc at once, unlike `BlocBuilder` and `BlocListener`, which
+  keep the previous instance; `buildWhen` and `listenWhen` then get their
+  previous state from the new bloc
 
 ## Target Files
 
@@ -81,6 +86,11 @@ Required cases:
 - works with a `StateStreamable<S>` that is not a bloc (0.3.0)
 - `BlocConsumerWithBloc` follows the provided bloc right after `bloc:` changes
   to null (0.3.0)
+- `BlocBuilderWithBloc` and `BlocListenerWithBloc` follow the provided bloc
+  after `bloc:` changes to null and after the provider is replaced, take the
+  previous state for `buildWhen` / `listenWhen` from the new bloc, and do not
+  create a lazily provided bloc while `bloc:` is set; the listener composes
+  inside `MultiBlocListener` (0.4.0)
 
 ## Example App Updates
 
