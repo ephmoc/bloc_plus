@@ -10,6 +10,13 @@
     emitted although the run was superseded, and threw after `close()`. Such
     a call is now a compile error: `could_not_infer`, or
     `type_argument_not_matching_bounds` with an explicit type argument.
+  - `SafeEmitMixin` is declared `on Cubit<S>`: a `Bloc` and a direct
+    subclass of `BlocBase` can no longer mix it in
+    (`mixin_application_not_implemented_interface`). In a `Bloc`, the
+    handler's `emit` also calls `onTransition` and does nothing in a handler
+    that a transformer has cancelled, while `safeEmit` skipped both: under
+    `restartable()` a superseded handler emitted its stale state.
+    `RestartableTasksMixin` and `HasEffects` still apply to a `Bloc`.
 
 Migration impact:
 
@@ -53,12 +60,50 @@ Migration impact:
   `flutter analyze` stays clean, and the compiler fails with "Inferred type
   argument 'T' doesn't conform to the bound 'Object' of the type variable
   'T'". After upgrading, compile the app or run `flutter test`.
+- A `Bloc` drops `SafeEmitMixin` and checks `isClosed`, which is what
+  `safeEmit` and `guarded` checked. `isClosed` is `true` from the call of
+  `close()`, but `close()` cancels the handlers a few microtasks later, or,
+  while any handler of the bloc uses `sequential()`, only after the running
+  and the queued handlers have finished. Until then the handler's `emit`
+  still delivers. Inside a handler:
+  - `safeEmit(state)` becomes `if (!isClosed) emit(state);`, which now also
+    calls `onTransition`;
+  - `await guarded(operation)` becomes `if (isClosed) return;` before
+    `await operation()` and again after it. The first check keeps the
+    operation from starting on a closed bloc, after an earlier `await` or
+    in an event that `sequential()` queued before `close()`;
+  - `guarded` also dropped a failure that arrives after `close()`: put
+    `if (isClosed) return;` first in the `catch`, and `rethrow` otherwise.
+
+    ```dart
+    on<Load>((event, emit) async {
+      if (isClosed) return;
+      try {
+        final item = await repository.load(event.id);
+        if (isClosed) return;
+        emit(state.copyWith(item: item));
+      } catch (_) {
+        if (isClosed) return;
+        rethrow;
+      }
+    });
+    ```
+
+  A public method of the `Bloc`, and a callback that outlives its handler,
+  such as a stream subscription, adds an event instead
+  (`if (!isClosed) add(event)`) with a handler that emits: the state then
+  changes when that handler runs, not during the call. Checking
+  `emit.isDone` as well stops a handler that a transformer cancelled, which
+  `guarded` never did.
+- A direct subclass of `BlocBase` extends `Cubit` instead, or checks
+  `isClosed` before `emit` by hand.
 
 Release type rationale:
 
-- `minor`: breaking changes of the class hierarchy and of three method
-  signatures, which a 0.x minor allows. A constraint such as `^0.3.1` does
-  not resolve to 0.4.0, so nothing changes until a project raises it.
+- `minor`: breaking changes of the class hierarchy, of three method
+  signatures and of the classes that `SafeEmitMixin` applies to, which a
+  0.x minor allows. A constraint such as `^0.3.1` does not resolve to
+  0.4.0, so nothing changes until a project raises it.
 
 ## 0.3.1
 
