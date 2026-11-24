@@ -296,11 +296,11 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `BuildContext` nullable extensions | stable | Return `null` only on a missing provider; rethrow other errors; any provided type (`selectOrNull`: a `StateStreamableSource<S>`) |
-| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`) |
-| `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0 |
+| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` since 0.4.0 |
+| `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0; `run` takes a non-null `T` since 0.4.0 |
 | `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
 | `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future`; `final class` since 0.4.0 |
-| `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation |
+| `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation; `runLatest` takes a non-null `T` since 0.4.0 |
 | `EffectsSource` + `HasEffects` | stable | One-shot effect stream separated from state stream; `emitEffect` is `@protected`, `@visibleForTesting` |
 | `debugPrintUnheardEffects` | stable (0.3.1) | Opt-in debug warning for an effect that nothing listens to; off by default; never prints in release builds |
 | `BlocEffectListener` | stable (0.3.0) | `B extends EffectsSource<E>`; composes inside `MultiBlocListener`; supports effect filtering |
@@ -1023,7 +1023,7 @@ mixin SafeEmitMixin<S> on BlocBase<S> {
   @visibleForTesting
   void safeEmit(S state);
   
-  Future<T?> guarded<T>(
+  Future<T?> guarded<T extends Object>(
     Future<T> Function() operation,
   );
 }
@@ -1083,8 +1083,13 @@ open. It does not emit anything itself.
 -   If bloc is still open, returns operation result
 -   A failure of `operation` after the bloc was closed is dropped like its
     result; a failure while the bloc is open is rethrown
--   When `T` is nullable or `void`, `null` is ambiguous: check `isClosed`
-    after the call, or wrap the result in a record
+-   Handle `null` first, with an early return: an `else` or a `default`
+    branch would take a closed bloc for a failed result
+-   Since 0.4.0 `T` cannot be `void` or nullable (`T extends Object`),
+    because `null` would be ambiguous: await such work plainly and emit with
+    `safeEmit`, or check `isClosed` before anything else; wrap the result in
+    a record only to keep what `guarded` adds (no start on a closed bloc, a
+    dropped failure after close)
 
 **Example Usage**:
 ```dart
@@ -1133,7 +1138,7 @@ final class CancellationToken {
   
   void cancel();
   
-  Future<T?> run<T>(
+  Future<T?> run<T extends Object>(
     Future<T> Function() task,
   );
 }
@@ -1195,8 +1200,13 @@ Executes a task and checks cancellation before completion.
 -   Does not cancel running task, only prevents using result
 -   A failure of `task` after cancellation is dropped; a failure of a task
     that was not cancelled is rethrown
--   When `T` is nullable or `void`, `null` is ambiguous: check `isCancelled`
-    after the call, or wrap the result in a record
+-   Handle `null` first, with an early return: an `else` or a `default`
+    branch would take a cancelled run for a failed one
+-   Since 0.4.0 `T` cannot be `void` or nullable (`T extends Object`),
+    because `null` would be ambiguous: await such work plainly and check
+    `isCancelled` before anything else; wrap the result in a record only to
+    keep what `run` adds (no start on a cancelled token, a dropped later
+    failure, the caller released at `cancel()`)
 
 **Example Usage**:
 ```dart
@@ -1431,7 +1441,7 @@ workflows in Cubits and Blocs.
 mixin RestartableTasksMixin<S> on BlocBase<S> {
   bool isTaskRunning(Object key);
 
-  Future<T?> runLatest<T>(Object key, Future<T> Function() task);
+  Future<T?> runLatest<T extends Object>(Object key, Future<T> Function() task);
 
   Future<TaskOutcome<T>> runLatestOutcome<T>(
     Object key,
@@ -1451,7 +1461,12 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
 
 -   `runLatest` runs `task` as the latest task for `key` and completes with
     `null` as soon as a newer run for `key`, `cancelLatest`,
-    `cancelAllLatest` or `close` supersedes it, without waiting for `task`
+    `cancelAllLatest` or `close` supersedes it, without waiting for `task`;
+    handle `null` first, with an early return
+-   Since 0.4.0 `runLatest` takes no `void` or nullable `T`
+    (`T extends Object`): such work uses `runLatestOutcome` and checks the
+    outcome before anything else, because an ignored outcome lets the code
+    after it run for a superseded run as well
 -   `runLatestOutcome` (since 0.3.0) passes the run's `CancellationToken`
     and completes with a `TaskOutcome<T>`, with the same rules as
     `RestartableTask.runOutcome`; `task` does not start once `close` was
@@ -2292,12 +2307,15 @@ without waiting for the task (since 0.3.0).
 **Best Practice**: Check `isCancelled` inside long-running tasks, or pass
 `whenCancelled` to I/O that can abort:
 ```dart
-final result = await token.run(() async {
-  for (var item in items) {
+final results = await token.run(() async {
+  final results = <Result>[];
+  for (final item in items) {
     if (token.isCancelled) break; // Check cancellation
-    await processItem(item);
+    results.add(await processItem(item));
   }
+  return results;
 });
+if (results == null) return; // cancelled
 ```
 
 ------------------------------------------------------------------------

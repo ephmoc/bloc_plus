@@ -6,7 +6,8 @@
 > `@protected` and `@visibleForTesting`, and releases a cancelled or
 > superseded caller at once instead of waiting for the abandoned work, which
 > keeps running. 0.4.0 makes `CancellationToken` and `RestartableTask`
-> `final` classes.
+> `final` classes, and `guarded` and `CancellationToken.run` take a non-null
+> `T` only (`T extends Object`).
 
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
@@ -18,9 +19,11 @@
 ## Scope
 - Implement `SafeEmitMixin<S>` on `BlocBase<S>`
   - `safeEmit(S state)` (`@protected`, `@visibleForTesting` since 0.3.0)
-  - `guarded<T>(Future<T> Function() operation)`
+  - `guarded<T extends Object>(Future<T> Function() operation)` (bound since
+    0.4.0)
 - Implement `CancellationToken`, a `final class` since 0.4.0: `isCancelled`,
-  `whenCancelled` (0.3.0), `cancel()`, `run<T>(Future<T> Function() task)`
+  `whenCancelled` (0.3.0), `cancel()`,
+  `run<T extends Object>(Future<T> Function() task)` (bound since 0.4.0)
 - Implement `RestartableTask<T>`, a `final class` since 0.4.0: `isRunning`,
   `run(Future<T> Function() task)`,
   `runOutcome(Future<T> Function(CancellationToken token) task)` returning
@@ -39,6 +42,8 @@
 - `CancellationToken.cancel()` is one-way and idempotent
 - `CancellationToken.run` is cooperative: it does not interrupt running task, only suppresses result;
   since 0.3.0 it completes with `null` as soon as the token is cancelled
+- `guarded` and `CancellationToken.run` reject a `void`, nullable or
+  `dynamic` result at compile time (0.4.0), so `null` only means discarded
 - `RestartableTask.run` invalidates previous in-flight result and releases its
   caller at once; only the latest run's failure is rethrown
 - `RestartableTask.dispose` prevents future runs and cancels current token/result flow
@@ -56,6 +61,8 @@
 - `test/async/cancellation_token_test.dart`
 - `test/async/restartable_task_test.dart`
 - `test/async/run_outcome_test.dart`, `test/async/task_outcome_test.dart` (0.3.0)
+- `test/async/final_classes_test.dart`, `test/async/object_bound_test.dart`
+  (0.4.0: compile-time contracts, checked with the analyzer)
 
 Required cases:
 - safe emit after close does not throw
