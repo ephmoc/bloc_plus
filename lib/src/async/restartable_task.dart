@@ -29,6 +29,10 @@ final class RestartableTask<T> {
   /// failure is dropped. The failure of the latest run is rethrown.
   ///
   /// When `T` is nullable or `void`, `null` is ambiguous: use [runOutcome].
+  @Deprecated(
+    'Use runOutcome and return early unless outcome.isCompleted. '
+    'Will be removed in 1.0.',
+  )
   Future<T?> run(Future<T> Function() task) async {
     final outcome = await runOutcome((_) => task());
     return outcome.isCompleted ? outcome.value : null;

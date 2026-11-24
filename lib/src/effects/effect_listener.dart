@@ -10,6 +10,10 @@ import 'has_effects.dart';
 
 /// Signature for deciding whether an [effect] should trigger an effect
 /// listener.
+@Deprecated(
+  'Use an if or an if-case at the top of onEffect instead of effectWhen. '
+  'Will be removed in 1.0.',
+)
 typedef EffectCondition<E> = bool Function(E effect);
 
 /// Contract for effect listener widgets that can wrap a child subtree.

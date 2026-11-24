@@ -31,8 +31,45 @@
     `cancelAllLatest` of `RestartableTasksMixin`, and `guarded` of
     `SafeEmitMixin`, are `@protected` and `@visibleForTesting`, like `emit`,
     `safeEmit` and `emitEffect`.
+  - `BlocConsumerWithEffects.onEffect` declares its function type inline,
+    and `BlocSelectorWithBloc.selectorShouldRebuild` is a `BlocCondition<T>`.
+    Both are the same function types as before.
+- Deprecated, removed in 1.0:
+  - the extension `BlocContextExtension` and its `readOrNull`, `watchOrNull`,
+    `selectOrNull` and `withBloc`. The extension is annotated as well, so
+    `show BlocContextExtension` in an import is reported too;
+  - `effectWhen` of `BlocEffectListener` and `BlocConsumerWithEffects`, and
+    the typedef `EffectCondition`;
+  - `RestartableTask.run`: its `T` belongs to the class and cannot take the
+    bound `T extends Object`, so its `null` stays ambiguous;
+  - `BlocEffectListener.withChild`, which only serves the deprecated
+    `MultiEffectListener`;
+  - the typedefs `BlocEffectListenerWithBloc`, which has an unused type
+    parameter and no replacement, and `BlocSelectedCondition`, the same
+    function type as `BlocCondition`.
 
 Migration impact:
+
+- Deprecated APIs keep working; each use is a `deprecated_member_use` info,
+  which fails `flutter analyze` until migrated:
+  - `context.readOrNull<B>()` -> `context.read<B?>()`;
+    `watchOrNull<B>()` -> `watch<B?>()`;
+    `selectOrNull<B, S, T>((state) => state.x)` ->
+    `select<B?, T?>((bloc) => bloc?.state.x)`, or `bloc == null ? null : ...`
+    when the selector is not a member chain;
+    `withBloc((B bloc) => bloc.x)` -> `read<B?>()?.x`, or a local variable
+    and a null check when the callback is more than one member access. The
+    lookups of `provider` return the same values, with the same rebuilds.
+  - `effectWhen: (effect) => effect is Sub` -> `if (effect is! Sub) return;`
+    or `if (effect case Sub(...))` at the top of `onEffect`, which also
+    promotes the effect type.
+  - `RestartableTask.run(task)` -> `runOutcome((_) => task())`, and
+    `if (!outcome.isCompleted) return;` before `outcome.value`.
+  - `listener.withChild(child)` -> `child:` in the constructor, or the
+    listener in `MultiBlocListener`, which supplies the child.
+  - `BlocSelectedCondition<T>` -> `BlocCondition<T>`;
+    `BlocEffectListenerWithBloc<B, S, E>` ->
+    `void Function(BuildContext context, B bloc, E effect)`.
 
 - A class that extends or implements `CancellationToken` or
   `RestartableTask`, a mock of either written by hand or with mocktail
@@ -141,8 +178,9 @@ Release type rationale:
 - `minor`: breaking changes of the class hierarchy, of three method
   signatures, of the classes that `SafeEmitMixin` applies to, of the
   superclasses of two widgets and of where six methods may be called without
-  analyzer warnings, which a 0.x minor allows. A constraint such as `^0.3.1`
-  does not resolve to 0.4.0, so nothing changes until a project raises it.
+  analyzer warnings, which a 0.x minor allows, and deprecations. A
+  constraint such as `^0.3.1` does not resolve to 0.4.0, so nothing changes
+  until a project raises it.
 
 ## 0.3.1
 

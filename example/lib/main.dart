@@ -126,8 +126,8 @@ class ExamplePage extends StatelessWidget {
     return MultiBlocListener(
       listeners: [
         BlocEffectListener<CounterCubit, String>(
-          effectWhen: (effect) => effect.startsWith('dialog:'),
           onEffect: (context, effect) {
+            if (!effect.startsWith('dialog:')) return;
             showDialog<void>(
               context: context,
               builder: (dialogContext) {
@@ -146,8 +146,8 @@ class ExamplePage extends StatelessWidget {
           },
         ),
         BlocEffectListener<SearchCubit, String>(
-          effectWhen: (effect) => effect.startsWith('info:'),
           onEffect: (context, effect) {
+            if (!effect.startsWith('info:')) return;
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text(_stripEffectPrefix(effect))));
@@ -199,8 +199,8 @@ class CounterSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             BlocConsumerWithEffects<CounterCubit, CounterState, String>(
-              effectWhen: (effect) => effect.startsWith('snack:'),
               onEffect: (context, bloc, effect) {
+                if (!effect.startsWith('snack:')) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(_stripEffectPrefix(effect))),
                 );
