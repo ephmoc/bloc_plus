@@ -35,7 +35,9 @@
 - `const BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>({required selector, required builder, bloc, selectorShouldRebuild})`;
   `builder(context, bloc, selected)`, `selectorShouldRebuild(previous, current)`
 - Typedefs: `BlocWidgetBuilderWithBloc<B, S>`, `BlocWidgetListenerWithBloc<B, S>`,
-  `BlocSelectorBuilderWithBloc<B, S, T>`, `BlocSelectedCondition<T>`
+  `BlocSelectorBuilderWithBloc<B, S, T>`, `BlocSelectedCondition<T>` (deprecated
+  in 0.4.0, removed in 1.0: `selectorShouldRebuild` is a `BlocCondition<T>`,
+  the same function type)
 
 ## Out Of Scope
 

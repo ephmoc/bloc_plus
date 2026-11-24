@@ -24,7 +24,8 @@
   `emitEffect(E effect)` for one-shot effects
 - Implement an effect listener widget: shipped as `EffectListener<B, S, E>`
   (deprecated in 0.3.0); use `BlocEffectListener<B, E>` with
-  `onEffect(context, effect)`, `effectWhen`, `bloc`, `child`
+  `onEffect(context, effect)`, `bloc`, `child` (`effectWhen` is deprecated
+  since 0.4.0)
 - Define and enforce lifecycle behavior for effect stream ownership/closing:
   the stream is broadcast, and `close()` closes the bloc, then waits until
   subscribers got the effects emitted before it

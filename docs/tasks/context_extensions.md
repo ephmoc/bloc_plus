@@ -4,7 +4,12 @@
 > provider exists. In 0.3.0 the bounds widened: `readOrNull`, `watchOrNull`
 > and `withBloc` accept any provided type, such as a repository, and
 > `selectOrNull` any `StateStreamableSource<S>`, the type `BlocProvider`
-> provides and keeps up to date.
+> provides and keeps up to date. In 0.4.0 the extension
+> `BlocContextExtension` and its four members are deprecated, removed in 1.0:
+> they return what provider's nullable lookups return, with the same
+> rebuilds, so `read<B?>()`, `watch<B?>()`, `select<B?, T?>()` and
+> `read<B?>()?.member` replace them. This spec is historical; do not extend
+> the extension.
 
 ## Preconditions
 
@@ -47,6 +52,10 @@
 - `test/extensions/build_context_extensions_test.dart`
 - `test/extensions/build_context_extensions_contract_test.dart`
 - `test/widgets/build_context_extensions_widget_test.dart`
+
+Since 0.4.0 these files carry
+`// ignore_for_file: deprecated_member_use_from_same_package` and are deleted
+with the extension in 1.0.
 
 Required cases:
 

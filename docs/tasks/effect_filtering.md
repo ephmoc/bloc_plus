@@ -5,9 +5,11 @@
 > is deprecated, removed in 1.0; the same `effectWhen` is on
 > `BlocEffectListener<B, E>` and `BlocConsumerWithEffects`. `effectWhen` does
 > not promote the effect type: to react to one subtype, listen to the
-> supertype and use `if (effect case Sub(...))` in `onEffect`. Change
-> filtering in `BlocEffectListener`; do not extend the deprecated
-> `EffectListener`.
+> supertype and use `if (effect case Sub(...))` in `onEffect`. In 0.4.0
+> `effectWhen` and `EffectCondition` are deprecated as well, removed in 1.0:
+> an `if` or an if-case at the top of `onEffect` does the same, and the
+> if-case promotes the effect type. This spec is historical; do not extend
+> `effectWhen`.
 
 ## Preconditions
 
@@ -54,6 +56,8 @@
 
 - `test/widgets/effect_listener_test.dart`
 - `test/widgets/bloc_effect_listener_test.dart` (0.3.0)
+- `test/widgets/effect_when_test.dart` (0.4.0: the deprecated `effectWhen` of
+  `BlocEffectListener` and `BlocConsumerWithEffects`, until 1.0)
 
 Required cases:
 
