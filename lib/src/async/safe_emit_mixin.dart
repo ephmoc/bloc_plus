@@ -20,17 +20,28 @@ mixin SafeEmitMixin<S> on BlocBase<S> {
   /// [operation] does not start on a closed bloc. A failure of [operation]
   /// after the bloc was closed is dropped like its result, so the call
   /// completes with `null`; a failure while the bloc is open is rethrown.
+  /// Handle `null` first, with an early return: an `else` or a `default`
+  /// branch would take a closed bloc for a failed result.
   ///
-  /// When `T` is nullable or `void`, `null` is ambiguous: check `isClosed`
-  /// after the call, or wrap the result in a record so that `null` only means
-  /// the bloc was closed:
+  /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
+  /// would be ambiguous. Await such work plainly and emit with [safeEmit], or
+  /// check `isClosed` before anything else:
+  ///
+  /// ```dart
+  /// final item = await find(query); // may be null: not found
+  /// safeEmit(state.copyWith(item: item));
+  /// ```
+  ///
+  /// Wrap the result in a record only to keep what `guarded` adds: the
+  /// operation does not start on a closed bloc, and its failure after close
+  /// is dropped:
   ///
   /// ```dart
   /// final result = await guarded(() async => (item: await find(query)));
   /// if (result == null) return; // closed
   /// emit(state.copyWith(item: result.item)); // may be null: not found
   /// ```
-  Future<T?> guarded<T>(Future<T> Function() operation) async {
+  Future<T?> guarded<T extends Object>(Future<T> Function() operation) async {
     if (isClosed) return null;
     try {
       final result = await operation();
