@@ -94,4 +94,127 @@ void main() {
     final exception = tester.takeException();
     expect(exception, isA<ProviderNotFoundException>());
   });
+
+  testWidgets('follows the provided bloc right after bloc changes to null', (
+    tester,
+  ) async {
+    // Given
+    final explicit = _CounterCubit();
+    final provided = _CounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(explicit.close);
+    addTearDown(provided.close);
+    String name(_CounterCubit bloc) =>
+        identical(bloc, provided) ? 'provided' : 'explicit';
+    Widget builder({required _CounterCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: BlocBuilderWithBloc<_CounterCubit, int>(
+            bloc: bloc,
+            builder: (context, bloc, state) =>
+                Text('${name(bloc)}:$state', textDirection: TextDirection.ltr),
+          ),
+        );
+    await tester.pumpWidget(builder(bloc: explicit));
+
+    // When
+    await tester.pumpWidget(builder(bloc: null));
+    explicit.increment();
+    provided.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(find.text('provided:3'), findsOneWidget);
+  });
+
+  testWidgets('follows a new provided bloc', (tester) async {
+    // Given
+    final first = _CounterCubit();
+    final second = _CounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(first.close);
+    addTearDown(second.close);
+    String name(_CounterCubit bloc) =>
+        identical(bloc, second) ? 'second' : 'first';
+    final builder = BlocBuilderWithBloc<_CounterCubit, int>(
+      builder: (context, bloc, state) =>
+          Text('${name(bloc)}:$state', textDirection: TextDirection.ltr),
+    );
+    await tester.pumpWidget(BlocProvider.value(value: first, child: builder));
+
+    // When
+    await tester.pumpWidget(BlocProvider.value(value: second, child: builder));
+    first.increment();
+    second.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(find.text('second:3'), findsOneWidget);
+  });
+
+  testWidgets('buildWhen gets the previous state from the new bloc', (
+    tester,
+  ) async {
+    // Given
+    final explicit = _CounterCubit();
+    for (var i = 0; i < 5; i++) {
+      explicit.increment();
+    }
+    final provided = _CounterCubit()
+      ..increment()
+      ..increment();
+    addTearDown(explicit.close);
+    addTearDown(provided.close);
+    final calls = <(int, int)>[];
+    Widget builder({required _CounterCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: BlocBuilderWithBloc<_CounterCubit, int>(
+            bloc: bloc,
+            buildWhen: (previous, current) {
+              calls.add((previous, current));
+              return true;
+            },
+            builder: (context, bloc, state) =>
+                Text('$state', textDirection: TextDirection.ltr),
+          ),
+        );
+    await tester.pumpWidget(builder(bloc: explicit));
+
+    // When
+    await tester.pumpWidget(builder(bloc: null));
+    provided.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(calls, [(2, 3)]);
+  });
+
+  testWidgets('does not create a lazily provided bloc while bloc is explicit', (
+    tester,
+  ) async {
+    // Given
+    final explicit = _CounterCubit();
+    addTearDown(explicit.close);
+    var created = false;
+
+    // When
+    await tester.pumpWidget(
+      BlocProvider<_CounterCubit>(
+        create: (_) {
+          created = true;
+          return _CounterCubit();
+        },
+        child: BlocBuilderWithBloc<_CounterCubit, int>(
+          bloc: explicit,
+          builder: (context, bloc, state) =>
+              Text('$state', textDirection: TextDirection.ltr),
+        ),
+      ),
+    );
+
+    // Then
+    expect(created, isFalse);
+    expect(find.text('0'), findsOneWidget);
+  });
 }
