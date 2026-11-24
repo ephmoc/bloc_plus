@@ -5,7 +5,9 @@
 > 0.3.0 adds `runLatestOutcome`, which passes a `CancellationToken` and
 > returns a `TaskOutcome<T>`, and releases a superseded or closed caller at
 > once; the abandoned work keeps running. 0.4.0 gives `runLatest` the bound
-> `T extends Object`: `void` or nullable work uses `runLatestOutcome`.
+> `T extends Object`: `void` or nullable work uses `runLatestOutcome`. 0.4.0
+> also makes the members other than `close` `@protected` and
+> `@visibleForTesting`.
 
 ## Preconditions
 
@@ -45,6 +47,8 @@
 - `Future<T?> runLatest<T extends Object>(Object key, Future<T> Function() task)`
 - `Future<TaskOutcome<T>> runLatestOutcome<T>(Object key, Future<T> Function(CancellationToken token) task)`
 - `void cancelLatest(Object key)`, `void cancelAllLatest()`
+- The five members above are `@protected` and `@visibleForTesting`: the bloc,
+  a subclass, a `mixin X on RestartableTasksMixin<S>` and tests call them
 - `Future<void> close()` cancels all tracked tasks, then closes the bloc
 - Keys are compared with `==`
 
@@ -61,6 +65,9 @@
   release of a superseded caller)
 - `test/async/object_bound_test.dart` (0.4.0: the bound of `runLatest`,
   checked with the analyzer)
+- `test/async/protected_members_test.dart` (0.4.0: the analyzer warns about
+  a call from a widget or an extension, and not from the bloc, a subclass or
+  a mixin on it)
 
 Required cases:
 
