@@ -5,9 +5,10 @@ import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 ///
 /// It applies to Cubits only. In a `Bloc`, use the handler's `emit`, which
 /// also calls `onTransition` and does nothing in a handler that a transformer
-/// such as `restartable()` has cancelled. After an `await`, check `isClosed`
-/// before it: the handler's `emit` still delivers for a while after `close()`
-/// is called.
+/// such as `restartable()` has cancelled. Check `isClosed` first in the
+/// handler and again after every `await`: the handler's `emit` still delivers
+/// for a while after `close()` is called, also in a handler that starts
+/// afterwards for an event queued before it.
 mixin SafeEmitMixin<S> on Cubit<S> {
   /// Emits [state] only when the cubit is still open.
   ///

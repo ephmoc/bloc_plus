@@ -64,6 +64,8 @@
 - `test/async/final_classes_test.dart`, `test/async/object_bound_test.dart`,
   `test/async/safe_emit_cubit_only_test.dart` (0.4.0: compile-time
   contracts, checked with the analyzer)
+- `test/async/bloc_migration_test.dart` (0.4.0: the `isClosed` checks that
+  replace `SafeEmitMixin` in a `Bloc`, which need `bloc` 9.2.1)
 
 Required cases:
 - safe emit after close does not throw

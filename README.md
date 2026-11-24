@@ -241,8 +241,11 @@ works in tests.
 - **`SafeEmitMixin` is for Cubits.** A `Bloc` cannot mix it in: the
   handler's `emit` also calls `onTransition` and does nothing in a handler
   that a transformer has cancelled, which `safeEmit` skipped. In a handler,
-  check `isClosed` before `emit` after an `await`: it is `true` from the call
-  of `close()`, while the handler's `emit` still delivers for a while.
+  check `isClosed` first and again after every `await`, before `emit` and
+  before starting work: it is `true` from the call of `close()`, while the
+  handler's `emit` still delivers for a while, also in a handler that starts
+  after `close()` for an event queued before it. The 0.4.0 entry of the
+  [CHANGELOG](CHANGELOG.md) has the full migration.
 
 `runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
 complete with `null` when the work was superseded, cancelled or outlived the
