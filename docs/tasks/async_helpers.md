@@ -8,6 +8,7 @@
 > `T extends Object`: `void` or nullable work uses `runLatestOutcome`.
 
 ## Preconditions
+
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - Baseline `async_safety` module is already implemented and exported
 - If scaffold is missing, bootstrap first with:
@@ -16,6 +17,7 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
+
 - Add higher-level async helpers on top of `RestartableTask`
 - Provide a lifecycle-aware API for "latest request wins" flows inside
   Cubits/Blocs
@@ -23,11 +25,13 @@
   closed or disposed
 
 ## Out Of Scope
+
 - Hard cancellation of arbitrary `Future` work
 - Background executors, isolates, or schedulers
 - Debounce/throttle timing APIs unrelated to cooperative cancellation
 
 ## Public Contract
+
 - New helpers are built on cooperative cancellation semantics
 - Starting a new run for the same logical task invalidates the previous result
 - Distinct logical task keys remain independent
@@ -35,6 +39,7 @@
 - No helper may imply that the underlying `Future` is forcefully interrupted
 
 ## Signatures (0.4.0)
+
 - `mixin RestartableTasksMixin<S> on BlocBase<S>`
 - `bool isTaskRunning(Object key)`
 - `Future<T?> runLatest<T extends Object>(Object key, Future<T> Function() task)`
@@ -44,11 +49,13 @@
 - Keys are compared with `==`
 
 ## Target Files
+
 - `lib/src/async/restartable_tasks_mixin.dart`
 - `lib/src/async/async.dart` (barrel)
 - `lib/bloc_plus.dart` (exports)
 
 ## Tests (Contract)
+
 - `test/async/restartable_tasks_mixin_test.dart`
 - `test/async/run_outcome_test.dart` (0.3.0: `runLatestOutcome`, token,
   release of a superseded caller)
@@ -56,6 +63,7 @@
   checked with the analyzer)
 
 Required cases:
+
 - repeated runs for the same key drop stale results
 - different keys run independently
 - cancellation for one key does not affect other keys
@@ -64,10 +72,12 @@ Required cases:
 - helper behavior remains compatible with `SafeEmitMixin` usage
 
 ## Example App Updates
+
 - Add one search-like example using the higher-level helper instead of managing
   `RestartableTask` manually
 
 ## Acceptance Criteria (DoD)
+
 - New helper APIs are exported and documented with cooperative cancellation
   wording
 - Tests cover lifecycle, cancellation, and multi-key behavior
@@ -75,12 +85,14 @@ Required cases:
 - No additional dependencies are introduced
 
 ## Validation Commands
+
 - `dart format .`
 - `flutter analyze`
 - `flutter test test/async/restartable_tasks_mixin_test.dart`
 - `flutter test test/async`
 
 ## Agent Constraints
+
 - Keep the API explicit and lightweight
 - Prefer a small surface area over a general-purpose task framework
 - Document clearly that cancellation suppresses results and does not interrupt

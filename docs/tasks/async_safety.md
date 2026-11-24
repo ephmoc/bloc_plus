@@ -10,6 +10,7 @@
 > only (`T extends Object`), and `SafeEmitMixin` applies to Cubits only.
 
 ## Preconditions
+
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - If missing, bootstrap first with:
   - `flutter create --template=package bloc_plus` (from parent directory), or
@@ -17,6 +18,7 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
+
 - Implement `SafeEmitMixin<S>` on `Cubit<S>` (on `BlocBase<S>` before 0.4.0)
   - `safeEmit(S state)` (`@protected`, `@visibleForTesting` since 0.3.0)
   - `guarded<T extends Object>(Future<T> Function() operation)` (bound since
@@ -32,10 +34,12 @@
   `value` (throws `StateError` when cancelled)
 
 ## Out Of Scope
+
 - Hard cancellation of arbitrary `Future` work
 - External task schedulers or isolates
 
 ## Public Contract
+
 - `safeEmit` performs no-op when bloc is closed
 - `guarded` returns `null` when bloc is closed before completion; it does not
   start on a closed bloc, and a failure after close is dropped (0.2.2)
@@ -49,6 +53,7 @@
 - `RestartableTask.dispose` prevents future runs and cancels current token/result flow
 
 ## Target Files
+
 - `lib/src/async/safe_emit_mixin.dart`
 - `lib/src/async/cancellation_token.dart`
 - `lib/src/async/restartable_task.dart`
@@ -57,6 +62,7 @@
 - `lib/bloc_plus.dart` (exports)
 
 ## Tests (Contract)
+
 - `test/async/safe_emit_mixin_test.dart`
 - `test/async/cancellation_token_test.dart`
 - `test/async/restartable_task_test.dart`
@@ -68,6 +74,7 @@
   replace `SafeEmitMixin` in a `Bloc`, which need `bloc` 9.2.1)
 
 Required cases:
+
 - safe emit after close does not throw
 - guarded returns value when open, `null` when closed
 - token cancel state transitions
@@ -76,6 +83,7 @@ Required cases:
 - dispose blocks new runs and cleans active flow
 
 ## Example App Updates
+
 - Historical: the example app at 0.3.0 has no direct `RestartableTask`,
   debounce or close/lifecycle example; it uses
   `RestartableTasksMixin.runLatestOutcome` with `safeEmit` (see async_helpers).
@@ -83,17 +91,20 @@ Required cases:
 - Add bloc close/lifecycle example for `safeEmit` and token usage
 
 ## Acceptance Criteria (DoD)
+
 - All APIs exported and documented with cooperative cancellation note
 - Unit tests include race-like scenarios with delayed futures
 - No memory leaks in repeated run/cancel/dispose cycle tests
 - Analyzer and tests pass
 
 ## Validation Commands
+
 - `dart format .`
 - `flutter analyze`
 - `flutter test test/async`
 
 ## Agent Constraints
+
 - Explicitly document non-goal: no hard cancellation guarantee
 - Avoid zone/global state tricks
 - Keep implementation lightweight and dependency-free
