@@ -271,6 +271,21 @@ void main() {
     );
   });
 
+  testWidgets('reports a missing provider before a missing child', (
+    tester,
+  ) async {
+    // Given
+    final widget = BlocListenerWithBloc<_CounterCubit, int>(
+      listener: (context, bloc, state) {},
+    );
+
+    // When
+    await tester.pumpWidget(widget);
+
+    // Then
+    expect(tester.takeException(), isA<ProviderNotFoundException>());
+  });
+
   testWidgets('composes inside MultiBlocListener', (tester) async {
     // Given
     final first = _CounterCubit();

@@ -37,20 +37,21 @@ class BlocListenerWithBloc<B extends StateStreamable<S>, S>
   /// Called in response to state changes with the resolved bloc instance.
   final BlocWidgetListenerWithBloc<B, S> listener;
 
-  /// The subtree below the listener; `MultiBlocListener` supplies it when the
-  /// listener is one of its `listeners`. Outside `MultiBlocListener` it is
-  /// required, and a missing child fails an assertion in debug builds.
+  /// The subtree below the listener. It is required unless a multi widget
+  /// such as `MultiBlocListener` supplies it, and a missing child fails an
+  /// assertion in debug builds.
   final Widget? child;
 
   @override
   Widget buildWithChild(BuildContext context, Widget? child) {
+    // Rebuilds only when a different instance is provided. A missing provider
+    // is reported before a missing child, as BlocListener does.
+    final resolvedBloc = bloc ?? context.select<B, B>((bloc) => bloc);
     // Names this widget; the BlocListener below would name itself.
     assert(
       child != null,
       '$runtimeType used outside of MultiBlocListener must specify a child',
     );
-    // Rebuilds only when a different instance is provided.
-    final resolvedBloc = bloc ?? context.select<B, B>((bloc) => bloc);
     return BlocListener<B, S>(
       bloc: resolvedBloc,
       listenWhen: listenWhen,
