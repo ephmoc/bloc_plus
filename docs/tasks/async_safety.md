@@ -7,7 +7,8 @@
 > superseded caller at once instead of waiting for the abandoned work, which
 > keeps running. 0.4.0 makes `CancellationToken` and `RestartableTask`
 > `final` classes, `guarded` and `CancellationToken.run` take a non-null `T`
-> only (`T extends Object`), and `SafeEmitMixin` applies to Cubits only.
+> only (`T extends Object`), `guarded` is `@protected` and
+> `@visibleForTesting`, and `SafeEmitMixin` applies to Cubits only.
 
 ## Preconditions
 
@@ -21,8 +22,8 @@
 
 - Implement `SafeEmitMixin<S>` on `Cubit<S>` (on `BlocBase<S>` before 0.4.0)
   - `safeEmit(S state)` (`@protected`, `@visibleForTesting` since 0.3.0)
-  - `guarded<T extends Object>(Future<T> Function() operation)` (bound since
-    0.4.0)
+  - `guarded<T extends Object>(Future<T> Function() operation)` (bound,
+    `@protected` and `@visibleForTesting` since 0.4.0)
 - Implement `CancellationToken`, a `final class` since 0.4.0: `isCancelled`,
   `whenCancelled` (0.3.0), `cancel()`,
   `run<T extends Object>(Future<T> Function() task)` (bound since 0.4.0)
@@ -68,8 +69,9 @@
 - `test/async/restartable_task_test.dart`
 - `test/async/run_outcome_test.dart`, `test/async/task_outcome_test.dart` (0.3.0)
 - `test/async/final_classes_test.dart`, `test/async/object_bound_test.dart`,
-  `test/async/safe_emit_cubit_only_test.dart` (0.4.0: compile-time
-  contracts, checked with the analyzer)
+  `test/async/safe_emit_cubit_only_test.dart`,
+  `test/async/protected_members_test.dart` (0.4.0: compile-time contracts and
+  analyzer warnings, checked with the analyzer)
 - `test/async/bloc_migration_test.dart` (0.4.0: the `isClosed` checks that
   replace `SafeEmitMixin` in a `Bloc`, which need `bloc` 9.2.1)
 

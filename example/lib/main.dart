@@ -298,7 +298,7 @@ class SearchSection extends StatelessWidget {
                 Text(state.result),
                 const SizedBox(height: 4),
                 Text(
-                  bloc.isTaskRunning('preview')
+                  state.isLoading
                       ? 'Task status: running'
                       : 'Task status: idle',
                 ),
@@ -326,9 +326,7 @@ class SearchSection extends StatelessWidget {
                       child: const Text('Run slow then fast'),
                     ),
                     OutlinedButton(
-                      onPressed: bloc.isTaskRunning('preview')
-                          ? bloc.cancelPreview
-                          : null,
+                      onPressed: state.isLoading ? bloc.cancelPreview : null,
                       child: const Text('Cancel latest'),
                     ),
                   ],

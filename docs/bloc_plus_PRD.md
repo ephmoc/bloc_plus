@@ -298,11 +298,11 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `BuildContext` nullable extensions | stable | Return `null` only on a missing provider; rethrow other errors; any provided type (`selectOrNull`: a `StateStreamableSource<S>`) |
-| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` since 0.4.0; `on Cubit<S>` since 0.4.0 |
+| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` and is `@protected`, `@visibleForTesting` since 0.4.0; `on Cubit<S>` since 0.4.0 |
 | `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0; `run` takes a non-null `T` since 0.4.0 |
 | `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
 | `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future`; `final class` since 0.4.0 |
-| `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation; `runLatest` takes a non-null `T` since 0.4.0 |
+| `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation; `runLatest` takes a non-null `T` since 0.4.0; its members except `close` are `@protected`, `@visibleForTesting` since 0.4.0 |
 | `EffectsSource` + `HasEffects` | stable | One-shot effect stream separated from state stream; `emitEffect` is `@protected`, `@visibleForTesting` |
 | `debugPrintUnheardEffects` | stable (0.3.1) | Opt-in debug warning for an effect that nothing listens to; off by default; never prints in release builds |
 | `BlocEffectListener` | stable (0.3.0) | `B extends EffectsSource<E>`; composes inside `MultiBlocListener`; supports effect filtering |
@@ -1049,15 +1049,18 @@ mixin SafeEmitMixin<S> on Cubit<S> {
   @visibleForTesting
   void safeEmit(S state);
   
+  @protected
+  @visibleForTesting
   Future<T?> guarded<T extends Object>(
     Future<T> Function() operation,
   );
 }
 ```
 
-`safeEmit` is `@protected` and `@visibleForTesting` (since 0.3.0), like
-`emit`: call it from inside the cubit, or from tests. Calls from elsewhere,
-extension methods on the cubit included, get analyzer warnings.
+`safeEmit` (since 0.3.0) and `guarded` (since 0.4.0) are `@protected` and
+`@visibleForTesting`, like `emit`: call them from inside the cubit, from a
+subclass or a `mixin X on SafeEmitMixin<S>`, or from tests. Calls from
+elsewhere, extension methods on the cubit included, get analyzer warnings.
 
 Since 0.4.0 the mixin applies to Cubits only (`on Cubit<S>`): a `Bloc` and a
 direct subclass of `BlocBase` cannot mix it in. In a `Bloc`, the handler's
@@ -1491,17 +1494,27 @@ workflows in Cubits and Blocs.
 
 ```dart
 mixin RestartableTasksMixin<S> on BlocBase<S> {
+  @protected
+  @visibleForTesting
   bool isTaskRunning(Object key);
 
+  @protected
+  @visibleForTesting
   Future<T?> runLatest<T extends Object>(Object key, Future<T> Function() task);
 
+  @protected
+  @visibleForTesting
   Future<TaskOutcome<T>> runLatestOutcome<T>(
     Object key,
     Future<T> Function(CancellationToken token) task,
   );
 
+  @protected
+  @visibleForTesting
   void cancelLatest(Object key);
 
+  @protected
+  @visibleForTesting
   void cancelAllLatest();
 
   @override
@@ -1529,6 +1542,13 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
     one, while a string or a record with the same content does
 - `close` cancels all tracked tasks and closes the bloc; a repeated call
     returns the future of the first one
+- Since 0.4.0 `isTaskRunning`, `runLatest`, `runLatestOutcome`,
+    `cancelLatest` and `cancelAllLatest` are `@protected` and
+    `@visibleForTesting`, like `emit`: call them from inside the bloc, from a
+    subclass or a `mixin X on RestartableTasksMixin<S>`, or from tests. Calls
+    from elsewhere, a widget or an extension on the bloc included, get
+    analyzer warnings: what the UI shows, such as a loading flag, belongs in
+    the state
 - Cancellation is cooperative: the abandoned work keeps running
 - Inside `Bloc` event handlers, prefer the handler's `emit` with a
     `bloc_concurrency` transformer such as `restartable()`. A task that calls

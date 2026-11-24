@@ -1,7 +1,8 @@
-// Some contracts, such as a final class or a type bound, have no runtime
-// behaviour to test: they promise that some code outside the package does
-// not compile. Tests of such contracts ask the analyzer of the SDK under test
-// about a fixture, which is another library, as an application is.
+// Some contracts, such as a final class, a type bound or an annotation, have
+// no runtime behaviour to test: they promise that some code outside the
+// package does not compile or is reported. Tests of such contracts ask the
+// analyzer of the SDK under test about a fixture, which is another library,
+// as an application is.
 
 import 'dart:convert';
 import 'dart:io';
@@ -12,7 +13,16 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Warnings and lints are left out: they depend on the lint set, not on the
 /// contract.
-Future<List<String>> analyzerErrors(String fixture) async {
+Future<List<String>> analyzerErrors(String fixture) =>
+    _analyze(fixture, const {'ERROR'});
+
+/// The errors and warnings that `dart analyze` reports for [fixture], as
+/// `code:line`, for a contract that the analyzer reports as a warning, such
+/// as `@protected`. Lints are left out.
+Future<List<String>> analyzerErrorsAndWarnings(String fixture) =>
+    _analyze(fixture, const {'ERROR', 'WARNING'});
+
+Future<List<String>> _analyze(String fixture, Set<String> severities) async {
   final dir = Directory('.dart_tool').createTempSync('fixture_');
   try {
     File('${dir.path}/fixture.dart').writeAsStringSync(fixture);
@@ -20,7 +30,7 @@ Future<List<String>> analyzerErrors(String fixture) async {
       _dart(),
       ['analyze', '--format=json', dir.path],
     );
-    return _errors(result);
+    return _diagnostics(result, severities);
   } finally {
     dir.deleteSync(recursive: true);
   }
@@ -40,7 +50,7 @@ String _dart() {
   return '$root/bin/cache/dart-sdk/bin/${Platform.isWindows ? 'dart.exe' : 'dart'}';
 }
 
-List<String> _errors(ProcessResult result) {
+List<String> _diagnostics(ProcessResult result, Set<String> severities) {
   final stdout = '${result.stdout}';
   // Older SDKs print an "Analyzing ..." line before the JSON, and only
   // "No issues found!" when there is nothing to report.
@@ -54,7 +64,7 @@ List<String> _errors(ProcessResult result) {
       (json['diagnostics']! as List<Object?>).cast<Map<String, Object?>>();
   return [
     for (final diagnostic in diagnostics)
-      if (diagnostic['severity'] == 'ERROR')
+      if (severities.contains(diagnostic['severity']))
         '${diagnostic['code']}:${_line(diagnostic)}',
   ];
 }

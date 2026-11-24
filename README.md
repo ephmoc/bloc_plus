@@ -249,6 +249,16 @@ works in tests.
   callbacks return, so a check there cannot stop the emit: where a value must
   not arrive after `close()`, use `emit.onEach`. The 0.4.0 entry of the
   [CHANGELOG](CHANGELOG.md) has the full migration.
+- **Only the bloc calls them.** `isTaskRunning`, `runLatest`,
+  `runLatestOutcome`, `cancelLatest`, `cancelAllLatest`, `safeEmit` and
+  `guarded` are `@protected` and `@visibleForTesting`, like `emit`: the bloc,
+  its subclasses, a `mixin X on RestartableTasksMixin<S>` or
+  `on SafeEmitMixin<S>` and tests call them, while a call from a widget, an
+  extension on the bloc or a function outside the class gets analyzer
+  warnings. Keep what the UI shows, such as a loading flag, in the state
+  rather than reading `isTaskRunning` in `build`. A method that cancels the
+  run clears that flag itself: the example above clears it only for a
+  completed outcome.
 
 `runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
 complete with `null` when the work was superseded, cancelled or outlived the

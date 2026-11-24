@@ -27,6 +27,10 @@
     a `StatelessWidget` and a `SingleChildStatelessWidget` that return
     `BlocBuilder` and `BlocListener`; the constructors, `const`, the fields
     and the composition inside `MultiBlocListener` stay.
+  - `isTaskRunning`, `runLatest`, `runLatestOutcome`, `cancelLatest` and
+    `cancelAllLatest` of `RestartableTasksMixin`, and `guarded` of
+    `SafeEmitMixin`, are `@protected` and `@visibleForTesting`, like `emit`,
+    `safeEmit` and `emitEffect`.
 
 Migration impact:
 
@@ -118,14 +122,27 @@ Migration impact:
   read `listener` as a `(context, state)` callback adapts: `build` takes only
   the context, and `listener` is the `(context, bloc, state)` callback. The
   callbacks get the context of the inner `BlocBuilder` or `BlocListener`.
+- A call of those six methods from outside the bloc class, such as
+  `isTaskRunning` read in `build`, `cancelLatest` called from a widget, or a
+  call from an extension on the bloc or from a function outside the class,
+  gets two analyzer warnings (`invalid_use_of_protected_member` and
+  `invalid_use_of_visible_for_testing_member`), so `flutter analyze` fails.
+  Move the call into a method of the bloc, and keep what the UI shows, such
+  as a loading flag, in the state, as the async example in the README does.
+  A method that cancels the run, such as `cancelPreview` in the example app,
+  clears that flag itself: the cancelled call completes with a cancelled
+  outcome, or `null` from `runLatest`, and leaves the state as it is. The
+  bloc, its subclasses, a `mixin X on RestartableTasksMixin<S>` or
+  `on SafeEmitMixin<S>`, and files under `test/`, `integration_test/` and
+  `test_driver/` may still call them; a test helper under `lib/` may not.
 
 Release type rationale:
 
 - `minor`: breaking changes of the class hierarchy, of three method
-  signatures, of the classes that `SafeEmitMixin` applies to and of the
-  superclasses of two widgets, which a 0.x minor allows. A constraint such
-  as `^0.3.1` does not resolve to 0.4.0, so nothing changes until a project
-  raises it.
+  signatures, of the classes that `SafeEmitMixin` applies to, of the
+  superclasses of two widgets and of where six methods may be called without
+  analyzer warnings, which a 0.x minor allows. A constraint such as `^0.3.1`
+  does not resolve to 0.4.0, so nothing changes until a project raises it.
 
 ## 0.3.1
 
