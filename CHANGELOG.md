@@ -1,3 +1,24 @@
+## 0.4.0
+
+- Changed:
+  - `CancellationToken` and `RestartableTask` are `final` classes: they can
+    no longer be extended, implemented or mocked outside the package.
+
+Migration impact:
+
+- A class that extends or implements `CancellationToken` or
+  `RestartableTask`, a mock of either written by hand or with mocktail
+  (`implements`), and a `mixin X on` either of them no longer compile
+  (`invalid_use_of_type_outside_library`). mockito refuses to generate a mock
+  of a `final` class. Use real instances: a test creates `CancellationToken()`
+  and calls `cancel()`, or runs its work through a real `RestartableTask`.
+
+Release type rationale:
+
+- `minor`: a breaking change of the class hierarchy, which a 0.x minor
+  allows. A constraint such as `^0.3.1` does not resolve to 0.4.0, so
+  nothing changes until a project raises it.
+
 ## 0.3.1
 
 - Added:

@@ -255,6 +255,10 @@ safeEmit(state.copyWith(item: result.item)); // item may be null: not found
 The `cancellation_token` package also exports a `CancellationToken`. If you
 import both, add `hide CancellationToken` to one import or use a prefix.
 
+`CancellationToken` and `RestartableTask` are `final` classes, so they cannot
+be extended, implemented or mocked. In tests, use real instances, for example
+`CancellationToken()..cancel()` for a token that is already cancelled.
+
 ### Effects
 
 Model effects as a `sealed` hierarchy and emit them from inside the bloc:

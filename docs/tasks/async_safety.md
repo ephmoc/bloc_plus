@@ -5,7 +5,8 @@
 > `RestartableTask.runOutcome` and `TaskOutcome<T>`, makes `safeEmit`
 > `@protected` and `@visibleForTesting`, and releases a cancelled or
 > superseded caller at once instead of waiting for the abandoned work, which
-> keeps running.
+> keeps running. 0.4.0 makes `CancellationToken` and `RestartableTask`
+> `final` classes.
 
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
@@ -18,9 +19,10 @@
 - Implement `SafeEmitMixin<S>` on `BlocBase<S>`
   - `safeEmit(S state)` (`@protected`, `@visibleForTesting` since 0.3.0)
   - `guarded<T>(Future<T> Function() operation)`
-- Implement `CancellationToken`: `isCancelled`, `whenCancelled` (0.3.0),
-  `cancel()`, `run<T>(Future<T> Function() task)`
-- Implement `RestartableTask<T>`: `isRunning`, `run(Future<T> Function() task)`,
+- Implement `CancellationToken`, a `final class` since 0.4.0: `isCancelled`,
+  `whenCancelled` (0.3.0), `cancel()`, `run<T>(Future<T> Function() task)`
+- Implement `RestartableTask<T>`, a `final class` since 0.4.0: `isRunning`,
+  `run(Future<T> Function() task)`,
   `runOutcome(Future<T> Function(CancellationToken token) task)` returning
   `Future<TaskOutcome<T>>` (0.3.0), `cancel()`, `dispose()`
 - `TaskOutcome<T>` (0.3.0): `completed(value)` / `cancelled()`, `isCompleted`,

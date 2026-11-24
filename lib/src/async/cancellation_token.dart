@@ -12,7 +12,10 @@ import 'task_outcome.dart';
 /// The `cancellation_token` package also exports a `CancellationToken`; when
 /// both are imported, add `hide CancellationToken` to one of the imports or
 /// use a prefix.
-class CancellationToken {
+///
+/// It is a `final` class, so it cannot be extended, implemented or mocked. In
+/// tests, use a real token and call [cancel].
+final class CancellationToken {
   /// Creates a token that can invalidate stale async work.
   CancellationToken();
 
