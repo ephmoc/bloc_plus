@@ -3,6 +3,13 @@
 - Changed:
   - `CancellationToken` and `RestartableTask` are `final` classes: they can
     no longer be extended, implemented or mocked outside the package.
+  - `runLatest`, `guarded` and `CancellationToken.run` take a non-null result
+    type only (`T extends Object`). Their `null` result means that the run
+    was discarded, which a `void`, nullable or `dynamic` result could not
+    tell apart: `await runLatest('save', save); emit(saved);` compiled,
+    emitted although the run was superseded, and threw after `close()`. Such
+    a call is now a compile error: `could_not_infer`, or
+    `type_argument_not_matching_bounds` with an explicit type argument.
 
 Migration impact:
 
@@ -12,12 +19,46 @@ Migration impact:
   (`invalid_use_of_type_outside_library`). mockito refuses to generate a mock
   of a `final` class. Use real instances: a test creates `CancellationToken()`
   and calls `cancel()`, or runs its work through a real `RestartableTask`.
+- Move `void` and nullable work off `runLatest`, `guarded` and
+  `CancellationToken.run`:
+  - instead of `runLatest`, use `runLatestOutcome` and check the outcome
+    before anything else. An ignored outcome compiles, and the code after it
+    then runs for a superseded run as well:
+
+    ```dart
+    // Before
+    await runLatest('save', save);
+    emit(saved);
+
+    // After
+    final outcome = await runLatestOutcome('save', (_) => save());
+    if (!outcome.isCompleted) return; // superseded or closed
+    emit(saved);
+    ```
+
+  - `guarded` and `CancellationToken.run` have no outcome twin: await the
+    work plainly and then check what the method checked, before anything
+    else. For `guarded` that is `isClosed`, which `safeEmit` checks for you;
+    for `CancellationToken.run` it is `token.isCancelled`, which `safeEmit`
+    does not check. Return a non-null value, such as a record, only to keep
+    what the two methods add: the work does not start on a closed bloc or a
+    cancelled token, its later failure is dropped, and
+    `CancellationToken.run` releases its caller at `cancel()` instead of when
+    the work ends.
+- A generic helper that forwards its own type parameter needs the same bound
+  (`Future<T?> load<T extends Object>(...)`), and so do an override of
+  `runLatest` or `guarded` and a function type that names the old signature.
+- The analyzer does not report a helper that returns the call
+  (`=> runLatest(key, task)`, `=> guarded(task)`, `=> token.run(task)`):
+  `flutter analyze` stays clean, and the compiler fails with "Inferred type
+  argument 'T' doesn't conform to the bound 'Object' of the type variable
+  'T'". After upgrading, compile the app or run `flutter test`.
 
 Release type rationale:
 
-- `minor`: a breaking change of the class hierarchy, which a 0.x minor
-  allows. A constraint such as `^0.3.1` does not resolve to 0.4.0, so
-  nothing changes until a project raises it.
+- `minor`: breaking changes of the class hierarchy and of three method
+  signatures, which a 0.x minor allows. A constraint such as `^0.3.1` does
+  not resolve to 0.4.0, so nothing changes until a project raises it.
 
 ## 0.3.1
 

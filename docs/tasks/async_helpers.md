@@ -4,7 +4,8 @@
 > keys of failed tasks and makes a repeated `close()` wait for the first one.
 > 0.3.0 adds `runLatestOutcome`, which passes a `CancellationToken` and
 > returns a `TaskOutcome<T>`, and releases a superseded or closed caller at
-> once; the abandoned work keeps running.
+> once; the abandoned work keeps running. 0.4.0 gives `runLatest` the bound
+> `T extends Object`: `void` or nullable work uses `runLatestOutcome`.
 
 ## Preconditions
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
@@ -33,10 +34,10 @@
 - Owner disposal prevents future task completion from surfacing results
 - No helper may imply that the underlying `Future` is forcefully interrupted
 
-## Signatures (0.3.0)
+## Signatures (0.4.0)
 - `mixin RestartableTasksMixin<S> on BlocBase<S>`
 - `bool isTaskRunning(Object key)`
-- `Future<T?> runLatest<T>(Object key, Future<T> Function() task)`
+- `Future<T?> runLatest<T extends Object>(Object key, Future<T> Function() task)`
 - `Future<TaskOutcome<T>> runLatestOutcome<T>(Object key, Future<T> Function(CancellationToken token) task)`
 - `void cancelLatest(Object key)`, `void cancelAllLatest()`
 - `Future<void> close()` cancels all tracked tasks, then closes the bloc
@@ -51,6 +52,8 @@
 - `test/async/restartable_tasks_mixin_test.dart`
 - `test/async/run_outcome_test.dart` (0.3.0: `runLatestOutcome`, token,
   release of a superseded caller)
+- `test/async/object_bound_test.dart` (0.4.0: the bound of `runLatest`,
+  checked with the analyzer)
 
 Required cases:
 - repeated runs for the same key drop stale results

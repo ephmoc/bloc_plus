@@ -45,7 +45,7 @@ Add dependency:
 
 ```yaml
 dependencies:
-  bloc_plus: ^0.3.1
+  bloc_plus: ^0.4.0
 ```
 
 Run the example app:
@@ -241,10 +241,37 @@ works in tests.
 
 `runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
 complete with `null` when the work was superseded, cancelled or outlived the
-bloc, also when that work fails, so only the latest run can throw. They suit
-non-null results. When `T` is nullable or `void`, use the outcome methods, or
-for `CancellationToken.run` and `guarded` wrap the result in a record so that
-`null` only means discarded:
+bloc, also when that work fails, so only the latest run can throw. Handle
+`null` first, with an early return: an `else` or a `default` branch would take
+discarded work for a failed result.
+
+For `void` work or a nullable result, `null` would be ambiguous, so
+`runLatest`, `CancellationToken.run` and `guarded` do not accept it
+(`T extends Object`); `RestartableTask.run` still accepts it, with the same
+ambiguity. Instead of `runLatest` or `RestartableTask.run`, use
+`runLatestOutcome` as above or `RestartableTask.runOutcome`, and check the
+outcome before anything else: an ignored outcome compiles, and the code after
+it then runs for a superseded run as well. Instead of `guarded` or
+`CancellationToken.run`, await such work plainly and then check what the
+method checked, before anything else: `isClosed` for `guarded`, which
+`safeEmit` checks for you, and `token.isCancelled` for
+`CancellationToken.run`, which `safeEmit` does not check:
+
+```dart
+// Instead of guarded:
+final item = await repository.find(q); // may be null: not found
+safeEmit(state.copyWith(item: item));
+
+// Instead of CancellationToken.run:
+final found = await repository.find(q);
+if (token.isCancelled) return;
+safeEmit(state.copyWith(item: found));
+```
+
+Wrap the result in a record only to keep what these two add: the work does
+not start on a closed bloc or a cancelled token, its later failure is
+dropped, and `CancellationToken.run` releases its caller at `cancel()`
+instead of when the work ends:
 
 ```dart
 final result = await guarded(() async => (item: await repository.find(q)));

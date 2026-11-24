@@ -31,14 +31,27 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// Completes with `null` as soon as a newer run for [key], [cancelLatest],
   /// [cancelAllLatest] or [close] supersedes this run, without waiting for
   /// [task], whose later success or failure is dropped. The failure of the
-  /// latest run is rethrown.
+  /// latest run is rethrown. Handle `null` first, with an early return: an
+  /// `else` or a `default` branch would take a superseded run for a failed
+  /// one.
   ///
-  /// When `T` is nullable or `void`, `null` is ambiguous: use
-  /// [runLatestOutcome].
+  /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
+  /// would be ambiguous. For such work use [runLatestOutcome] and return early
+  /// unless the outcome is completed. An ignored outcome compiles, and the
+  /// code after it then runs for a superseded run as well:
+  ///
+  /// ```dart
+  /// final outcome = await runLatestOutcome('save', (_) => save(item));
+  /// if (!outcome.isCompleted) return; // superseded or closed
+  /// emit(state.copyWith(saved: true));
+  /// ```
   ///
   /// Keys are compared with `==`: a new `List` key never matches an earlier
   /// one, while a string or a record with the same content does.
-  Future<T?> runLatest<T>(Object key, Future<T> Function() task) async {
+  Future<T?> runLatest<T extends Object>(
+    Object key,
+    Future<T> Function() task,
+  ) async {
     final outcome = await runLatestOutcome<T>(key, (_) => task());
     return outcome.isCompleted ? outcome.value : null;
   }
