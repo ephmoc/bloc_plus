@@ -499,8 +499,11 @@ Released when both conditions hold:
   fix included; a release that changes only documentation, the example or
   tests does not;
 - the migration of a real feature, described under 0.4.0, is done, and it
-  leaves no change open that would need a major after 1.0: a removed or
-  renamed export, an incompatible signature, a changed documented behaviour.
+  leaves no change open that would need a major after 1.0 (a removed or
+  renamed export, an incompatible signature, a changed documented behaviour)
+  or that would only add analyzer warnings to user code after it (an
+  annotation such as `@protected`, which this plan counts among the breaking
+  changes).
 
 Such a change is released in 0.5.0 first, and then this section reads 0.5
 wherever it says 0.4: the four weeks count from the publication of 0.5.0,
