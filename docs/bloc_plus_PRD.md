@@ -97,6 +97,8 @@ improvements that preserve the lightweight design:
     `Bloc` away from `SafeEmitMixin` in 0.4.0 relies on)
 - **provider**: >=6.0.0, <7.0.0 (direct since 0.3.0; the range
     `flutter_bloc` already requires)
+- **meta**: >=1.9.1, <2.0.0 (direct since 0.4.0, for `@useResult`; Flutter
+    itself depends on it, and Flutter 3.10 pins 1.9.1)
 - No additional heavy dependencies
 
 ### 4.3 Platform Support
@@ -291,12 +293,12 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `BlocContextExtension` (`readOrNull`, `watchOrNull`, `selectOrNull`, `withBloc`) | deprecated (0.4.0, removed in 1.0) | Replaced by provider's nullable lookups `read<B?>()`, `watch<B?>()` and `select<B?, T?>()`, which return the same values with the same rebuilds; `package:flutter_bloc/flutter_bloc.dart` exports them, `bloc_plus` does not |
-| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` and is `@protected`, `@visibleForTesting` since 0.4.0; `on Cubit<S>` since 0.4.0 |
-| `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0; `run` takes a non-null `T` since 0.4.0 |
+| `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` and is `@protected`, `@visibleForTesting` and `@useResult` since 0.4.0; `on Cubit<S>` since 0.4.0 |
+| `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0; `run` takes a non-null `T` and is `@useResult` since 0.4.0 |
 | `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
-| `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future`; `final class` since 0.4.0 |
+| `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future`; `final class` since 0.4.0; `runOutcome` is `@useResult` since 0.4.0 |
 | `RestartableTask.run` | deprecated (0.4.0, removed in 1.0) | Replaced by `runOutcome`: its `T` belongs to the class and cannot take the bound `T extends Object` |
-| `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation; `runLatest` takes a non-null `T` since 0.4.0; its members except `close` are `@protected`, `@visibleForTesting` since 0.4.0 |
+| `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation; `runLatest` takes a non-null `T` since 0.4.0; its members except `close` are `@protected`, `@visibleForTesting` since 0.4.0; `runLatest` and `runLatestOutcome` are `@useResult` since 0.4.0 |
 | `EffectsSource` + `HasEffects` | stable | One-shot effect stream separated from state stream; `emitEffect` is `@protected`, `@visibleForTesting` |
 | `debugPrintUnheardEffects` | stable (0.3.1) | Opt-in debug warning for an effect that nothing listens to; off by default; never prints in release builds |
 | `BlocEffectListener` | stable (0.3.0) | `B extends EffectsSource<E>`; composes inside `MultiBlocListener` |
@@ -1076,6 +1078,7 @@ mixin SafeEmitMixin<S> on Cubit<S> {
   
   @protected
   @visibleForTesting
+  @useResult
   Future<T?> guarded<T extends Object>(
     Future<T> Function() operation,
   );
@@ -1154,6 +1157,8 @@ open. It does not emit anything itself.
     well
 - Handle `null` first, with an early return: an `else` or a `default`
     branch would take a closed bloc for a failed result
+- Since 0.4.0 it is `@useResult`: the analyzer reports a result that is
+    awaited and dropped
 - Since 0.4.0 `T` cannot be `void` or nullable (`T extends Object`),
     because `null` would be ambiguous: await such work plainly and emit with
     `safeEmit`, or check `isClosed` before anything else; wrap the result in
@@ -1208,6 +1213,7 @@ final class CancellationToken {
   
   void cancel();
   
+  @useResult
   Future<T?> run<T extends Object>(
     Future<T> Function() task,
   );
@@ -1277,6 +1283,8 @@ Executes a task and checks cancellation before completion.
     well when the cancel lands after it, before the caller resumes
 - Handle `null` first, with an early return: an `else` or a `default`
     branch would take a cancelled run for a failed one
+- Since 0.4.0 it is `@useResult`: the analyzer reports a result that is
+    awaited and dropped
 - Since 0.4.0 `T` cannot be `void` or nullable (`T extends Object`),
     because `null` would be ambiguous: await such work plainly and check
     `isCancelled` before anything else; wrap the result in a record only to
@@ -1334,6 +1342,7 @@ final class RestartableTask<T> {
     Future<T> Function() task,
   );
 
+  @useResult
   Future<TaskOutcome<T>> runOutcome(
     Future<T> Function(CancellationToken token) task,
   );
@@ -1432,6 +1441,10 @@ the latest run, `TaskOutcome.cancelled()` as soon as the run is superseded
 - A superseded caller resumes at once, while the newer run is still in
     flight, so a `finally` block that resets state shared with the newer run
     must check the outcome first
+- Since 0.4.0 it is `@useResult`: the analyzer reports an outcome that is
+    awaited and dropped (`unused_result`). A caller checks the outcome before
+    acting on the run; when nothing follows the run, it returns the future
+    instead of awaiting it as a statement
 
 ##### `cancel()`
 
@@ -1535,10 +1548,12 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
 
   @protected
   @visibleForTesting
+  @useResult
   Future<T?> runLatest<T extends Object>(Object key, Future<T> Function() task);
 
   @protected
   @visibleForTesting
+  @useResult
   Future<TaskOutcome<T>> runLatestOutcome<T>(
     Object key,
     Future<T> Function(CancellationToken token) task,
@@ -1566,7 +1581,10 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
 - Since 0.4.0 `runLatest` takes no `void` or nullable `T`
     (`T extends Object`): such work uses `runLatestOutcome` and checks the
     outcome before anything else, because an ignored outcome lets the code
-    after it run for a superseded run as well
+    after it run for a superseded run as well. Since 0.4.0 `runLatest` and
+    `runLatestOutcome` are `@useResult`, so the analyzer reports a result
+    that is awaited and dropped (`unused_result`); the bound alone catches a
+    dropped result only for `void` and nullable work
 - `runLatestOutcome` (since 0.3.0) passes the run's `CancellationToken`
     and completes with a `TaskOutcome<T>`, with the same rules as
     `RestartableTask.runOutcome`; `task` does not start once `close` was
@@ -1579,10 +1597,13 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
     one, while a string or a record with the same content does
 - A key names a whole flow, not a step: a flow with several `await`s runs
     inside one `runLatestOutcome`, checks `token.isCancelled` after every
-    `await` and emits inside the task. With one run per step under the same
-    key, a superseded flow that has any other `await` between its steps
-    resumes and starts its next step, which cancels the newer flow when that
-    one is inside a run and emits a stale state otherwise
+    `await` and emits inside the task. Its method returns the future of
+    `runLatestOutcome` (`Future<void> open() => runLatestOutcome(...)`)
+    instead of awaiting it as a statement, which `@useResult` reports. With
+    one run per step under the same key, a superseded flow that has any
+    other `await` between its steps resumes and starts its next step, which
+    cancels the newer flow when that one is inside a run and emits a stale
+    state otherwise
 - `close` cancels all tracked tasks and closes the bloc; a repeated call
     returns the future of the first one
 - Since 0.4.0 `isTaskRunning`, `runLatest`, `runLatestOutcome`,
@@ -2563,6 +2584,10 @@ if (results == null) return; // cancelled
 - Superseded, cancelled and closed callers are released at once, and
     `runOutcome` / `runLatestOutcome` return `TaskOutcome.cancelled()` for
     them
+- `runLatest`, `runLatestOutcome`, `guarded`, `CancellationToken.run` and
+    `runOutcome` are `@useResult`: a result that is awaited and dropped is
+    reported, one that is checked or returned is not (checked with the
+    analyzer)
 - Failures of superseded runs are dropped; the latest run's failure is
     rethrown
 

@@ -8,7 +8,9 @@
 > `T extends Object`: `void` or nullable work uses `runLatestOutcome`. 0.4.0
 > also makes the members other than `close` `@protected` and
 > `@visibleForTesting`, and drops a failure like a value when the run is
-> superseded or the bloc closed after it, before the caller resumes.
+> superseded or the bloc closed after it, before the caller resumes. It also
+> makes `runLatest` and `runLatestOutcome` `@useResult`: a result that is
+> awaited and dropped is reported.
 
 ## Preconditions
 
@@ -42,14 +44,17 @@
 - No helper may imply that the underlying `Future` is forcefully interrupted
 - A key names a whole flow, not a step (0.4.0, README recipe): a flow with
   several `await`s runs inside one `runLatestOutcome` and checks
-  `token.isCancelled` after every `await`
+  `token.isCancelled` after every `await`; its method returns the future of
+  `runLatestOutcome` instead of awaiting it as a statement
+- `runLatest` and `runLatestOutcome` are `@useResult` (0.4.0): a result that
+  is awaited and dropped is reported
 
 ## Signatures (0.4.0)
 
 - `mixin RestartableTasksMixin<S> on BlocBase<S>`
 - `bool isTaskRunning(Object key)`
-- `Future<T?> runLatest<T extends Object>(Object key, Future<T> Function() task)`
-- `Future<TaskOutcome<T>> runLatestOutcome<T>(Object key, Future<T> Function(CancellationToken token) task)`
+- `Future<T?> runLatest<T extends Object>(Object key, Future<T> Function() task)`, `@useResult`
+- `Future<TaskOutcome<T>> runLatestOutcome<T>(Object key, Future<T> Function(CancellationToken token) task)`, `@useResult`
 - `void cancelLatest(Object key)`, `void cancelAllLatest()`
 - The five members above are `@protected` and `@visibleForTesting`: the bloc,
   a subclass, a `mixin X on RestartableTasksMixin<S>` and tests call them
@@ -74,6 +79,9 @@
   a mixin on it)
 - `test/async/several_awaits_recipe_test.dart` (0.4.0: the README recipe for
   a flow with several `await`s)
+- `test/async/use_result_test.dart` (0.4.0: `@useResult` on `runLatest`,
+  `runLatestOutcome`, `guarded`, `CancellationToken.run` and
+  `RestartableTask.runOutcome`, checked with the analyzer)
 
 Required cases:
 
