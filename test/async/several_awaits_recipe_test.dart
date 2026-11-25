@@ -1,7 +1,7 @@
 // Runs the README recipe "A flow with several awaits": one runLatestOutcome
-// around the whole flow, a check of token.isCancelled after every await, and
-// the emits inside the task. OrderCubit.open is the README sample; keep them
-// in sync.
+// around the whole flow, whose future open returns, a check of
+// token.isCancelled after every await, and the emits inside the task.
+// OrderCubit.open is the README sample; keep them in sync.
 
 import 'dart:async';
 
@@ -50,8 +50,8 @@ class _OrderCubit extends Cubit<_OrderState>
     super.onError(error, stackTrace);
   }
 
-  Future<void> open(String orderId) async {
-    await runLatestOutcome('open', (token) async {
+  Future<void> open(String orderId) {
+    return runLatestOutcome('open', (token) async {
       final order = await repository.order(orderId);
       if (token.isCancelled) return;
       emit(_OrderState(order: order)); // a new order starts without an invoice

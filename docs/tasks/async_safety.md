@@ -14,6 +14,8 @@
 > dropped like a value when the cancel lands after it, before the caller
 > resumes (`runOutcome`, `CancellationToken.run`), and `guarded` drops a
 > synchronous throw followed by `close()` in the same turn.
+> `guarded`, `CancellationToken.run` and `RestartableTask.runOutcome` are
+> `@useResult` since 0.4.0: a result that is awaited and dropped is reported.
 
 ## Preconditions
 
@@ -28,14 +30,16 @@
 - Implement `SafeEmitMixin<S>` on `Cubit<S>` (on `BlocBase<S>` before 0.4.0)
   - `safeEmit(S state)` (`@protected`, `@visibleForTesting` since 0.3.0)
   - `guarded<T extends Object>(Future<T> Function() operation)` (bound,
-    `@protected` and `@visibleForTesting` since 0.4.0)
+    `@protected`, `@visibleForTesting` and `@useResult` since 0.4.0)
 - Implement `CancellationToken`, a `final class` since 0.4.0: `isCancelled`,
   `whenCancelled` (0.3.0), `cancel()`,
-  `run<T extends Object>(Future<T> Function() task)` (bound since 0.4.0)
+  `run<T extends Object>(Future<T> Function() task)` (bound and `@useResult`
+  since 0.4.0)
 - Implement `RestartableTask<T>`, a `final class` since 0.4.0: `isRunning`,
   `run(Future<T> Function() task)` (deprecated in 0.4.0, removed in 1.0),
   `runOutcome(Future<T> Function(CancellationToken token) task)` returning
-  `Future<TaskOutcome<T>>` (0.3.0), `cancel()`, `dispose()`
+  `Future<TaskOutcome<T>>` (0.3.0, `@useResult` since 0.4.0), `cancel()`,
+  `dispose()`
 - `TaskOutcome<T>` (0.3.0): `completed(value)` / `cancelled()`, `isCompleted`,
   `value` (throws `StateError` when cancelled)
 
@@ -54,6 +58,8 @@
   since 0.3.0 it completes with `null` as soon as the token is cancelled
 - `guarded` and `CancellationToken.run` reject a `void`, nullable or
   `dynamic` result at compile time (0.4.0), so `null` only means discarded
+- `guarded`, `CancellationToken.run` and `RestartableTask.runOutcome` are
+  `@useResult` (0.4.0): a result that is awaited and dropped is reported
 - `RestartableTask.runOutcome` (and the deprecated `run`) invalidates previous
   in-flight result and releases its caller at once; only the latest run's
   failure is rethrown
@@ -81,6 +87,9 @@
   analyzer warnings, checked with the analyzer)
 - `test/async/bloc_migration_test.dart` (0.4.0: the `isClosed` checks that
   replace `SafeEmitMixin` in a `Bloc`, which need `bloc` 9.2.1)
+- `test/async/use_result_test.dart` (0.4.0: `@useResult` on `guarded`,
+  `CancellationToken.run` and `RestartableTask.runOutcome`, checked with the
+  analyzer)
 
 Required cases:
 

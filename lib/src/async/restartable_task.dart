@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart' show useResult;
+
 import 'cancellation_token.dart';
 import 'task_outcome.dart';
 
@@ -54,6 +56,12 @@ final class RestartableTask<T> {
   /// Because a superseded caller resumes at once, while the newer run is still
   /// in flight, a `finally` block that resets state shared with the newer run
   /// must check the outcome first.
+  ///
+  /// The analyzer reports an outcome that is awaited and dropped
+  /// (`@useResult`): check it before acting on the run, or, when nothing
+  /// follows the run, return the future instead of awaiting it as a
+  /// statement.
+  @useResult
   Future<TaskOutcome<T>> runOutcome(
     Future<T> Function(CancellationToken token) task,
   ) async {

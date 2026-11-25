@@ -117,7 +117,9 @@ it and the `catch` never runs on a closed cubit.
 (`cancelLatest`, `cancelAllLatest`, `RestartableTask.cancel`), disposed or the
 bloc closes. `outcome.value` throws on a cancelled outcome, so check
 `outcome.isCompleted` first, or match it with
-`if (outcome case TaskOutcome(isCompleted: true, :final value))`. Outcomes
+`if (outcome case TaskOutcome(isCompleted: true, :final value))`. Both methods
+are `@useResult`: the analyzer reports an outcome that is awaited and dropped,
+because the code after it would run for a cancelled run as well. Outcomes
 compare by value, so `expect(outcome, const TaskOutcome<int>.completed(2))`
 works in tests.
 
@@ -168,7 +170,8 @@ works in tests.
 the work was superseded, cancelled or outlived the bloc, also when that work
 fails, so only the latest run can throw. Handle `null` first, with an early
 return: an `else` or a `default` branch would take discarded work for a failed
-result.
+result. Like the outcome methods, they are `@useResult`: the analyzer reports
+a result that is awaited and dropped.
 
 For `void` work or a nullable result, `null` would be ambiguous, so
 `runLatest`, `CancellationToken.run` and `guarded` do not accept it
@@ -176,10 +179,9 @@ For `void` work or a nullable result, `null` would be ambiguous, so
 its `T` belongs to the class, so it is deprecated and will be removed in 1.0.
 Instead of `runLatest` or `RestartableTask.run`, use `runLatestOutcome` as
 above or `RestartableTask.runOutcome`, and check the outcome before anything
-else: an ignored outcome compiles, and the code after it then runs for a
-superseded run as well. Instead of `guarded` or
-`CancellationToken.run`, await such work plainly and then check what the
-method checked, before anything else: `isClosed` for `guarded`, which
+else. Instead of `guarded` or `CancellationToken.run`, await such work plainly
+and then check what the method checked, before anything else: `isClosed` for
+`guarded`, which
 `safeEmit` checks for you, and `token.isCancelled` for
 `CancellationToken.run`, which `safeEmit` does not check:
 
@@ -215,11 +217,15 @@ be extended, implemented or mocked. In tests, use real instances, for example
 #### A flow with several awaits
 
 Run the whole flow inside one `runLatestOutcome`, check `token.isCancelled`
-after every `await` and emit inside the task:
+after every `await` and emit inside the task. The method returns the future
+of `runLatestOutcome` and is not `async`: awaiting the future as a statement
+would drop the outcome, which the analyzer reports. In a method that does
+more, such as one with a `try` around the call, keep `await` and check the
+outcome instead: a returned future escapes the `catch` and the `finally`.
 
 ```dart
-Future<void> open(String orderId) async {
-  await runLatestOutcome('open', (token) async {
+Future<void> open(String orderId) {
+  return runLatestOutcome('open', (token) async {
     final order = await repository.order(orderId);
     if (token.isCancelled) return;
     emit(OrderState(order: order)); // a new order starts without an invoice

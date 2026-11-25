@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart' show useResult;
+
 import 'task_outcome.dart';
 
 /// Tracks cancellation for async work that may become stale.
@@ -59,7 +61,9 @@ final class CancellationToken {
   /// which keeps running; a later failure of [task] is dropped. A failure is
   /// rethrown unless the token is cancelled before the caller resumes. Handle
   /// `null` first, with an early return: an `else` or a `default` branch would
-  /// take a cancelled run for a failed one.
+  /// take a cancelled run for a failed one. The analyzer reports a result that
+  /// is awaited and dropped (`@useResult`), because the code after it would
+  /// run for a cancelled run as well.
   ///
   /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
   /// would be ambiguous. Await such work plainly and check [isCancelled]
@@ -80,6 +84,7 @@ final class CancellationToken {
   /// if (result == null) return; // cancelled
   /// show(result.item); // may be null: not found
   /// ```
+  @useResult
   Future<T?> run<T extends Object>(Future<T> Function() task) async {
     final TaskOutcome<T> outcome;
     try {

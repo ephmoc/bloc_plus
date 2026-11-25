@@ -16,6 +16,8 @@ const _codes = [
 // give an error or a warning. Without the annotations, the whole fixture would
 // be clean.
 const _fixture = '''
+import 'dart:async';
+
 import 'package:bloc_plus/bloc_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,9 +28,10 @@ class SearchCubit extends Cubit<int>
 
   Future<void> search() async {
     if (isTaskRunning('search')) return;
-    await runLatest('search', () async => 1);
-    await runLatestOutcome('search', (_) async => 1);
-    await guarded(() async => 1);
+    if (await runLatest('search', () async => 1) == null) return;
+    final outcome = await runLatestOutcome('search', (_) async => 1);
+    if (!outcome.isCompleted) return;
+    if (await guarded(() async => 1) == null) return;
     cancelLatest('search');
     cancelAllLatest();
   }
@@ -54,11 +57,11 @@ class SearchBloc extends Bloc<String, int> with RestartableTasksMixin<int> {
 
 Widget status(SearchCubit cubit) {
   final running = cubit.isTaskRunning('search'); // rejected
-  cubit.runLatest('search', () async => 1); // rejected
-  cubit.runLatestOutcome('search', (_) async => 1); // rejected
+  unawaited(cubit.runLatest('search', () async => 1)); // rejected
+  unawaited(cubit.runLatestOutcome('search', (_) async => 1)); // rejected
   cubit.cancelLatest('search'); // rejected
   cubit.cancelAllLatest(); // rejected
-  cubit.guarded(() async => 1); // rejected
+  unawaited(cubit.guarded(() async => 1)); // rejected
   return Text('\$running');
 }
 

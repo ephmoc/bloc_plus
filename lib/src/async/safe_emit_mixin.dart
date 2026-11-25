@@ -1,5 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
+import 'package:meta/meta.dart' show useResult;
 
 /// Adds guarded emit helpers that no-op after a cubit has been closed.
 ///
@@ -36,7 +37,9 @@ mixin SafeEmitMixin<S> on Cubit<S> {
   /// throw counts as arriving after the current turn, so a `close()` in the
   /// same turn drops it.
   /// Handle `null` first, with an early return: an `else` or a `default`
-  /// branch would take a closed cubit for a failed result.
+  /// branch would take a closed cubit for a failed result. The analyzer
+  /// reports a result that is awaited and dropped (`@useResult`), because the
+  /// code after it would run on a closed cubit as well.
   ///
   /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
   /// would be ambiguous. Await such work plainly and emit with [safeEmit], or
@@ -58,6 +61,7 @@ mixin SafeEmitMixin<S> on Cubit<S> {
   /// ```
   @protected
   @visibleForTesting
+  @useResult
   Future<T?> guarded<T extends Object>(Future<T> Function() operation) async {
     if (isClosed) return null;
     try {

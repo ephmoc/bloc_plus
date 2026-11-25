@@ -176,8 +176,8 @@ to an app.
 The second review found that the async helpers for Cubits and the effects
 carry the package, that the `BuildContext` helpers repeat what provider
 documents, and that some signatures can only be tightened before a freeze.
-So 0.4.0 tightens and shrinks the API and is tried on real code before it
-is published, and 1.0 follows four weeks later.
+So 0.4.0 tightens and shrinks the API, and 1.0 follows four weeks after it
+is published.
 
 ### 0.4.0, planned as the last 0.x minor
 
@@ -197,27 +197,21 @@ warnings force: the deprecations remove `effectWhen` from the example, the
 request holds what belongs to no single change: the recipes, the table,
 "Compared with", "Versioning" and the sealed effects in the example.
 
-Before it is published it carries real code: one feature of an existing bloc
-application is migrated to the `develop` commit that holds all of them,
-through a git or a path dependency. The feature contains:
-
-- one Cubit with a multi-step "latest wins" flow whose intermediate result is
-  nullable;
-- one `Future<void>` action that must not emit after it was superseded or
-  after `close()`;
-- one screen that moves from the application's current one-off events to
-  `HasEffects` with `BlocEffectListener` or `BlocConsumerWithEffects`, with a
-  widget test that mocks the cubit and stubs `effects`.
-
-What the migration asks for is folded into 0.4.0 before publishing, unless
-the owner declines it and records why under "Reviewed and kept": an API
-change, a missing recipe, a confusing diagnostic. It also settles whether
-`runLatestOutcome` gets `@useResult`: an ignored outcome compiles today, and
-after 1.0 that annotation would need a major. 0.4.0 is published when no
-request is undecided and the application's tests pass on the commit that is
-released. If the application cannot depend on an unpublished commit, the
-migration follows the publication instead, and what it asks for is released
-as described under 1.0.0.
+Before it is published, every helper whose result says whether the run
+counted gets `@useResult`, which after 1.0 would need a major (decided on
+2026-11-25; the deprecated `RestartableTask.run`, which 1.0 removes, stays
+without it): `runLatestOutcome` and `RestartableTask.runOutcome`, and
+`runLatest`, `guarded` and `CancellationToken.run`, whose bound catches a
+dropped result only for `void` and nullable work. A result that is awaited
+and dropped is then reported, so
+`await runLatest('save', () => repository.save(item)); emit(saved);` no
+longer passes without a warning. A task that emits itself, such as a flow
+with several `await`s, returns the future instead:
+`Future<void> open() => runLatestOutcome(...)`. The annotation comes from
+`meta`, which becomes a direct dependency (`>=1.9.1 <2.0.0`; the Flutter SDK
+itself depends on it, and Flutter 3.10 pins 1.9.1). A trial migration of an
+existing application, planned here on 2026-11-23, was dropped on
+2026-11-25: the work stays on the library.
 
 Breaking changes, allowed inside 0.x, each with its migration in the
 CHANGELOG:
@@ -298,9 +292,9 @@ CHANGELOG:
 - `CancellationToken` and `RestartableTask` become `final class`. Extending,
   implementing or mocking them is a compile error, and mockito cannot
   generate a mock of a final class; tests use real instances
-  (`CancellationToken()` and `cancel()`). There is no `@sealed` step and no
-  `meta` dependency: this release breaks compilation in other places anyway,
-  and generated mocks would not show the warning.
+  (`CancellationToken()` and `cancel()`). There is no `@sealed` step before
+  it: this release breaks compilation in other places anyway, and generated
+  mocks would not show the warning.
 - `isTaskRunning`, `runLatest`, `runLatestOutcome`, `cancelLatest`,
   `cancelAllLatest` and `guarded` are marked `@protected` and
   `@visibleForTesting`, as `safeEmit` and `emitEffect` already are. A call
@@ -439,7 +433,7 @@ Docs:
   logic stays;
 - the CHANGELOG migration and the dartdoc of `runLatest` show the whole
   replacement for void work, with `if (!outcome.isCompleted) return;`: an
-  ignored outcome compiles and emits the superseded result;
+  ignored outcome emits the superseded result, which `@useResult` reports;
 - the README states the rule for the effect callbacks:
   `BlocEffectListener.onEffect` gets `(context, effect)`,
   `BlocConsumerWithEffects` hands the bloc to `builder`, `listener` and
@@ -500,16 +494,14 @@ Released when both conditions hold:
   that changes code under `lib/` (anything but comments) restarts them, a bug
   fix included; a release that changes only documentation, the example or
   tests does not;
-- the migration of a real feature, described under 0.4.0, is done, and it
-  leaves no change open that would need a major after 1.0: a removed or
-  renamed export, an incompatible signature, a changed documented behaviour,
-  or an annotation that makes the analyzer report code that was clean before
-  (such as `@protected`).
+- no change is open that would need a major after 1.0: a removed or renamed
+  export, an incompatible signature, a changed documented behaviour, or an
+  annotation that makes the analyzer report code that was clean before (such
+  as `@protected`).
 
 Such a change is released in 0.5.0 first, and then this section reads 0.5
-wherever it says 0.4: the four weeks count from the publication of 0.5.0,
-and the same feature is migrated again on it. A change that only adds API
-needs no new migration: it comes in a 0.4.x patch, which restarts the four
+wherever it says 0.4: the four weeks count from the publication of 0.5.0. A
+change that only adds API comes in a 0.4.x patch, which restarts the four
 weeks as any change of `lib/` does, or in a 1.x minor.
 
 There is no `-dev` prerelease: releases are cut from `main`, so a prerelease
@@ -614,7 +606,7 @@ it is, for a reason that a replacement would have to match:
 - Repairing the builder and the listener by overriding `createState()`: about
   126 lines of copied subscription lifecycle, against a composition of the
   upstream widgets that needs none.
-- `@sealed` and a `meta` dependency as a step before `final class`.
+- `@sealed` as a step before `final class`.
 - A selector-based listener: `listenWhen: whenChanged(...)` covers it.
 - More async modes for Cubits: no new API. "Ignore while running" is one
   line with `isTaskRunning` (the README recipe in 0.4.0), and
