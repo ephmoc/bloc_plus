@@ -12,7 +12,8 @@
 > deprecates `RestartableTask.run`, removed in 1.0: its `T` belongs to the
 > class and cannot take the bound, so `runOutcome` replaces it. A failure is
 > dropped like a value when the cancel lands after it, before the caller
-> resumes (`runOutcome`, `CancellationToken.run`).
+> resumes (`runOutcome`, `CancellationToken.run`), and `guarded` drops a
+> synchronous throw followed by `close()` in the same turn.
 
 ## Preconditions
 

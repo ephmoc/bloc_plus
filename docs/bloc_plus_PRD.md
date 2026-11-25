@@ -1149,7 +1149,9 @@ open. It does not emit anything itself.
 - If bloc is closed during operation, returns `null`
 - If bloc is still open, returns operation result
 - A failure of `operation` after the bloc was closed is dropped like its
-    result; a failure while the bloc is open is rethrown
+    result; a failure while the bloc is open is rethrown. Since 0.4.0 a
+    synchronous throw followed by `close()` in the same turn is dropped as
+    well
 - Handle `null` first, with an early return: an `else` or a `default`
     branch would take a closed bloc for a failed result
 - Since 0.4.0 `T` cannot be `void` or nullable (`T extends Object`),

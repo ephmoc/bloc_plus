@@ -564,11 +564,14 @@ Measured against the versions that were current in November 2026.
   builds, listens and handles effects for one bloc. For tests,
   `bloc_presentation_test` is a separate package; here the README has
   recipes.
-- **`CancelableOperation`** from `package:async` (2.13.1) gives the same
-  result as `RestartableTask` when it is written with `valueOrCancellation()`
-  and `onCancel`: the superseded caller is released at once, its result and
-  its later failure are dropped, and the failure of the latest run is
-  rethrown. Awaiting its `value` instead never releases a superseded caller.
+- **`CancelableOperation`** from `package:async` (2.13.1) gives nearly the
+  same result as `RestartableTask` when it is written with
+  `valueOrCancellation()` and `onCancel`: the superseded caller is released at
+  once, its result and its later failure are dropped, and the failure of the
+  latest run is rethrown. Only a value or a failure that arrived just before
+  the cancel, while the caller had not resumed yet, is still delivered there,
+  where `RestartableTask` drops it. Awaiting its `value` instead never
+  releases a superseded caller.
   In a Cubit it takes a field, a cancel, a wrap and a `close()` override per
   task, where `RestartableTasksMixin` takes a key and cancels every run at
   `close()`.

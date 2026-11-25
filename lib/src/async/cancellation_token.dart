@@ -58,9 +58,8 @@ final class CancellationToken {
   /// `null` as soon as the token is cancelled, without waiting for [task],
   /// which keeps running; a later failure of [task] is dropped. A failure is
   /// rethrown unless the token is cancelled before the caller resumes. Handle
-  /// `null` first, with an
-  /// early return: an `else` or a `default` branch would take a cancelled run
-  /// for a failed one.
+  /// `null` first, with an early return: an `else` or a `default` branch would
+  /// take a cancelled run for a failed one.
   ///
   /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
   /// would be ambiguous. Await such work plainly and check [isCancelled]

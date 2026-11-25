@@ -41,6 +41,9 @@
     outcome, and `runLatest` and `CancellationToken.run` with `null`. Before,
     the failure was rethrown, so a `catch` that emitted ran on a closed cubit
     and threw a `StateError`.
+  - `guarded` drops an operation's synchronous throw, like its later failure,
+    when `close()` follows in the same turn. Before, the throw reached the
+    caller after `close()`.
 - Deprecated, removed in 1.0:
   - the extension `BlocContextExtension` and its `readOrNull`, `watchOrNull`,
     `selectOrNull` and `withBloc`. The extension is annotated as well, so
