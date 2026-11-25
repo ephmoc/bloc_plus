@@ -39,7 +39,8 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// Completes with `null` as soon as a newer run for [key], [cancelLatest],
   /// [cancelAllLatest] or [close] supersedes this run, without waiting for
   /// [task], whose later success or failure is dropped. The failure of the
-  /// latest run is rethrown. Handle `null` first, with an early return: an
+  /// latest run is rethrown, unless the run is superseded before its caller
+  /// resumes. Handle `null` first, with an early return: an
   /// `else` or a `default` branch would take a superseded run for a failed
   /// one.
   ///
@@ -77,7 +78,9 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// [TaskOutcome.cancelled] as soon as a newer run for [key], [cancelLatest],
   /// [cancelAllLatest] or [close] supersedes this run, without waiting for
   /// [task]. [task] does not start once [close] was called. The failure of the
-  /// latest run is rethrown; a failure of a superseded run is dropped.
+  /// latest run is rethrown; a failure of a superseded run is dropped, also
+  /// one that arrived just before the run was superseded, while the caller
+  /// had not resumed yet.
   ///
   /// The abandoned task keeps running: check `token.isCancelled` before any
   /// side effect, or pass `token.whenCancelled` to the I/O so it can abort.

@@ -133,6 +133,23 @@ void main() {
       // Then
       expect(await run, isNull);
     });
+
+    test('run drops a failure when cancel lands before the caller resumes',
+        () async {
+      // Given
+      final token = CancellationToken();
+      // Delivers the failure at once, so the cancel below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = token.run(() => work.future);
+
+      // When
+      work.completeError(StateError('late'));
+      token.cancel();
+
+      // Then
+      expect(await run, isNull);
+    });
   });
 
   group('RestartableTask.runOutcome', () {
@@ -192,6 +209,23 @@ void main() {
 
       // When
       work.complete(7);
+      task.cancel();
+
+      // Then
+      expect(await run, const TaskOutcome<int>.cancelled());
+    });
+
+    test('cancel between the failure and the caller resuming cancels the run',
+        () async {
+      // Given
+      final task = RestartableTask<int>();
+      // Delivers the failure at once, so the cancel below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = task.runOutcome((_) => work.future);
+
+      // When
+      work.completeError(StateError('late'));
       task.cancel();
 
       // Then
@@ -401,6 +435,23 @@ void main() {
 
       // When
       work.complete(7);
+      await cubit.close();
+
+      // Then
+      expect(await run, const TaskOutcome<int>.cancelled());
+    });
+
+    test('close between the failure and the caller resuming cancels the run',
+        () async {
+      // Given
+      final cubit = _TrackedCubit();
+      // Delivers the failure at once, so the close below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = cubit.runLatestOutcome<int>('k', (_) => work.future);
+
+      // When
+      work.completeError(StateError('late'));
       await cubit.close();
 
       // Then

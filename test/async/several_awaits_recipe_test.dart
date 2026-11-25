@@ -54,7 +54,7 @@ class _OrderCubit extends Cubit<_OrderState>
     await runLatestOutcome('open', (token) async {
       final order = await repository.order(orderId);
       if (token.isCancelled) return;
-      emit(state.copyWith(order: order));
+      emit(_OrderState(order: order)); // a new order starts without an invoice
 
       final invoice = await repository.invoice(order);
       if (token.isCancelled) return;
@@ -116,6 +116,23 @@ void main() {
 
     // Then
     expect(states, ['order a, null', 'order b, null', 'order b, invoice b']);
+  });
+
+  test('a new flow does not keep the invoice of the previous one', () async {
+    // Given
+    final first = cubit.open('a');
+    repository.orders['a']!.complete('order a');
+    await pumpEventQueue();
+    repository.invoices['order a']!.complete('invoice a');
+    await first;
+
+    // When
+    unawaited(cubit.open('b'));
+    repository.orders['b']!.complete('order b');
+    await pumpEventQueue();
+
+    // Then
+    expect(states, ['order a, null', 'order a, invoice a', 'order b, null']);
   });
 
   test('close stops the flow at its next check', () async {

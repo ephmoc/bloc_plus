@@ -34,6 +34,13 @@
   - `BlocConsumerWithEffects.onEffect` declares its function type inline,
     and `BlocSelectorWithBloc.selectorShouldRebuild` is a `BlocCondition<T>`.
     Both are the same function types as before.
+- Fixed:
+  - A failure that arrives just before the run is cancelled, superseded or
+    its bloc closed, while the caller has not resumed yet, is dropped like a
+    value: `runOutcome` and `runLatestOutcome` complete with a cancelled
+    outcome, and `runLatest` and `CancellationToken.run` with `null`. Before,
+    the failure was rethrown, so a `catch` that emitted ran on a closed cubit
+    and threw a `StateError`.
 - Deprecated, removed in 1.0:
   - the extension `BlocContextExtension` and its `readOrNull`, `watchOrNull`,
     `selectOrNull` and `withBloc`. The extension is annotated as well, so
@@ -69,6 +76,9 @@
 
 Migration impact:
 
+- A `catch` around `runOutcome`, `runLatestOutcome`, `runLatest` or
+  `CancellationToken.run` no longer sees a failure whose run was cancelled
+  before the caller resumed; that run takes the cancelled path instead.
 - Deprecated APIs keep working; each use is a `deprecated_member_use` info,
   which fails `flutter analyze` until migrated:
   - `context.readOrNull<B>()` -> `context.read<B?>()`;

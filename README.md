@@ -107,8 +107,9 @@ class SearchCubit extends Cubit<SearchState>
 
 `safeEmit` matters for an emit that can run on a closed cubit, such as the
 one before the first `await` when `search` is called after `close()`. After
-`runLatestOutcome`, a closed cubit gives a cancelled outcome, so the check of
-`outcome.isCompleted` covers it.
+`runLatestOutcome`, a closed cubit gives a cancelled outcome, also when the
+run failed just before `close()`, so the check of `outcome.isCompleted` covers
+it and the `catch` never runs on a closed cubit.
 
 `runLatestOutcome` and `RestartableTask.runOutcome` complete with a
 `TaskOutcome`: `TaskOutcome.completed(value)` for the latest run, or
@@ -131,7 +132,8 @@ works in tests.
   state shared with the newer run (such as a loading flag), must check the
   outcome first.
 - **Failures are not an outcome.** The failure of the latest run is rethrown,
-  so use `try`/`catch`; a failure of a cancelled run is dropped.
+  so use `try`/`catch`. A failure of a cancelled run is dropped, also one that
+  arrived just before the cancel, while the caller had not resumed yet.
 - **Inside `Bloc` event handlers**, prefer the handler's `emit` with a
   `bloc_concurrency` transformer such as `restartable()`. If a handler does
   call `runLatest`, it now completes as soon as the run is cancelled, but the
@@ -220,7 +222,7 @@ Future<void> open(String orderId) async {
   await runLatestOutcome('open', (token) async {
     final order = await repository.order(orderId);
     if (token.isCancelled) return;
-    emit(state.copyWith(order: order));
+    emit(OrderState(order: order)); // a new order starts without an invoice
 
     final invoice = await repository.invoice(order);
     if (token.isCancelled) return;

@@ -7,7 +7,8 @@
 > once; the abandoned work keeps running. 0.4.0 gives `runLatest` the bound
 > `T extends Object`: `void` or nullable work uses `runLatestOutcome`. 0.4.0
 > also makes the members other than `close` `@protected` and
-> `@visibleForTesting`.
+> `@visibleForTesting`, and drops a failure like a value when the run is
+> superseded or the bloc closed after it, before the caller resumes.
 
 ## Preconditions
 

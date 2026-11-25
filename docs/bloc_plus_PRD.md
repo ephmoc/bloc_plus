@@ -1271,7 +1271,8 @@ Executes a task and checks cancellation before completion.
 - If task completes before cancellation, returns result
 - Does not cancel running task, only prevents using result
 - A failure of `task` after cancellation is dropped; a failure of a task
-    that was not cancelled is rethrown
+    that was not cancelled is rethrown. Since 0.4.0 a failure is dropped as
+    well when the cancel lands after it, before the caller resumes
 - Handle `null` first, with an early return: an `else` or a `default`
     branch would take a cancelled run for a failed one
 - Since 0.4.0 `T` cannot be `void` or nullable (`T extends Object`),
@@ -1422,7 +1423,8 @@ the latest run, `TaskOutcome.cancelled()` as soon as the run is superseded
 - Tells a discarded run apart from a `null` value
 - Does not start `task` after `dispose`
 - The failure of the latest run is rethrown; a failure of a superseded run
-    is dropped
+    is dropped, since 0.4.0 also when the run is superseded after the
+    failure, before the caller resumes
 - The abandoned task keeps running: check `token.isCancelled` before any
     side effect, or pass `token.whenCancelled` to the I/O so it can abort
 - A superseded caller resumes at once, while the newer run is still in
@@ -1568,7 +1570,9 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
     `RestartableTask.runOutcome`; `task` does not start once `close` was
     called
 - The failure of the latest run is rethrown; a failure of a superseded run
-    is dropped, and failed keys are not kept
+    is dropped, since 0.4.0 also when the run is superseded or the bloc
+    closed after the failure, before the caller resumes, and failed keys are
+    not kept
 - Keys are compared with `==`: a new `List` key never matches an earlier
     one, while a string or a record with the same content does
 - A key names a whole flow, not a step: a flow with several `await`s runs

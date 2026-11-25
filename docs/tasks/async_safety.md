@@ -10,7 +10,9 @@
 > only (`T extends Object`), `guarded` is `@protected` and
 > `@visibleForTesting`, and `SafeEmitMixin` applies to Cubits only. It also
 > deprecates `RestartableTask.run`, removed in 1.0: its `T` belongs to the
-> class and cannot take the bound, so `runOutcome` replaces it.
+> class and cannot take the bound, so `runOutcome` replaces it. A failure is
+> dropped like a value when the cancel lands after it, before the caller
+> resumes (`runOutcome`, `CancellationToken.run`).
 
 ## Preconditions
 
