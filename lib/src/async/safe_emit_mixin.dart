@@ -31,8 +31,10 @@ mixin SafeEmitMixin<S> on Cubit<S> {
   /// tests.
   ///
   /// [operation] does not start on a closed cubit. A failure of [operation]
-  /// after the cubit was closed is dropped like its result, so the call
-  /// completes with `null`; a failure while the cubit is open is rethrown.
+  /// is rethrown while the cubit is open and dropped like its result once the
+  /// cubit is closed, so the call then completes with `null`. A synchronous
+  /// throw counts as arriving after the current turn, so a `close()` in the
+  /// same turn drops it.
   /// Handle `null` first, with an early return: an `else` or a `default`
   /// branch would take a closed cubit for a failed result.
   ///
@@ -59,7 +61,9 @@ mixin SafeEmitMixin<S> on Cubit<S> {
   Future<T?> guarded<T extends Object>(Future<T> Function() operation) async {
     if (isClosed) return null;
     try {
-      final result = await operation();
+      // A synchronous throw then reaches the catch after this turn, like the
+      // failure of an async operation, so a close() in the same turn drops it.
+      final result = await Future.sync(operation);
       return isClosed ? null : result;
     } catch (_) {
       if (isClosed) return null;

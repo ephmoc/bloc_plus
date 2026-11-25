@@ -39,7 +39,8 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// Completes with `null` as soon as a newer run for [key], [cancelLatest],
   /// [cancelAllLatest] or [close] supersedes this run, without waiting for
   /// [task], whose later success or failure is dropped. The failure of the
-  /// latest run is rethrown. Handle `null` first, with an early return: an
+  /// latest run is rethrown, unless the run is superseded before its caller
+  /// resumes. Handle `null` first, with an early return: an
   /// `else` or a `default` branch would take a superseded run for a failed
   /// one.
   ///
@@ -55,7 +56,10 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// ```
   ///
   /// Keys are compared with `==`: a new `List` key never matches an earlier
-  /// one, while a string or a record with the same content does.
+  /// one, while a string or a record with the same content does. A key names
+  /// a whole flow, not one of its steps: run a flow with several `await`s
+  /// inside one [runLatestOutcome] and check `token.isCancelled` after every
+  /// `await`.
   @protected
   @visibleForTesting
   Future<T?> runLatest<T extends Object>(
@@ -74,7 +78,9 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// [TaskOutcome.cancelled] as soon as a newer run for [key], [cancelLatest],
   /// [cancelAllLatest] or [close] supersedes this run, without waiting for
   /// [task]. [task] does not start once [close] was called. The failure of the
-  /// latest run is rethrown; a failure of a superseded run is dropped.
+  /// latest run is rethrown; a failure of a superseded run is dropped, also
+  /// one that arrived just before the run was superseded, while the caller
+  /// had not resumed yet.
   ///
   /// The abandoned task keeps running: check `token.isCancelled` before any
   /// side effect, or pass `token.whenCancelled` to the I/O so it can abort.
@@ -91,7 +97,8 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// }
   /// ```
   ///
-  /// Keys are compared as in [runLatest].
+  /// Keys are compared as in [runLatest], and a key names a whole flow, not
+  /// one of its steps.
   @protected
   @visibleForTesting
   Future<TaskOutcome<T>> runLatestOutcome<T>(

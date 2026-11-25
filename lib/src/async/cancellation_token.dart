@@ -56,10 +56,10 @@ final class CancellationToken {
   ///
   /// [task] does not start on a cancelled token. The call completes with
   /// `null` as soon as the token is cancelled, without waiting for [task],
-  /// which keeps running; a later failure of [task] is dropped. A failure of a
-  /// task that was not cancelled is rethrown. Handle `null` first, with an
-  /// early return: an `else` or a `default` branch would take a cancelled run
-  /// for a failed one.
+  /// which keeps running; a later failure of [task] is dropped. A failure is
+  /// rethrown unless the token is cancelled before the caller resumes. Handle
+  /// `null` first, with an early return: an `else` or a `default` branch would
+  /// take a cancelled run for a failed one.
   ///
   /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
   /// would be ambiguous. Await such work plainly and check [isCancelled]
@@ -81,7 +81,15 @@ final class CancellationToken {
   /// show(result.item); // may be null: not found
   /// ```
   Future<T?> run<T extends Object>(Future<T> Function() task) async {
-    final outcome = await runUntilCancelled(this, task);
+    final TaskOutcome<T> outcome;
+    try {
+      outcome = await runUntilCancelled(this, task);
+    } catch (_) {
+      // A cancel after the failure, before the caller resumes, drops it as it
+      // drops a value.
+      if (isCancelled) return null;
+      rethrow;
+    }
     return outcome.isCompleted && !isCancelled ? outcome.value : null;
   }
 }

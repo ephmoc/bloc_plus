@@ -78,6 +78,32 @@ void main() {
     await expectLater(run, throwsStateError);
   });
 
+  test('guarded drops a synchronous failure when close follows in that turn',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+
+    // When
+    final run = cubit.guarded<int>(() => throw StateError('boom'));
+    await cubit.close();
+
+    // Then
+    expect(await run, isNull);
+  });
+
+  test('guarded rethrows a synchronous failure while the cubit is open',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+    addTearDown(cubit.close);
+
+    // When
+    final run = cubit.guarded<int>(() => throw StateError('boom'));
+
+    // Then
+    await expectLater(run, throwsStateError);
+  });
+
   test('guarded does not start the operation on a closed cubit', () async {
     // Given
     final cubit = _SafeEmitCubit();

@@ -1149,7 +1149,9 @@ open. It does not emit anything itself.
 - If bloc is closed during operation, returns `null`
 - If bloc is still open, returns operation result
 - A failure of `operation` after the bloc was closed is dropped like its
-    result; a failure while the bloc is open is rethrown
+    result; a failure while the bloc is open is rethrown. Since 0.4.0 a
+    synchronous throw followed by `close()` in the same turn is dropped as
+    well
 - Handle `null` first, with an early return: an `else` or a `default`
     branch would take a closed bloc for a failed result
 - Since 0.4.0 `T` cannot be `void` or nullable (`T extends Object`),
@@ -1271,7 +1273,8 @@ Executes a task and checks cancellation before completion.
 - If task completes before cancellation, returns result
 - Does not cancel running task, only prevents using result
 - A failure of `task` after cancellation is dropped; a failure of a task
-    that was not cancelled is rethrown
+    that was not cancelled is rethrown. Since 0.4.0 a failure is dropped as
+    well when the cancel lands after it, before the caller resumes
 - Handle `null` first, with an early return: an `else` or a `default`
     branch would take a cancelled run for a failed one
 - Since 0.4.0 `T` cannot be `void` or nullable (`T extends Object`),
@@ -1422,7 +1425,8 @@ the latest run, `TaskOutcome.cancelled()` as soon as the run is superseded
 - Tells a discarded run apart from a `null` value
 - Does not start `task` after `dispose`
 - The failure of the latest run is rethrown; a failure of a superseded run
-    is dropped
+    is dropped, since 0.4.0 also when the run is superseded after the
+    failure, before the caller resumes
 - The abandoned task keeps running: check `token.isCancelled` before any
     side effect, or pass `token.whenCancelled` to the I/O so it can abort
 - A superseded caller resumes at once, while the newer run is still in
@@ -1568,9 +1572,17 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
     `RestartableTask.runOutcome`; `task` does not start once `close` was
     called
 - The failure of the latest run is rethrown; a failure of a superseded run
-    is dropped, and failed keys are not kept
+    is dropped, since 0.4.0 also when the run is superseded or the bloc
+    closed after the failure, before the caller resumes, and failed keys are
+    not kept
 - Keys are compared with `==`: a new `List` key never matches an earlier
     one, while a string or a record with the same content does
+- A key names a whole flow, not a step: a flow with several `await`s runs
+    inside one `runLatestOutcome`, checks `token.isCancelled` after every
+    `await` and emits inside the task. With one run per step under the same
+    key, a superseded flow that has any other `await` between its steps
+    resumes and starts its next step, which cancels the newer flow when that
+    one is inside a run and emits a stale state otherwise
 - `close` cancels all tracked tasks and closes the bloc; a repeated call
     returns the future of the first one
 - Since 0.4.0 `isTaskRunning`, `runLatest`, `runLatestOutcome`,
@@ -1591,23 +1603,33 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
 
 ```dart
 class SearchCubit extends Cubit<SearchState>
-    with SafeEmitMixin<SearchState>, RestartableTasksMixin<SearchState> {
+    with RestartableTasksMixin<SearchState> {
   SearchCubit(this.repository) : super(const SearchState());
 
   final SearchRepository repository;
 
   Future<void> search(String query) async {
-    safeEmit(state.copyWith(isLoading: true));
+    // Before the first await the cubit may be closed already; safeEmit from
+    // SafeEmitMixin does this check for you.
+    if (isClosed) return;
+    emit(state.copyWith(isLoading: true, failed: false));
 
-    final outcome = await runLatestOutcome('search', (token) {
-      return repository.find(query, abortTrigger: token.whenCancelled);
-    });
+    final TaskOutcome<Item?> outcome;
+    try {
+      outcome = await runLatestOutcome('search', (token) {
+        return repository.find(query, abortTrigger: token.whenCancelled);
+      });
+    } catch (_) {
+      // Only the failure of the latest run arrives here.
+      emit(state.copyWith(isLoading: false, failed: true));
+      return;
+    }
 
     // A superseded call resumes at once while the newer search is still
-    // loading, so only the latest one clears the flag.
-    if (outcome.isCompleted) {
-      safeEmit(state.copyWith(isLoading: false, item: outcome.value));
-    }
+    // loading, and close() cancels the run: only a completed outcome clears
+    // the flag.
+    if (!outcome.isCompleted) return;
+    emit(SearchState(item: outcome.value)); // item is null when not found
   }
 }
 ```
@@ -1680,6 +1702,8 @@ Emits a one-shot effect.
 - Emits effect to `effects` stream
 - Safe to call even if no listeners
 - No-op after the bloc is closed
+- In a `Bloc` handler that a transformer such as `restartable()` has
+    cancelled, it still delivers its effect: check `emit.isDone` first
 - Effects are separate from state, don't trigger rebuilds
 - `@protected` and `@visibleForTesting` (since 0.3.0), like `emit`: call it
     from inside the bloc, or from a `mixin X on HasEffects<S, E>` that shares
@@ -1804,9 +1828,9 @@ Until 1.0 it also implements the deprecated `SingleChildEffectListener`, so
 - Composes inside `MultiBlocListener` together with `BlocListener` and
     `BlocListenerWithBloc`. `MultiBlocListener` asserts a non-empty list and
     ignores a `child` passed to a listener inside it
-- Always write both type arguments: below language version 3.7, `E` is not
-    inferred from `bloc`; it becomes `Object?` and the `switch` loses its
-    exhaustiveness check
+- Always write both type arguments: without them the `effect` parameter of
+    `onEffect` is `Object?` at every language version, so a `switch` over it
+    is not checked for exhaustiveness
 - To react to a single subtype, listen to the supertype and match it with
     an if-case pattern at the top of `onEffect`, which promotes the effect
     type
@@ -2041,8 +2065,9 @@ without a replacement, removed in 1.0.
 - If bloc is null and not found, throws `ProviderNotFoundException`
 - A bloc that implements `EffectsSource` by hand does not compile here:
     mix in `HasEffects<S, E>`
-- Write all three type arguments: below language version 3.7 they are not
-    inferred from `bloc`
+- Write all three type arguments: `S` and `E` are inferred from `bloc` only
+    in code at language version 3.7 or later, which is the language version
+    of the app, not of this package
 
 #### Example Usage
 
@@ -2690,6 +2715,10 @@ README must include:
 - Feature overview for each module
 - Usage guide showing how to use bloc_plus with flutter_bloc
 - Examples for common use cases
+- Since 0.4.0: a table of which async helper to use, recipes (a flow with
+    several `await`s, "ignore while running", widget tests with a mocked
+    bloc), a comparison with the alternatives ("Compared with") and the
+    versioning policy ("Versioning")
 - Links to detailed documentation
 
 ### 11.3 Example App
@@ -2707,8 +2736,10 @@ The deprecated APIs, such as the extension methods and `effectWhen` (since
 
 Current status: the example app shows `BlocBuilderWithBloc`,
 `BlocConsumerWithEffects`, `BlocEffectListener`, `whenChanged`,
-`SafeEmitMixin` and `RestartableTasksMixin`. The other widgets,
-`CancellationToken` and `guarded` are still open.
+`SafeEmitMixin` and `RestartableTasksMixin`. Since 0.4.0 its effects are
+`sealed` classes, handled with an exhaustive `switch` or with an if-case for
+one subtype. The other widgets, `CancellationToken` and `guarded` are still
+open.
 
 ### 11.4 Documentation Structure
 
@@ -2841,22 +2872,10 @@ Before running a code-generation agent, all items below must be marked complete:
 
 #### v1.0.0 - API Freeze
 
-**Target**: Milestone M5 (post-adoption stabilization)
-
-**Features**:
-
-- API stability guarantee
-- Full documentation
-- Usage guide complete
-- Performance optimizations
-- Breaking changes review
-
-**Success Criteria**:
-
-- All modules stable
-- ≥90% test coverage
-- Documentation complete
-- Community feedback incorporated
+Planned after 0.4.0. When it is released, what it removes and the versioning
+policy that applies from it are in `docs/library_improvement_plan.md`
+("1.0.0 (major)" and "Versioning from 1.0"); the README states the policy
+under "Versioning".
 
 ------------------------------------------------------------------------
 

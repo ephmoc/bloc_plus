@@ -35,8 +35,9 @@
   inline: the typedef `BlocEffectListenerWithBloc<B, S, E>` is deprecated
   without a replacement
 - `listenWhen` without `listener` fails an assert
-- Write all three type arguments: below language version 3.7 they are not
-  inferred from `bloc:`
+- Write all three type arguments: `S` and `E` are inferred from `bloc:` only
+  in code at language version 3.7 or later, which is the language version of
+  the app, not of this package
 
 ## Out Of Scope
 

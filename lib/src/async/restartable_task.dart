@@ -45,7 +45,9 @@ final class RestartableTask<T> {
   /// Completes with [TaskOutcome.completed] for the latest run, and with
   /// [TaskOutcome.cancelled] as soon as the run is superseded, without waiting
   /// for [task]. [task] does not start after [dispose]. The failure of the
-  /// latest run is rethrown; a failure of a superseded run is dropped.
+  /// latest run is rethrown; a failure of a superseded run is dropped, also
+  /// one that arrived just before the run was superseded, while the caller
+  /// had not resumed yet.
   ///
   /// The abandoned task keeps running: check `token.isCancelled` before any
   /// side effect, or pass `token.whenCancelled` to the I/O so it can abort.
@@ -67,6 +69,11 @@ final class RestartableTask<T> {
     try {
       final outcome = await runUntilCancelled(token, () => task(token));
       return token.isCancelled ? TaskOutcome<T>.cancelled() : outcome;
+    } catch (_) {
+      // A cancel after the failure, before the caller resumes, drops it as it
+      // drops a value.
+      if (token.isCancelled) return TaskOutcome<T>.cancelled();
+      rethrow;
     } finally {
       if (generation == _generation) {
         _isRunning = false;

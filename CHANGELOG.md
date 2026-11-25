@@ -34,6 +34,16 @@
   - `BlocConsumerWithEffects.onEffect` declares its function type inline,
     and `BlocSelectorWithBloc.selectorShouldRebuild` is a `BlocCondition<T>`.
     Both are the same function types as before.
+- Fixed:
+  - A failure that arrives just before the run is cancelled, superseded or
+    its bloc closed, while the caller has not resumed yet, is dropped like a
+    value: `runOutcome` and `runLatestOutcome` complete with a cancelled
+    outcome, and `runLatest` and `CancellationToken.run` with `null`. Before,
+    the failure was rethrown, so a `catch` that emitted ran on a closed cubit
+    and threw a `StateError`.
+  - `guarded` drops an operation's synchronous throw, like its later failure,
+    when `close()` follows in the same turn. Before, the throw reached the
+    caller after `close()`.
 - Deprecated, removed in 1.0:
   - the extension `BlocContextExtension` and its `readOrNull`, `watchOrNull`,
     `selectOrNull` and `withBloc`. The extension is annotated as well, so
@@ -47,9 +57,31 @@
   - the typedefs `BlocEffectListenerWithBloc`, which has an unused type
     parameter and no replacement, and `BlocSelectedCondition`, the same
     function type as `BlocCondition`.
+- Docs:
+  - The README leads with the async helpers for Cubits and the effects; the
+    "Policies" section is now "Conditions".
+  - New in the README: a table of which async helper to use; recipes for a
+    flow with several `await`s, for "ignore while running" and for widget
+    tests with a mocked cubit, whose `effects` has to be stubbed; "Compared
+    with" (`bloc_presentation`, `CancelableOperation`, `bloc_concurrency`);
+    and "Versioning", the policy from 1.0.0. The async sample uses
+    `RestartableTasksMixin` alone and clears its loading flag when the
+    latest run fails.
+  - Corrected: without type arguments, `BlocEffectListener` gives `onEffect`
+    an `Object?` effect at every language version, not only below 3.7.
+    `BlocConsumerWithEffects` infers `S` and `E` from `bloc:` at language
+    version 3.7 or later, which is the language version of the app.
+  - The dartdoc of `emitEffect` says that a `Bloc` handler cancelled by a
+    transformer still delivers its effect unless it checks `emit.isDone`.
+  - The example app models its effects as `sealed` classes.
+  - pub.dev: the description mentions the effects, and the topic `effects`
+    replaces `widgets`.
 
 Migration impact:
 
+- A `catch` around `runOutcome`, `runLatestOutcome`, `runLatest` or
+  `CancellationToken.run` no longer sees a failure whose run was cancelled
+  before the caller resumed; that run takes the cancelled path instead.
 - Deprecated APIs keep working; each use is a `deprecated_member_use` info,
   which fails `flutter analyze` until migrated:
   - `context.readOrNull<B>()` -> `context.read<B?>()`;
