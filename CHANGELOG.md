@@ -58,8 +58,11 @@ Migration impact:
     `select<B?, T?>((bloc) => bloc?.state.x)`, or `bloc == null ? null : ...`
     when the selector is not a member chain;
     `withBloc((B bloc) => bloc.x)` -> `read<B?>()?.x`, or a local variable
-    and a null check when the callback is more than one member access. The
+    and a null check when the callback is more than one member access. These
     lookups of `provider` return the same values, with the same rebuilds.
+    `package:flutter_bloc/flutter_bloc.dart` exports them and `bloc_plus`
+    does not: a file without that import needs it, and drops the `bloc_plus`
+    import when it used `bloc_plus` only for the helpers.
   - `effectWhen: (effect) => effect is Sub` -> `if (effect is! Sub) return;`
     or `if (effect case Sub(...))` at the top of `onEffect`, which also
     promotes the effect type.

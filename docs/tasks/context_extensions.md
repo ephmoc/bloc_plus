@@ -8,8 +8,9 @@
 > `BlocContextExtension` and its four members are deprecated, removed in 1.0:
 > they return what provider's nullable lookups return, with the same
 > rebuilds, so `read<B?>()`, `watch<B?>()`, `select<B?, T?>()` and
-> `read<B?>()?.member` replace them. This spec is historical; do not extend
-> the extension.
+> `read<B?>()?.member`, which `package:flutter_bloc/flutter_bloc.dart`
+> exports, replace them. This spec is historical; do not extend the
+> extension.
 
 ## Preconditions
 

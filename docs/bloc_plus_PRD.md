@@ -290,7 +290,7 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `BlocCondition` + `whenChanged` | stable (0.3.0) | Plain `bool Function(S previous, S current)`, passed directly as `buildWhen` / `listenWhen` / `selectorShouldRebuild` |
 | `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
-| `BlocContextExtension` (`readOrNull`, `watchOrNull`, `selectOrNull`, `withBloc`) | deprecated (0.4.0, removed in 1.0) | Replaced by provider's nullable lookups `read<B?>()`, `watch<B?>()` and `select<B?, T?>()`, which return the same values with the same rebuilds |
+| `BlocContextExtension` (`readOrNull`, `watchOrNull`, `selectOrNull`, `withBloc`) | deprecated (0.4.0, removed in 1.0) | Replaced by provider's nullable lookups `read<B?>()`, `watch<B?>()` and `select<B?, T?>()`, which return the same values with the same rebuilds; `package:flutter_bloc/flutter_bloc.dart` exports them, `bloc_plus` does not |
 | `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` and is `@protected`, `@visibleForTesting` since 0.4.0; `on Cubit<S>` since 0.4.0 |
 | `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0; `run` takes a non-null `T` since 0.4.0 |
 | `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
@@ -886,7 +886,10 @@ BlocListenerWithBloc<AuthBloc, AuthState>(
 > `BlocContextExtension` and on each of its four members, so
 > `show BlocContextExtension` in an import is reported as well as a call. The
 > helpers return what provider's nullable lookups return, with the same
-> rebuilds. Replacements: `readOrNull<B>()` -> `read<B?>()`;
+> rebuilds. `package:flutter_bloc/flutter_bloc.dart` exports those lookups and
+> `bloc_plus` does not: a file without that import needs it, and drops the
+> `bloc_plus` import when it used `bloc_plus` only for the helpers.
+> Replacements: `readOrNull<B>()` -> `read<B?>()`;
 > `watchOrNull<B>()` -> `watch<B?>()`; `selectOrNull<B, S, T>((state) => state.x)`
 > -> `select<B?, T?>((bloc) => bloc?.state.x)` (or `bloc == null ? null : ...`
 > when the selector is not a member chain); `withBloc((B bloc) => bloc.x)` ->

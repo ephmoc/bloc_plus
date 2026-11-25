@@ -88,6 +88,37 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
+  testWidgets('delivers effects while buildWhen or listenWhen rejects a state',
+      (tester) async {
+    // Given
+    final cubit = _EffectCounterCubit();
+    addTearDown(cubit.close);
+    final effects = <String>[];
+    await tester.pumpWidget(
+      BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+        bloc: cubit,
+        buildWhen: (previous, current) => current.isEven,
+        listenWhen: (previous, current) => current.isOdd,
+        listener: (context, bloc, state) {},
+        onEffect: (context, bloc, effect) => effects.add(effect),
+        builder: (context, bloc, state) => const SizedBox.shrink(),
+      ),
+    );
+
+    // When
+    cubit.increment(); // 1, which buildWhen rejects
+    await tester.pump();
+    cubit.emitEffect('after 1');
+    await tester.pump();
+    cubit.increment(); // 2, which listenWhen rejects
+    await tester.pump();
+    cubit.emitEffect('after 2');
+    await tester.pump();
+
+    // Then
+    expect(effects, ['after 1', 'after 2']);
+  });
+
   testWidgets(
       'takes states and effects from the provided bloc right after '
       'bloc changes to null', (tester) async {

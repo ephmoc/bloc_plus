@@ -85,6 +85,8 @@ their callbacks get the bloc whose states they receive. `BlocBuilder` and
 ### Optional lookups
 
 ```dart
+import 'package:flutter_bloc/flutter_bloc.dart'; // exports read, watch, select
+
 void tryIncrement(BuildContext context) {
   final counterCubit = context.read<CounterCubit?>();
   counterCubit?.increment();
@@ -103,7 +105,9 @@ and `selectOrNull`, which return the same values, while
 `context.read<CounterCubit?>()?.state.count`. When the selector is not a
 member chain, write `cubit == null ? null : ...`; when the callback of
 `withBloc` does more than one member access, use a local variable and a null
-check.
+check. `bloc_plus` does not export these lookups: a file without the
+`flutter_bloc` import needs it, and drops the `bloc_plus` import when it used
+`bloc_plus` only for the helpers.
 
 ### Combined state and effects
 
