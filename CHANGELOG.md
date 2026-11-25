@@ -31,6 +31,16 @@
     `cancelAllLatest` of `RestartableTasksMixin`, and `guarded` of
     `SafeEmitMixin`, are `@protected` and `@visibleForTesting`, like `emit`,
     `safeEmit` and `emitEffect`.
+  - `runLatest`, `runLatestOutcome`, `guarded`, `CancellationToken.run` and
+    `RestartableTask.runOutcome` are `@useResult`: the analyzer reports a
+    result that is awaited and dropped (`unused_result`). Their result says
+    whether the run counted, so the code after a dropped one ran for a
+    superseded, cancelled or closed run as well. The bound stops that only
+    for `void` and nullable work; with a task that returns a value, such as
+    `() => repository.save(item)`, it compiled without a warning.
+    `bloc_plus` depends on `meta` (`>=1.9.1 <2.0.0`) for the annotation;
+    Flutter itself depends on `meta`, so the resolved versions do not
+    change.
   - `BlocConsumerWithEffects.onEffect` declares its function type inline,
     and `BlocSelectorWithBloc.selectorShouldRebuild` is a `BlocCondition<T>`.
     Both are the same function types as before.
@@ -115,8 +125,9 @@ Migration impact:
 - Move `void` and nullable work off `runLatest`, `guarded` and
   `CancellationToken.run`:
   - instead of `runLatest`, use `runLatestOutcome` and check the outcome
-    before anything else. An ignored outcome compiles, and the code after it
-    then runs for a superseded run as well:
+    before anything else. Without the check, the code after it runs for a
+    superseded run as well, so the analyzer reports an outcome that is
+    awaited and dropped:
 
     ```dart
     // Before
@@ -207,13 +218,30 @@ Migration impact:
   bloc, its subclasses, a `mixin X on RestartableTasksMixin<S>` or
   `on SafeEmitMixin<S>`, and files under `test/`, `integration_test/` and
   `test_driver/` may still call them; a test helper under `lib/` may not.
+- An `await` of `runLatest`, `runLatestOutcome`, `guarded`,
+  `CancellationToken.run` or `RestartableTask.runOutcome` as a statement,
+  which drops the result, gets an `unused_result` warning, so
+  `flutter analyze` fails. Check the result before acting on the run:
+  `if (!outcome.isCompleted) return;`, or `if (result == null) return;` for
+  the methods that complete with `null`. Only when the call is the last
+  thing in the method and the task emits itself, as in the README recipe for
+  a flow with several `await`s, return the future instead:
+  `Future<void> open() async => runLatestOutcome(...)`, or a method without
+  `async` that ends with `return runLatestOutcome(...);`. In a closure, such
+  as the handler of a `Bloc`, use `=>` or `async =>`: a block body that
+  returns the future gets the `void_checks` lint. In a method with a
+  `try` or an early `return;`, keep `await` and check the result: a returned
+  future escapes the `catch` and the `finally`, and `return;` does not
+  compile once `async` is gone. A future that is returned, assigned or
+  passed to a function such as `unawaited` is not reported.
 
 Release type rationale:
 
 - `minor`: breaking changes of the class hierarchy, of three method
   signatures, of the classes that `SafeEmitMixin` applies to, of the
-  superclasses of two widgets and of where six methods may be called without
-  analyzer warnings, which a 0.x minor allows, and deprecations. A
+  superclasses of two widgets, of where six methods may be called without
+  analyzer warnings and of five methods whose dropped result is now
+  reported, which a 0.x minor allows, and deprecations. A
   constraint such as `^0.3.1` does not resolve to 0.4.0, so nothing changes
   until a project raises it.
 

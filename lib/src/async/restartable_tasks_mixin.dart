@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
+import 'package:meta/meta.dart' show useResult;
 
 import 'cancellation_token.dart';
 import 'restartable_task.dart';
@@ -40,14 +41,16 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// [cancelAllLatest] or [close] supersedes this run, without waiting for
   /// [task], whose later success or failure is dropped. The failure of the
   /// latest run is rethrown, unless the run is superseded before its caller
-  /// resumes. Handle `null` first, with an early return: an
-  /// `else` or a `default` branch would take a superseded run for a failed
-  /// one.
+  /// resumes. Handle `null` first, with an early return: an `else` or a
+  /// `default` branch would take a superseded run for a failed one. The
+  /// analyzer reports a result that is awaited and dropped (`@useResult`),
+  /// because the code after it would run for a superseded run as well.
   ///
   /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
   /// would be ambiguous. For such work use [runLatestOutcome] and return early
-  /// unless the outcome is completed. An ignored outcome compiles, and the
-  /// code after it then runs for a superseded run as well:
+  /// unless the outcome is completed. Without the check, the code after it
+  /// runs for a superseded run as well, so the analyzer reports an outcome
+  /// that is awaited and dropped:
   ///
   /// ```dart
   /// final outcome = await runLatestOutcome('save', (_) => save(item));
@@ -62,6 +65,7 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// `await`.
   @protected
   @visibleForTesting
+  @useResult
   Future<T?> runLatest<T extends Object>(
     Object key,
     Future<T> Function() task,
@@ -97,10 +101,16 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// }
   /// ```
   ///
+  /// The analyzer reports an outcome that is awaited and dropped
+  /// (`@useResult`). When [task] emits itself, as a flow with several
+  /// `await`s does, return the future instead of awaiting it as a statement:
+  /// `Future<void> open() => runLatestOutcome('open', (token) async {...});`.
+  ///
   /// Keys are compared as in [runLatest], and a key names a whole flow, not
   /// one of its steps.
   @protected
   @visibleForTesting
+  @useResult
   Future<TaskOutcome<T>> runLatestOutcome<T>(
     Object key,
     Future<T> Function(CancellationToken token) task,

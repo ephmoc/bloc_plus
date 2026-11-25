@@ -54,6 +54,7 @@ class _EmitInTaskBloc extends Bloc<_Event, String>
     with RestartableTasksMixin<String> {
   _EmitInTaskBloc() : super('initial') {
     on<_Load>((event, emit) async {
+      // ignore: unused_result
       await runLatest('load', () async {
         await event.gate;
         emitDoneWhenTaskResumed = emit.isDone;
@@ -237,6 +238,7 @@ void main() {
       final task = RestartableTask<int>();
       late CancellationToken succeeded;
       late CancellationToken failed;
+      // ignore: unused_result
       await task.runOutcome((token) async {
         succeeded = token;
         return 1;
@@ -250,6 +252,7 @@ void main() {
       );
 
       // When
+      // ignore: unused_result
       await task.runOutcome((_) async => 2);
       task.cancel();
       await task.dispose();
@@ -300,6 +303,7 @@ void main() {
       final task = RestartableTask<int>();
       final stale = Completer<int>();
       final first = task.runOutcome((_) => stale.future);
+      // ignore: unused_result
       await task.runOutcome((_) async => 2);
 
       // When
@@ -494,6 +498,7 @@ void main() {
       addTearDown(cubit.close);
       final stale = Completer<int>();
       final first = cubit.runLatestOutcome<int>('k', (_) => stale.future);
+      // ignore: unused_result
       await cubit.runLatestOutcome<int>('k', (_) async => 2);
 
       // When
