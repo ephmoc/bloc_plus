@@ -45,6 +45,9 @@
 - Listener unsubscribes on dispose
 - Missing provider follows provider-not-found semantics (same as widget family)
 - Late emits after bloc close must not crash consumer code (well-defined no-op or handled close path)
+- `emitEffect` in a `Bloc` handler that a transformer has cancelled still
+  delivers its effect; the handler checks `emit.isDone` first (documented in
+  0.4.0)
 
 ## Target Files
 
@@ -59,6 +62,8 @@
 - `test/effects/has_effects_test.dart`
 - `test/widgets/effect_listener_test.dart`
 - `test/widgets/bloc_effect_listener_test.dart` (0.3.0)
+- `test/effects/testing_recipe_test.dart` (0.3.1: the README testing recipes;
+  0.4.0: a mocked bloc needs `effects` stubbed with a stream)
 
 Required cases:
 
@@ -74,6 +79,8 @@ Required cases:
 - Historical: the example app at 0.3.0 uses `String` effects with prefixes
   (snack/dialog/info) and two `BlocEffectListener` entries in a
   `MultiBlocListener`; it has no auth/navigation example or effect types.
+  Since 0.4.0 its effects are `sealed` classes, handled with an exhaustive
+  `switch` or an if-case for one subtype.
 - Auth/navigation example using effect types and `BlocEffectListener`
   (originally `EffectListener`)
 - Multiple listeners example for different effect categories

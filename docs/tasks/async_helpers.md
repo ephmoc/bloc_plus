@@ -39,6 +39,9 @@
 - Distinct logical task keys remain independent
 - Owner disposal prevents future task completion from surfacing results
 - No helper may imply that the underlying `Future` is forcefully interrupted
+- A key names a whole flow, not a step (0.4.0, README recipe): a flow with
+  several `await`s runs inside one `runLatestOutcome` and checks
+  `token.isCancelled` after every `await`
 
 ## Signatures (0.4.0)
 
@@ -68,6 +71,8 @@
 - `test/async/protected_members_test.dart` (0.4.0: the analyzer warns about
   a call from a widget or an extension, and not from the bloc, a subclass or
   a mixin on it)
+- `test/async/several_awaits_recipe_test.dart` (0.4.0: the README recipe for
+  a flow with several `await`s)
 
 Required cases:
 

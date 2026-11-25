@@ -73,7 +73,8 @@ Required cases:
 
 - Add one example using effect filtering for navigation vs snackbar effects
   (historical: the example app at 0.3.0 filters dialog, snackbar and info
-  effects with `effectWhen`; it has no navigation effect)
+  effects with `effectWhen`; it has no navigation effect. Since 0.4.0 it
+  matches `sealed` effect classes with a `switch` or an if-case instead)
 
 ## Acceptance Criteria (DoD)
 
