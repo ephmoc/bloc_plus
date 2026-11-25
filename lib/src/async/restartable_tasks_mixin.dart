@@ -55,7 +55,10 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// ```
   ///
   /// Keys are compared with `==`: a new `List` key never matches an earlier
-  /// one, while a string or a record with the same content does.
+  /// one, while a string or a record with the same content does. A key names
+  /// a whole flow, not one of its steps: run a flow with several `await`s
+  /// inside one [runLatestOutcome] and check `token.isCancelled` after every
+  /// `await`.
   @protected
   @visibleForTesting
   Future<T?> runLatest<T extends Object>(
@@ -91,7 +94,8 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// }
   /// ```
   ///
-  /// Keys are compared as in [runLatest].
+  /// Keys are compared as in [runLatest], and a key names a whole flow, not
+  /// one of its steps.
   @protected
   @visibleForTesting
   Future<TaskOutcome<T>> runLatestOutcome<T>(

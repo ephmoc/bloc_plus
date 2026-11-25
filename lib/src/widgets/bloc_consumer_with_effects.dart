@@ -28,8 +28,9 @@ typedef BlocEffectListenerWithBloc<B extends StateStreamable<S>, S, E> = void
 /// `null`.
 ///
 /// Write all three type arguments, for example
-/// `BlocConsumerWithEffects<UiCubit, UiState, UiEffect>`: below language
-/// version 3.7 they are not inferred from [bloc].
+/// `BlocConsumerWithEffects<UiCubit, UiState, UiEffect>`: `S` and `E` are
+/// inferred from [bloc] only in code at language version 3.7 or later, which
+/// is the language version of the app, not of this package.
 class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
     extends StatelessWidget {
   /// Creates a widget that consumes state and effects from the same bloc.

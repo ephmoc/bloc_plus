@@ -39,6 +39,9 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
   /// `mixin X on HasEffects<S, E>` that shares helpers between blocs).
   /// Calls from elsewhere, including extensions on the bloc and other
   /// libraries, get analyzer warnings; tests may call it.
+  ///
+  /// In a `Bloc` handler that a transformer such as `restartable()` has
+  /// cancelled, the effect is still delivered: check `emit.isDone` first.
   @protected
   @visibleForTesting
   void emitEffect(E effect) {

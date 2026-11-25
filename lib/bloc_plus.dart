@@ -1,4 +1,5 @@
-/// Extensions, widgets, policies, and async helpers for `flutter_bloc`.
+/// Async helpers for Cubits, one-off effects, conditions and widgets for
+/// `flutter_bloc`.
 // ignore: unnecessary_library_name
 library bloc_plus;
 

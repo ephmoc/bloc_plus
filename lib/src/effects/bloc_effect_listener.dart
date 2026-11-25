@@ -33,9 +33,9 @@ import 'has_effects.dart';
 /// )
 /// ```
 ///
-/// Always write both type arguments. Below language version 3.7, [E] is not
-/// inferred from [bloc]: it becomes `Object?` and the `switch` loses its
-/// exhaustiveness check.
+/// Always write both type arguments. Without them [E] is not inferred, at
+/// any language version: the `effect` of [onEffect] is `Object?` and the
+/// `switch` loses its exhaustiveness check.
 ///
 /// To react to a single subtype, listen to the supertype and match it with an
 /// if-case pattern at the top of [onEffect], which promotes the effect type:
@@ -73,6 +73,9 @@ class BlocEffectListener<B extends EffectsSource<E>, E>
   final B? bloc;
 
   /// Called for every effect, unless the deprecated [effectWhen] rejects it.
+  ///
+  /// `effect` has the type [E] only when the widget has both type arguments;
+  /// without them it is `Object?`.
   final void Function(BuildContext context, E effect) onEffect;
 
   /// Optional predicate that decides whether [onEffect] should run.
