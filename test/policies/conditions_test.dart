@@ -78,6 +78,24 @@ void main() {
       expect([sameLength, otherLength], [isFalse, isTrue]);
     });
 
+    test('hands (previous, current) to equals in that order', () {
+      // Given
+      final calls = <(int, int)>[];
+      final condition = whenChanged(
+        (int state) => state,
+        equals: (previous, current) {
+          calls.add((previous, current));
+          return true;
+        },
+      );
+
+      // When
+      condition(1, 2);
+
+      // Then
+      expect(calls, [(1, 2)]);
+    });
+
     test('compares equal lists by content only with equals', () {
       // Given
       final byIdentity = whenChanged((_State s) => s.items);

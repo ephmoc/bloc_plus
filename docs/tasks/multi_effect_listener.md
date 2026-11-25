@@ -4,8 +4,10 @@
 > `SingleChildEffectListener` are deprecated, removed in 1.0. Replacement:
 > `MultiBlocListener` with `BlocEffectListener<B, E>` entries, mixed freely
 > with `BlocListener` and `BlocListenerWithBloc`. `MultiBlocListener` needs a
-> non-empty list and ignores a `child` given to a listener inside it. This
-> spec is historical; do not extend `MultiEffectListener`.
+> non-empty list and ignores a `child` given to a listener inside it. In
+> 0.4.0 `BlocEffectListener.withChild`, which only serves
+> `MultiEffectListener`, is deprecated as well. This spec is historical; do
+> not extend `MultiEffectListener`.
 
 ## Preconditions
 

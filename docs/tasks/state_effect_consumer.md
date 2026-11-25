@@ -28,8 +28,12 @@
 ## Signature (0.3.0)
 
 - `const BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>({required onEffect, required builder, listener, bloc, buildWhen, listenWhen, effectWhen})`
-- `onEffect(context, bloc, effect)` (`BlocEffectListenerWithBloc<B, S, E>`),
-  `builder(context, bloc, state)`, optional `listener(context, bloc, state)`
+- `onEffect(context, bloc, effect)`, `builder(context, bloc, state)`, optional
+  `listener(context, bloc, state)`
+- Since 0.4.0 `effectWhen` is deprecated, removed in 1.0 (an `if` at the top
+  of `onEffect` does the same), and `onEffect` declares its function type
+  inline: the typedef `BlocEffectListenerWithBloc<B, S, E>` is deprecated
+  without a replacement
 - `listenWhen` without `listener` fails an assert
 - Write all three type arguments: below language version 3.7 they are not
   inferred from `bloc:`

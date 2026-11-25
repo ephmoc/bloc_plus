@@ -78,31 +78,14 @@ void main() {
   });
 
   group('RestartableTask', () {
-    test('run does not start the task after dispose', () async {
-      // Given
-      final task = RestartableTask<int>();
-      await task.dispose();
-      var started = false;
-
-      // When
-      final result = await task.run(() async {
-        started = true;
-        return 1;
-      });
-
-      // Then
-      expect(result, isNull);
-      expect(started, isFalse);
-    });
-
     test('a stale run finishing does not clear isRunning of the latest run',
         () async {
       // Given
       final task = RestartableTask<int>();
       final firstCompleter = Completer<int>();
       final secondCompleter = Completer<int>();
-      final first = task.run(() => firstCompleter.future);
-      final second = task.run(() => secondCompleter.future);
+      final first = task.runOutcome((_) => firstCompleter.future);
+      final second = task.runOutcome((_) => secondCompleter.future);
 
       // When
       firstCompleter.complete(1);
@@ -111,7 +94,7 @@ void main() {
       // Then
       expect(task.isRunning, isTrue);
       secondCompleter.complete(2);
-      expect(await second, 2);
+      expect(await second, const TaskOutcome<int>.completed(2));
       expect(task.isRunning, isFalse);
     });
 
@@ -120,15 +103,15 @@ void main() {
       // Given
       final task = RestartableTask<int>();
       final completer = Completer<int>();
-      final running = task.run(() => completer.future);
+      final running = task.runOutcome((_) => completer.future);
 
       // When
       await task.dispose();
       completer.complete(1);
-      final result = await running;
+      final outcome = await running;
 
       // Then
-      expect(result, isNull);
+      expect(outcome, const TaskOutcome<int>.cancelled());
       expect(task.isRunning, isFalse);
     });
   });

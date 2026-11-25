@@ -2,8 +2,7 @@
 /// `listenWhen` or `selectorShouldRebuild`.
 ///
 /// It is the same function type as `BlocBuilderCondition<S>` and
-/// `BlocListenerCondition<S>` from `flutter_bloc`, and as this package's
-/// `BlocSelectedCondition<T>`.
+/// `BlocListenerCondition<S>` from `flutter_bloc`.
 typedef BlocCondition<S> = bool Function(S previous, S current);
 
 /// Returns a condition that holds when the value picked by [selector] differs

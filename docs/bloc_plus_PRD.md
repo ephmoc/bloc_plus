@@ -64,8 +64,9 @@ In real-world Flutter BLoC projects:
 > `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`
 > were deprecated, to be removed in 1.0. Their replacements are plain
 > conditions (`whenChanged`) and `BlocEffectListener` inside
-> `MultiBlocListener`; `effectWhen` lives on in `BlocEffectListener`.
-> Current status: `CHANGELOG.md`.
+> `MultiBlocListener`. `effectWhen` lived on in `BlocEffectListener` until
+> 0.4.0 deprecated it too, for an `if` at the top of `onEffect`. Current
+> status: `CHANGELOG.md`.
 
 After the initial `v0.x` baseline, the package adds targeted ergonomic
 improvements that preserve the lightweight design:
@@ -215,13 +216,6 @@ graph TB
         WC[whenChanged]
     end
     
-    subgraph Extensions["Extensions (context_extensions)"]
-        RO[readOrNull]
-        WO[watchOrNull]
-        SO[selectOrNull]
-        WB[withBloc]
-    end
-    
     subgraph Async["Async Safety (async_safety)"]
         SE[SafeEmitMixin]
         CT[CancellationToken]
@@ -243,14 +237,12 @@ graph TB
     
     UI --> FB
     Policies --> UI
-    Extensions --> BP
     Async --> FB
     Effects --> FB
     FB --> BP
     
     style UI fill:#e3f2fd
     style Policies fill:#f3e5f5
-    style Extensions fill:#e8f5e9
     style Async fill:#fff3e0
     style Effects fill:#fce4ec
     style Bloc fill:#f5f5f5
@@ -293,22 +285,27 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `BlocBuilderWithBloc` | stable | `B extends StateStreamable<S>`; `builder(context, bloc, state)`; composes `BlocBuilder` and follows the provided bloc after `bloc` becomes `null` (since 0.4.0) |
 | `BlocListenerWithBloc` | stable | `B extends StateStreamable<S>`; `const`; `listener(context, bloc, state)`; composes `BlocListener` and follows the provided bloc after `bloc` becomes `null` (since 0.4.0) |
 | `BlocConsumerWithBloc` | stable | Combines builder/listener with independent conditions; resolves the bloc once per build |
-| `BlocSelectorWithBloc` | stable | Selects `T` and rebuilds on selected value inequality by default; parity with `BlocSelector` |
+| `BlocSelectorWithBloc` | stable | Selects `T` and rebuilds on selected value inequality by default; parity with `BlocSelector`; `selectorShouldRebuild` is a `BlocCondition<T>` since 0.4.0 |
+| `BlocSelectedCondition` | deprecated (0.4.0, removed in 1.0) | Replaced by `BlocCondition<T>`, the same function type |
 | `BlocCondition` + `whenChanged` | stable (0.3.0) | Plain `bool Function(S previous, S current)`, passed directly as `buildWhen` / `listenWhen` / `selectorShouldRebuild` |
 | `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
 | `ListenPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
-| `BuildContext` nullable extensions | stable | Return `null` only on a missing provider; rethrow other errors; any provided type (`selectOrNull`: a `StateStreamableSource<S>`) |
+| `BlocContextExtension` (`readOrNull`, `watchOrNull`, `selectOrNull`, `withBloc`) | deprecated (0.4.0, removed in 1.0) | Replaced by provider's nullable lookups `read<B?>()`, `watch<B?>()` and `select<B?, T?>()`, which return the same values with the same rebuilds; `package:flutter_bloc/flutter_bloc.dart` exports them, `bloc_plus` does not |
 | `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` and is `@protected`, `@visibleForTesting` since 0.4.0; `on Cubit<S>` since 0.4.0 |
 | `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0; `run` takes a non-null `T` since 0.4.0 |
 | `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
 | `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future`; `final class` since 0.4.0 |
+| `RestartableTask.run` | deprecated (0.4.0, removed in 1.0) | Replaced by `runOutcome`: its `T` belongs to the class and cannot take the bound `T extends Object` |
 | `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation; `runLatest` takes a non-null `T` since 0.4.0; its members except `close` are `@protected`, `@visibleForTesting` since 0.4.0 |
 | `EffectsSource` + `HasEffects` | stable | One-shot effect stream separated from state stream; `emitEffect` is `@protected`, `@visibleForTesting` |
 | `debugPrintUnheardEffects` | stable (0.3.1) | Opt-in debug warning for an effect that nothing listens to; off by default; never prints in release builds |
-| `BlocEffectListener` | stable (0.3.0) | `B extends EffectsSource<E>`; composes inside `MultiBlocListener`; supports effect filtering |
+| `BlocEffectListener` | stable (0.3.0) | `B extends EffectsSource<E>`; composes inside `MultiBlocListener` |
+| `effectWhen`, `EffectCondition` | deprecated (0.4.0, removed in 1.0) | On `BlocEffectListener` and `BlocConsumerWithEffects`; replaced by an `if` or an if-case at the top of `onEffect`, which also promotes the effect type |
+| `BlocEffectListener.withChild` | deprecated (0.4.0, removed in 1.0) | Serves only `MultiEffectListener`; replaced by `child:` or by `MultiBlocListener`, which supplies the child |
 | `EffectListener` | deprecated (0.3.0, removed in 1.0) | Replaced by `BlocEffectListener` |
 | `MultiEffectListener`, `SingleChildEffectListener` | deprecated (0.3.0, removed in 1.0) | Replaced by `MultiBlocListener` with `BlocEffectListener` |
 | `BlocConsumerWithEffects` | stable | `B extends HasEffects<S, E>`; combines state builder/optional listener with effect handling; resolves the bloc once per build |
+| `BlocEffectListenerWithBloc` | deprecated (0.4.0, removed in 1.0) | No replacement: nothing names it, and `onEffect` declares its function type inline |
 
 ### 5.7 Agent Execution Sequence (Required)
 
@@ -331,8 +328,8 @@ The coding agent should execute work in this exact order:
 > Historical: this table records 0.2.0. In 0.3.0 `RebuildPolicy`,
 > `ListenPolicy` and their 12 factories (with `and` / `or` / `not`),
 > `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`
-> were deprecated, to be removed in 1.0. `effectWhen` lives on in
-> `BlocEffectListener`. 0.3.0 added
+> were deprecated, to be removed in 1.0. `effectWhen` lived on in
+> `BlocEffectListener` until 0.4.0 deprecated it too. 0.3.0 added
 > `BlocCondition` / `whenChanged`, `BlocEffectListener`, `TaskOutcome` with
 > `runOutcome` / `runLatestOutcome`, and `CancellationToken.whenCancelled`;
 > see the module sections below.
@@ -564,6 +561,7 @@ Alternative widget to `BlocSelector` that provides bloc instance directly and av
 typedef BlocSelectorBuilderWithBloc<B extends StateStreamable<S>, S, T> =
     Widget Function(BuildContext context, B bloc, T selected);
 
+@Deprecated('...')
 typedef BlocSelectedCondition<T> = bool Function(T previous, T current);
 
 class BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>
@@ -578,10 +576,14 @@ class BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>
 
   final B? bloc;
   final T Function(S state) selector;
-  final BlocSelectedCondition<T>? selectorShouldRebuild;
+  final BlocCondition<T>? selectorShouldRebuild;
   final BlocSelectorBuilderWithBloc<B, S, T> builder;
 }
 ```
+
+Since 0.4.0 `selectorShouldRebuild` is a `BlocCondition<T>`. The typedef
+`BlocSelectedCondition<T>`, the same function type, is deprecated, removed in
+1.0.
 
 #### Parameters
 
@@ -638,8 +640,9 @@ BlocCondition<S> whenChanged<S, T>(
 ```
 
 `BlocCondition<S>` is the same function type as `BlocBuilderCondition<S>` and
-`BlocListenerCondition<S>` from `flutter_bloc`, and as
-`BlocSelectedCondition<T>`.
+`BlocListenerCondition<S>` from `flutter_bloc`. Since 0.4.0
+`BlocSelectorWithBloc.selectorShouldRebuild` takes a `BlocCondition<T>`, and
+`BlocSelectedCondition<T>`, the same function type, is deprecated.
 
 #### Behavior
 
@@ -879,6 +882,20 @@ BlocListenerWithBloc<AuthBloc, AuthState>(
 
 ## MODULE context_extensions --- BuildContext Extensions
 
+> Deprecated in 0.4.0, removed in 1.0. The annotation is on the extension
+> `BlocContextExtension` and on each of its four members, so
+> `show BlocContextExtension` in an import is reported as well as a call. The
+> helpers return what provider's nullable lookups return, with the same
+> rebuilds. `package:flutter_bloc/flutter_bloc.dart` exports those lookups and
+> `bloc_plus` does not: a file without that import needs it, and drops the
+> `bloc_plus` import when it used `bloc_plus` only for the helpers.
+> Replacements: `readOrNull<B>()` -> `read<B?>()`;
+> `watchOrNull<B>()` -> `watch<B?>()`; `selectOrNull<B, S, T>((state) => state.x)`
+> -> `select<B?, T?>((bloc) => bloc?.state.x)` (or `bloc == null ? null : ...`
+> when the selector is not a member chain); `withBloc((B bloc) => bloc.x)` ->
+> `read<B?>()?.x` (or a local variable and a null check when the callback is
+> more than one member access). The text below describes the deprecated API.
+
 Extension methods on `BuildContext` providing null-safe access to bloc instances.
 
 Since 0.3.0, `readOrNull`, `watchOrNull` and `withBloc` work for any provided
@@ -895,7 +912,9 @@ bloc, are rethrown (since 0.2.2).
 Safely reads a bloc instance without throwing if not found.
 
 ```dart
+@Deprecated('...')
 extension BlocContextExtension on BuildContext {
+  @Deprecated('...')
   B? readOrNull<B extends Object>();
 }
 ```
@@ -919,7 +938,9 @@ if (bloc != null) {
 Safely watches a bloc instance without throwing if not found.
 
 ```dart
+@Deprecated('...')
 extension BlocContextExtension on BuildContext {
+  @Deprecated('...')
   B? watchOrNull<B extends Object>();
 }
 ```
@@ -953,7 +974,9 @@ Widget build(BuildContext context) {
 Safely selects a value from bloc state without throwing if not found.
 
 ```dart
+@Deprecated('...')
 extension BlocContextExtension on BuildContext {
+  @Deprecated('...')
   T? selectOrNull<B extends StateStreamableSource<S>, S, T>(
     T Function(S state) selector,
   );
@@ -992,7 +1015,9 @@ Widget build(BuildContext context) {
 Executes a function with bloc instance, returning null if bloc not found.
 
 ```dart
+@Deprecated('...')
 extension BlocContextExtension on BuildContext {
+  @Deprecated('...')
   R? withBloc<B extends Object, R>(
     R Function(B bloc) fn,
   );
@@ -1301,6 +1326,7 @@ final class RestartableTask<T> {
 
   bool get isRunning;
   
+  @Deprecated('...')
   Future<T?> run(
     Future<T> Function() task,
   );
@@ -1326,6 +1352,12 @@ Returns `true` if the latest scheduled task is still running.
 #### Methods
 
 ##### `run(task)`
+
+> Deprecated in 0.4.0, removed in 1.0. Its `T` belongs to the class and
+> cannot take the bound `T extends Object` that 0.4.0 gives `runLatest`, so
+> its `null` stays ambiguous for a nullable or `void` `T`. Use `runOutcome`
+> and return early unless the outcome is completed. The text below describes
+> the deprecated API.
 
 Starts a new task, cancelling the result of any previous task.
 
@@ -1373,8 +1405,8 @@ class SearchCubit extends Cubit<SearchState> {
 
 ##### `runOutcome(task)`
 
-Added in 0.3.0. Like `run`, but passes the run's `CancellationToken` to
-`task` and completes with a `TaskOutcome<T>`.
+Added in 0.3.0. Like the deprecated `run`, but passes the run's
+`CancellationToken` to `task` and completes with a `TaskOutcome<T>`.
 
 **Parameters**:
 
@@ -1428,10 +1460,9 @@ class MyCubit extends Cubit<MyState> {
   final _task = RestartableTask<String>();
   
   Future<void> performOperation() async {
-    final result = await _task.run(() => longRunningOperation());
-    if (result != null && !isClosed) {
-      emit(MyState(data: result));
-    }
+    final outcome = await _task.runOutcome((_) => longRunningOperation());
+    if (!outcome.isCompleted || isClosed) return;
+    emit(MyState(data: outcome.value));
   }
   
   @override
@@ -1724,6 +1755,7 @@ callback once per effect emission.
 #### API Specification
 
 ```dart
+@Deprecated('...')
 typedef EffectCondition<E> = bool Function(E effect);
 
 class BlocEffectListener<B extends EffectsSource<E>, E>
@@ -1732,31 +1764,38 @@ class BlocEffectListener<B extends EffectsSource<E>, E>
     required this.onEffect,
     super.key,
     this.bloc,
-    this.effectWhen,
+    @Deprecated('...') this.effectWhen,
     this.child,
   }) : super(child: child);
 
   final B? bloc;
   final void Function(BuildContext context, E effect) onEffect;
+  @Deprecated('...')
   final EffectCondition<E>? effectWhen;
   final Widget? child;
 }
 ```
 
 Until 1.0 it also implements the deprecated `SingleChildEffectListener`, so
-`MultiEffectListener` users can migrate one listener at a time.
+`MultiEffectListener` users can migrate one listener at a time. Its
+`withChild`, which only serves `MultiEffectListener`, is deprecated since
+0.4.0: pass `child:` to the constructor, or list the listener in
+`MultiBlocListener`, which supplies the child.
 
 #### Parameters
 
 - `bloc` (optional): The bloc instance. If not provided, will be looked up via `context.read<B>()`
 - `onEffect`: Required callback function with signature `(context, effect) -> void`
-- `effectWhen` (optional): Predicate that decides whether `onEffect` runs
+- `effectWhen` (optional, deprecated in 0.4.0, removed in 1.0): Predicate
+    that decides whether `onEffect` runs. An `if` or an if-case at the top of
+    `onEffect` does the same, and the if-case promotes the effect type
 - `child` (optional): Child widget to render
 
 #### Behavior
 
 - Subscribes to bloc's `effects` stream
-- Calls `onEffect` once per effect that passes `effectWhen`
+- Calls `onEffect` once per effect, or once per effect that passes the
+    deprecated `effectWhen` when it is given
 - Automatically unsubscribes when widget is disposed
 - Resubscribes when `bloc` changes or a different instance is provided
 - If bloc is null and not found, throws `ProviderNotFoundException`
@@ -1769,7 +1808,8 @@ Until 1.0 it also implements the deprecated `SingleChildEffectListener`, so
     inferred from `bloc`; it becomes `Object?` and the `switch` loses its
     exhaustiveness check
 - To react to a single subtype, listen to the supertype and match it with
-    an if-case pattern; `effectWhen` does not promote the effect type
+    an if-case pattern at the top of `onEffect`, which promotes the effect
+    type
 - Effects are not replayed: effects emitted before the subscription are
     not delivered
 
@@ -1947,6 +1987,7 @@ widgets.
 #### API Specification
 
 ```dart
+@Deprecated('...')
 typedef BlocEffectListenerWithBloc<B extends StateStreamable<S>, S, E> =
     void Function(BuildContext context, B bloc, E effect);
 
@@ -1960,18 +2001,24 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
     this.bloc,
     this.buildWhen,
     this.listenWhen,
-    this.effectWhen,
+    @Deprecated('...') this.effectWhen,
   });
 
   final B? bloc;
   final BlocBuilderCondition<S>? buildWhen;
   final BlocListenerCondition<S>? listenWhen;
+  @Deprecated('...')
   final EffectCondition<E>? effectWhen;
   final BlocWidgetListenerWithBloc<B, S>? listener;
-  final BlocEffectListenerWithBloc<B, S, E> onEffect;
+  final void Function(BuildContext context, B bloc, E effect) onEffect;
   final BlocWidgetBuilderWithBloc<B, S> builder;
 }
 ```
+
+Since 0.4.0 `onEffect` declares its function type inline, as
+`BlocEffectListener.onEffect` does. The typedef `BlocEffectListenerWithBloc`
+has an unused type parameter and nothing names it, so it is deprecated
+without a replacement, removed in 1.0.
 
 #### Parameters
 
@@ -1980,8 +2027,10 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
 - `builder`: Required builder `(context, bloc, state) -> Widget`
 - `listener` (optional): Callback `(context, bloc, state) -> void` for state
     changes
-- `buildWhen`, `listenWhen`, `effectWhen` (optional): Conditions for the
-    builder, the listener and `onEffect`
+- `buildWhen`, `listenWhen` (optional): Conditions for the builder and the
+    listener
+- `effectWhen` (optional, deprecated in 0.4.0, removed in 1.0): Condition for
+    `onEffect`; an `if` at the top of `onEffect` does the same
 
 #### Behavior
 
@@ -2025,7 +2074,6 @@ BlocConsumerWithEffects<CounterCubit, CounterState, CounterEffect>(
 Use `bloc_plus` widgets when:
 
 - You need direct bloc instance access in callbacks (avoids `context.read()` calls)
-- You want null-safe extensions for optional blocs (`readOrNull`, `watchOrNull`, etc.)
 - You need async safety utilities (`SafeEmitMixin`, `CancellationToken`, `RestartableTask`)
 - You want to use the effects pattern (`HasEffects`, `BlocEffectListener`)
 - You want reusable rebuild/listen conditions (`whenChanged`) for cleaner code
@@ -2102,14 +2150,16 @@ BlocBuilderWithBloc<CounterBloc, CounterState>(
 )
 ```
 
-#### Example 2: Using extensions with standard widgets
+#### Example 2: An optional bloc with standard widgets
 
-Use `bloc_plus` extensions (`readOrNull`, `watchOrNull`) with standard `flutter_bloc` widgets:
+The nullable lookups of `provider` return `null` when there is no provider of
+the type. Since 0.4.0 they replace the deprecated `readOrNull` and
+`watchOrNull`:
 
 ```dart
 Widget build(BuildContext context) {
-  // Using bloc_plus extension for null-safe access
-  final bloc = context.readOrNull<CounterBloc>();
+  // A nullable type argument: null instead of a ProviderNotFoundException
+  final bloc = context.read<CounterBloc?>();
   if (bloc == null) return Text('Bloc not available');
   
   // Using standard flutter_bloc widget
@@ -2156,8 +2206,7 @@ rather than `emit.forEach`, which emits every state its callbacks return.
 - No conflicts or breaking changes when mixing widgets
 - Full type safety maintained across both libraries
 - Both `Bloc` and `Cubit` types are supported: the `*WithBloc` widgets
-    accept any `StateStreamable<S>` and `selectOrNull` any
-    `StateStreamableSource<S>` (since 0.3.0), and `RestartableTasksMixin`
+    accept any `StateStreamable<S>` (since 0.3.0), and `RestartableTasksMixin`
     and `HasEffects` apply `on BlocBase<S>`. `SafeEmitMixin` applies
     `on Cubit<S>` since 0.4.0
 
@@ -2241,18 +2290,20 @@ class AuthCubit extends Cubit<AuthState>
 }
 ```
 
-### 7.4 Extension Errors
+### 7.4 Optional Lookup Errors
 
 #### Null Returns
 
-All extension methods (`readOrNull`, `watchOrNull`, etc.) return `null` if bloc not found.
-Other errors, such as one thrown while the provider creates the bloc, are
-rethrown.
+The nullable lookups of `provider` (`read<B?>()`, `watch<B?>()`,
+`select<B?, T?>()`) and the deprecated extension methods that wrap them
+(`readOrNull`, `watchOrNull`, etc.) return `null` if there is no provider of
+`B`. Other errors, such as one thrown while the provider creates the bloc,
+are rethrown.
 
 **Handling**: Always check for null:
 
 ```dart
-final bloc = context.readOrNull<CounterBloc>();
+final bloc = context.read<CounterBloc?>();
 if (bloc == null) {
   // Handle missing bloc
   return;
@@ -2295,7 +2346,8 @@ included) resets shared state such as a loading flag. Check
 
 ### 7.6 Common Mistakes
 
-1. **Not checking null from extensions**: Always check `readOrNull()` result
+1. **Not checking null from an optional lookup**: Always check the result of
+    `context.read<B?>()`
 2. **Forgetting SafeEmitMixin**: Use for all async emits in Cubits. A `Bloc`
     cannot mix it in (since 0.4.0): its handlers use the handler's `emit` and
     check `isClosed` first, again after every `await` and in the `onData` and
@@ -2321,10 +2373,11 @@ included) resets shared state such as a loading flag. Check
 **Behavior**:
 
 - `BlocBuilderWithBloc` throws `ProviderNotFoundException`
-- `readOrNull()` returns `null`
-- `watchOrNull()` stops rebuilding
+- `context.read<B?>()` returns `null`
+- `context.watch<B?>()` stops rebuilding
 
-**Best Practice**: Use `readOrNull()` for one-time reads, handle null case.
+**Best Practice**: Use `context.read<B?>()` for one-time reads, handle null
+case.
 
 ### 8.2 Async Operations
 
@@ -2352,8 +2405,9 @@ if (result != null) {
 
 **Behavior**: Each listener receives all effects (broadcast stream).
 
-**Best Practice**: Filter effects with `effectWhen` or an if-case pattern in
-`onEffect`; all listeners of one bloc use its declared effect type.
+**Best Practice**: Filter effects with an `if` or an if-case pattern at the
+top of `onEffect` (`effectWhen` is deprecated since 0.4.0); all listeners of
+one bloc use its declared effect type.
 
 ### 8.4 Policies
 
@@ -2500,7 +2554,7 @@ if (results == null) return; // cancelled
 - `never()` never rebuilds
 - Custom policies work correctly
 
-**Extensions**:
+**Extensions** (deprecated, tested until their removal in 1.0):
 
 - `readOrNull()` returns null when bloc not found
 - `watchOrNull()` returns null when bloc not found
@@ -2646,13 +2700,15 @@ Must provide example app demonstrating:
 - Async safety usage
 - Effects pattern
 - Conditions usage (`whenChanged`; policies until 0.3.0)
-- Extension methods
 - Common patterns and best practices
+
+The deprecated APIs, such as the extension methods and `effectWhen` (since
+0.4.0), are not shown.
 
 Current status: the example app shows `BlocBuilderWithBloc`,
 `BlocConsumerWithEffects`, `BlocEffectListener`, `whenChanged`,
-`SafeEmitMixin` and `RestartableTasksMixin`. The other widgets, the
-extension methods, `CancellationToken` and `guarded` are still open.
+`SafeEmitMixin` and `RestartableTasksMixin`. The other widgets,
+`CancellationToken` and `guarded` are still open.
 
 ### 11.4 Documentation Structure
 

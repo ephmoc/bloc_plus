@@ -13,28 +13,26 @@ conditions, cooperative async helpers, and explicit effect handling primitives.
 
 - `BlocBuilderWithBloc`, `BlocListenerWithBloc`, `BlocConsumerWithBloc`,
   `BlocSelectorWithBloc`, `BlocConsumerWithEffects`
-- BuildContext extensions:
-  - `readOrNull<B>()`
-  - `watchOrNull<B>()`
-  - `selectOrNull<B, S, T>(selector)`
-  - `withBloc<B, R>(fn)`
 - Conditions for `buildWhen`, `listenWhen` and `selectorShouldRebuild`:
   `BlocCondition`, `whenChanged`
 - Async safety:
   - `SafeEmitMixin` (Cubits only)
   - `CancellationToken` (with `whenCancelled`)
-  - `RestartableTask` (`run`, `runOutcome`)
+  - `RestartableTask` (`runOutcome`)
   - `RestartableTasksMixin` (`runLatest`, `runLatestOutcome`)
   - `TaskOutcome`
 - Effects:
   - `HasEffects`
   - `BlocEffectListener`, which composes inside `MultiBlocListener`
-  - `effectWhen` filtering
   - `debugPrintUnheardEffects`, an opt-in debug warning for effects that
     nothing listens to
 - Deprecated, removed in 1.0: `RebuildPolicy`, `ListenPolicy` and their
   factories, `EffectListener`, `MultiEffectListener`,
-  `SingleChildEffectListener`
+  `SingleChildEffectListener` (since 0.3.0); the `BuildContext` helpers
+  `readOrNull`, `watchOrNull`, `selectOrNull` and `withBloc`, `effectWhen`
+  with `EffectCondition`, `RestartableTask.run`, `BlocEffectListener.withChild`,
+  and the typedefs `BlocEffectListenerWithBloc` and `BlocSelectedCondition`
+  (since 0.4.0)
 
 Delivery notes, next steps and guardrails are tracked in
 [`docs/library_improvement_plan.md`](docs/library_improvement_plan.md).
@@ -84,21 +82,32 @@ changes from an instance to `null` they follow the provided bloc at once, and
 their callbacks get the bloc whose states they receive. `BlocBuilder` and
 `BlocListener` keep the previous instance instead.
 
-### Null-safe context access
+### Optional lookups
 
 ```dart
+import 'package:flutter_bloc/flutter_bloc.dart'; // exports read, watch, select
+
 void tryIncrement(BuildContext context) {
-  final counterCubit = context.readOrNull<CounterCubit>();
+  final counterCubit = context.read<CounterCubit?>();
   counterCubit?.increment();
 }
 ```
 
-`readOrNull`, `watchOrNull` and `selectOrNull` return `null` only when there
-is no provider. An error thrown while the provider creates the bloc is
-rethrown.
-
-`readOrNull`, `watchOrNull` and `withBloc` work for any provided type, such as
-a repository: `context.withBloc((AuthRepository repo) => repo.currentUser)`.
+With a nullable type argument, the lookups of `provider` handle a bloc that
+may not be provided: `context.read<CounterCubit?>()`,
+`context.watch<CounterCubit?>()` and
+`context.select<CounterCubit?, int?>((cubit) => cubit?.state.count)` return
+`null` when there is no provider of `CounterCubit`, rethrow any other error,
+such as one thrown while the provider creates the bloc, and rebuild as their
+non-null forms do. They replace the deprecated `readOrNull`, `watchOrNull`
+and `selectOrNull`, which return the same values, while
+`context.withBloc((CounterCubit cubit) => cubit.state.count)` becomes
+`context.read<CounterCubit?>()?.state.count`. When the selector is not a
+member chain, write `cubit == null ? null : ...`; when the callback of
+`withBloc` does more than one member access, use a local variable and a null
+check. `bloc_plus` does not export these lookups: a file without the
+`flutter_bloc` import needs it, and drops the `bloc_plus` import when it used
+`bloc_plus` only for the helpers.
 
 ### Combined state and effects
 
@@ -260,19 +269,20 @@ works in tests.
   run clears that flag itself: the example above clears it only for a
   completed outcome.
 
-`runLatest`, `RestartableTask.run`, `CancellationToken.run` and `guarded`
-complete with `null` when the work was superseded, cancelled or outlived the
-bloc, also when that work fails, so only the latest run can throw. Handle
-`null` first, with an early return: an `else` or a `default` branch would take
-discarded work for a failed result.
+`runLatest`, `CancellationToken.run` and `guarded` complete with `null` when
+the work was superseded, cancelled or outlived the bloc, also when that work
+fails, so only the latest run can throw. Handle `null` first, with an early
+return: an `else` or a `default` branch would take discarded work for a failed
+result.
 
 For `void` work or a nullable result, `null` would be ambiguous, so
 `runLatest`, `CancellationToken.run` and `guarded` do not accept it
-(`T extends Object`); `RestartableTask.run` still accepts it, with the same
-ambiguity. Instead of `runLatest` or `RestartableTask.run`, use
-`runLatestOutcome` as above or `RestartableTask.runOutcome`, and check the
-outcome before anything else: an ignored outcome compiles, and the code after
-it then runs for a superseded run as well. Instead of `guarded` or
+(`T extends Object`). `RestartableTask.run` cannot take that bound, because
+its `T` belongs to the class, so it is deprecated and will be removed in 1.0.
+Instead of `runLatest` or `RestartableTask.run`, use `runLatestOutcome` as
+above or `RestartableTask.runOutcome`, and check the outcome before anything
+else: an ignored outcome compiles, and the code after it then runs for a
+superseded run as well. Instead of `guarded` or
 `CancellationToken.run`, await such work plainly and then check what the
 method checked, before anything else: `isClosed` for `guarded`, which
 `safeEmit` checks for you, and `token.isCancelled` for
@@ -355,8 +365,8 @@ MultiBlocListener(
   from `bloc:`: it becomes `Object?` and the `switch` is no longer checked for
   exhaustiveness.
 - To react to one subtype, listen to the supertype and use an if-case
-  pattern: `if (effect case ShowError(:final message)) ...`. `effectWhen`
-  filters effects but does not promote their type.
+  pattern at the top of `onEffect`, which also promotes the effect type:
+  `if (effect case ShowError(:final message)) ...`.
 - `MultiBlocListener` asserts that `listeners` is not empty, and ignores a
   `child` passed to a listener inside it.
 - `emitEffect` is `@protected` and `@visibleForTesting`, like `emit`. Calls
@@ -364,13 +374,15 @@ MultiBlocListener(
   libraries, get analyzer warnings. Share helpers between blocs with a
   `mixin AuthEffects on HasEffects<AuthState, AuthEffect>`.
 
-Migrating from the deprecated widgets (removed in 1.0):
+Migrating from the deprecated APIs (removed in 1.0):
 
 | Before | After |
 | --- | --- |
 | `EffectListener<B, S, E>` | `BlocEffectListener<B, E>` |
 | `MultiEffectListener` | `MultiBlocListener` |
 | `EffectListener` on a subtype of the declared effect type | `BlocEffectListener` on the supertype with an if-case pattern |
+| `effectWhen: (effect) => effect is ShowError` (deprecated in 0.4.0) | `if (effect case ShowError(...))` or `if (effect is! ShowError) return;` at the top of `onEffect` |
+| `listener.withChild(child)` (deprecated in 0.4.0) | `child:` in the constructor, or the listener in `MultiBlocListener` |
 
 ### Testing effects
 

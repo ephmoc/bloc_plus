@@ -1,12 +1,17 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../policies/conditions.dart';
+
 /// Signature for building a widget from a selected value and the resolved bloc.
 typedef BlocSelectorBuilderWithBloc<B extends StateStreamable<S>, S, T> = Widget
     Function(BuildContext context, B bloc, T selected);
 
 /// Signature for deciding whether a newly selected value should trigger a
 /// rebuild.
+@Deprecated(
+  'Use BlocCondition<T>, the same function type. Will be removed in 1.0.',
+)
 typedef BlocSelectedCondition<T> = bool Function(T previous, T current);
 
 /// A selector widget that exposes both the resolved bloc instance and selected
@@ -39,7 +44,7 @@ class BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>
   ///
   /// Receives the last built selection as `previous` and the selection of the
   /// new state as `current`. Defaults to `previous != current`.
-  final BlocSelectedCondition<T>? selectorShouldRebuild;
+  final BlocCondition<T>? selectorShouldRebuild;
 
   /// Builds a widget with the selected value and resolved bloc instance.
   final BlocSelectorBuilderWithBloc<B, S, T> builder;

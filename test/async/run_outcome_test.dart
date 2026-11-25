@@ -287,19 +287,6 @@ void main() {
       await expectLater(run, throwsStateError);
       expect(task.isRunning, isFalse);
     });
-
-    test('run still completes with null when cancelled', () async {
-      // Given
-      final task = RestartableTask<int>();
-      final run = task.run(() => Completer<int>().future);
-
-      // When
-      task.cancel();
-
-      // Then
-      expect(await _isReleased(run), isTrue);
-      expect(await run, isNull);
-    });
   });
 
   group('RestartableTasksMixin.runLatestOutcome', () {

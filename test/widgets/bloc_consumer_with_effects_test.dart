@@ -53,14 +53,12 @@ void main() {
     expect(effects, ['toast']);
   });
 
-  testWidgets('state and effect predicates are evaluated independently', (
-    tester,
-  ) async {
+  testWidgets('applies buildWhen to the builder and listenWhen to the listener',
+      (tester) async {
     // Given
     final cubit = _EffectCounterCubit();
     addTearDown(cubit.close);
     final listened = <int>[];
-    final effects = <String>[];
 
     await tester.pumpWidget(
       Directionality(
@@ -70,9 +68,8 @@ void main() {
           child: BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
             buildWhen: (previous, current) => current.isEven,
             listenWhen: (previous, current) => current.isOdd,
-            effectWhen: (effect) => effect.startsWith('allow'),
             listener: (context, bloc, state) => listened.add(state),
-            onEffect: (context, bloc, effect) => effects.add(effect),
+            onEffect: (context, bloc, effect) {},
             builder: (context, bloc, state) =>
                 Text('$state', textDirection: TextDirection.ltr),
           ),
@@ -84,14 +81,42 @@ void main() {
     cubit.increment();
     await tester.pumpAndSettle();
     cubit.increment();
-    cubit.emitEffect('skip');
-    cubit.emitEffect('allow');
     await tester.pumpAndSettle();
 
     // Then
     expect(listened, [1]);
-    expect(effects, ['allow']);
     expect(find.text('2'), findsOneWidget);
+  });
+
+  testWidgets('delivers effects while buildWhen or listenWhen rejects a state',
+      (tester) async {
+    // Given
+    final cubit = _EffectCounterCubit();
+    addTearDown(cubit.close);
+    final effects = <String>[];
+    await tester.pumpWidget(
+      BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
+        bloc: cubit,
+        buildWhen: (previous, current) => current.isEven,
+        listenWhen: (previous, current) => current.isOdd,
+        listener: (context, bloc, state) {},
+        onEffect: (context, bloc, effect) => effects.add(effect),
+        builder: (context, bloc, state) => const SizedBox.shrink(),
+      ),
+    );
+
+    // When
+    cubit.increment(); // 1, which buildWhen rejects
+    await tester.pump();
+    cubit.emitEffect('after 1');
+    await tester.pump();
+    cubit.increment(); // 2, which listenWhen rejects
+    await tester.pump();
+    cubit.emitEffect('after 2');
+    await tester.pump();
+
+    // Then
+    expect(effects, ['after 1', 'after 2']);
   });
 
   testWidgets(
@@ -170,26 +195,22 @@ void main() {
     expect(find.text('second:3'), findsOneWidget);
   });
 
-  testWidgets('uses the latest onEffect and effectWhen after a rebuild',
-      (tester) async {
+  testWidgets('uses the latest onEffect after a rebuild', (tester) async {
     // Given
     final cubit = _EffectCounterCubit();
     addTearDown(cubit.close);
     final effects = <String>[];
-    Widget consumer(String tag, {required String blocked}) =>
+    Widget consumer(String tag) =>
         BlocConsumerWithEffects<_EffectCounterCubit, int, String>(
           bloc: cubit,
-          effectWhen: (effect) => effect != blocked,
           onEffect: (context, bloc, effect) => effects.add('$tag:$effect'),
           builder: (context, bloc, state) => const SizedBox.shrink(),
         );
-    await tester.pumpWidget(consumer('v1', blocked: 'a'));
+    await tester.pumpWidget(consumer('v1'));
 
     // When
-    await tester.pumpWidget(consumer('v2', blocked: 'b'));
-    cubit
-      ..emitEffect('a')
-      ..emitEffect('b');
+    await tester.pumpWidget(consumer('v2'));
+    cubit.emitEffect('a');
     await tester.pump();
 
     // Then
