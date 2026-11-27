@@ -6,7 +6,8 @@
 > In 0.4.0 `BlocBuilderWithBloc` and `BlocListenerWithBloc` compose
 > `BlocBuilder` and `BlocListener` and resolve the bloc once per build as
 > well, so they follow the provided bloc after `bloc` becomes `null`. The
-> signatures below are the ones in `lib/` at 0.4.0.
+> signatures below are the ones in `lib/` at 1.0.0. Historical: 0.4.0
+> deprecated the typedef `BlocSelectedCondition<T>`; 1.0.0 removed it.
 
 ## Preconditions
 
@@ -26,7 +27,7 @@
   except that they follow the provided bloc after `bloc:` becomes `null` (0.4.0)
   and in the two other cases of 0.4.0 under Public Contract
 
-## Signatures (0.4.0)
+## Signatures
 
 - `const BlocBuilderWithBloc<B extends StateStreamable<S>, S>({required builder, bloc, buildWhen})`,
   a `StatelessWidget` that returns a `BlocBuilder`; `builder(context, bloc, state)`
@@ -36,9 +37,8 @@
 - `const BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>({required selector, required builder, bloc, selectorShouldRebuild})`;
   `builder(context, bloc, selected)`, `selectorShouldRebuild(previous, current)`
 - Typedefs: `BlocWidgetBuilderWithBloc<B, S>`, `BlocWidgetListenerWithBloc<B, S>`,
-  `BlocSelectorBuilderWithBloc<B, S, T>`, `BlocSelectedCondition<T>` (deprecated
-  in 0.4.0, removed in 1.0: `selectorShouldRebuild` is a `BlocCondition<T>`,
-  the same function type)
+  `BlocSelectorBuilderWithBloc<B, S, T>`; `selectorShouldRebuild` is a
+  `BlocCondition<T>`
 
 ## Out Of Scope
 

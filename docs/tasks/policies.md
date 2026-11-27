@@ -1,11 +1,10 @@
 # Task Spec - policies
 
-> Status: delivered in 0.1.0. Deprecated in 0.3.0, removed in 1.0:
-> `RebuildPolicy`, `ListenPolicy` and their factories. Replacement:
-> `BlocCondition<S>` and `whenChanged<S, T>(selector, {equals})` from
-> `lib/src/policies/conditions.dart`, passed directly as `buildWhen`,
-> `listenWhen` or `selectorShouldRebuild`. This spec is historical; do not
-> extend the policy classes.
+> Status: delivered. `BlocCondition<S>` and `whenChanged<S, T>(selector,
+> {equals})` from `lib/src/policies/conditions.dart` since 0.3.0, passed
+> directly as `buildWhen`, `listenWhen` or `selectorShouldRebuild`.
+> Historical: 0.1.0 shipped `RebuildPolicy` and `ListenPolicy` with their
+> factories; 0.3.0 deprecated them and 1.0.0 removed them.
 
 ## Preconditions
 
@@ -17,64 +16,57 @@
 
 ## Scope
 
-- Implement `RebuildPolicy<S>`
-- Implement `ListenPolicy<S>`
-- Provide built-ins (shipped as top-level functions, all deprecated in 0.3.0):
-  - `distinct<S>()` / `distinctListen<S>()`
-  - `onChange<S, T>(selector)` / `onChangeListen<S, T>(selector)`
-  - `always<S>()` / `alwaysListen<S>()`
-  - `never<S>()` / `neverListen<S>()`
-- Ensure compatibility with `ui_with_bloc` widgets and standard `flutter_bloc` conditions
+- `typedef BlocCondition<S> = bool Function(S previous, S current)`, the same
+  function type as `BlocBuilderCondition<S>` and `BlocListenerCondition<S>`
+- `whenChanged<S, T>(selector, {equals})`, which returns a `BlocCondition<S>`
+- Compatibility with `ui_with_bloc` widgets and the upstream `BlocBuilder`,
+  `BlocListener` and `BlocConsumer`
 
 ## Out Of Scope
 
 - New widget types
 - Async safety/effects internals
+- Policy classes or named factories: a plain predicate covers `always`,
+  `never` and `distinct`
 
 ## Public Contract
 
-- Policies are stateless and reusable
-- `distinct`: true when `previous != current`
-- `onChange`: true when selected values differ
-- `always`: always true
-- `never`: always false
-- Policies expose predicate methods usable directly in `buildWhen` / `listenWhen`
-  (`shouldRebuild` / `shouldListen`)
-- Replacement at 0.3.0: `whenChanged(sel)` for `onChange` (keep `<S, T>`, or
-  type the selector parameter, when the widget has no type arguments), omit
-  the parameter for `always`, `(previous, current) => false` for `never`,
-  `(previous, current) => previous != current` for `distinct`
+- Conditions are stateless and reusable
+- `whenChanged(selector)`: true when the selected values differ by `==`
+- `whenChanged(selector, equals: eq)`: true when `eq(previous, current)` is
+  false; `equals` receives the selected values in `(previous, current)` order
+- A record of scalars is compared field by field; a collection is compared by
+  identity unless `equals` is given (for example `listEquals`)
+- With the widget's type arguments given, `whenChanged` infers `S` from the
+  widget parameter; otherwise type the selector's parameter
 
 ## Target Files
 
-- `lib/src/policies/rebuild_policy.dart`
-- `lib/src/policies/listen_policy.dart`
+- `lib/src/policies/conditions.dart`
 - `lib/src/policies/policies.dart` (barrel)
 - `lib/bloc_plus.dart` (exports)
 
 ## Tests (Contract)
 
-- `test/policies/rebuild_policy_test.dart`
-- `test/policies/listen_policy_test.dart`
+- `test/policies/conditions_test.dart`
 
 Required cases:
 
-- each built-in policy behavior
-- `onChange` with primitive and object selector
-- policy instance reuse across multiple invocations
-- no hidden state between calls
+- holds on a selected change, not on a change of other fields
+- record of scalars, `equals` instead of `==` and its argument order
+- a selector that builds a new collection always holds
+- inference from the parameters of upstream and `*WithBloc` widgets, with a
+  provided and an explicit bloc
 
 ## Example App Updates
 
-- Historical: the example app at 0.3.0 uses `whenChanged` instead of policies.
-- Add one screen/section demonstrating policy reuse in multiple widgets
-- Show at least one custom policy implementation
+- Show `whenChanged` with custom equality as `buildWhen`
 
 ## Acceptance Criteria (DoD)
 
-- Built-ins implemented and exported
-- Unit tests cover all built-ins and custom policy example
-- Works with `ui_with_bloc` `buildWhen` / `listenWhen`
+- `BlocCondition` and `whenChanged` implemented and exported
+- Unit tests cover `whenChanged` with and without `equals`
+- Works with `ui_with_bloc` `buildWhen` / `listenWhen` / `selectorShouldRebuild`
 - Dartdoc complete for API and examples
 
 ## Validation Commands
@@ -86,6 +78,6 @@ Required cases:
 
 ## Agent Constraints
 
-- Keep policies pure and side-effect free
+- Keep conditions pure and side-effect free
 - No runtime reflection/dynamic hacks
 - No additional dependencies

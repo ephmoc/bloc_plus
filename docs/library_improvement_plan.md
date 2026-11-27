@@ -118,9 +118,6 @@ Why this matters:
 
 Related task specs:
 
-- `docs/tasks/policy_composition.md`
-- `docs/tasks/effect_filtering.md`
-- `docs/tasks/multi_effect_listener.md`
 - `docs/tasks/async_helpers.md`
 - `docs/tasks/state_effect_consumer.md`
 
