@@ -44,8 +44,9 @@
 - No helper may imply that the underlying `Future` is forcefully interrupted
 - A key names a whole flow, not a step (0.4.0, README recipe): a flow with
   several `await`s runs inside one `runLatestOutcome` and checks
-  `token.isCancelled` after every `await`; its method returns the future of
-  `runLatestOutcome` instead of awaiting it as a statement
+  `token.isCancelled` after every `await`, and first in a `catch` inside the
+  task; its method returns the future of `runLatestOutcome` instead of
+  awaiting it as a statement
 - `runLatest` and `runLatestOutcome` are `@useResult` (0.4.0): a result that
   is awaited and dropped is reported
 

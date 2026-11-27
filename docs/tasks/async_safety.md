@@ -13,7 +13,9 @@
 > class and cannot take the bound, so `runOutcome` replaces it. A failure is
 > dropped like a value when the cancel lands after it, before the caller
 > resumes (`runOutcome`, `CancellationToken.run`), and `guarded` drops a
-> synchronous throw followed by `close()` in the same turn.
+> synchronous throw followed by `close()` in the same turn, and the value of
+> a future that calls back synchronously, such as Flutter's
+> `SynchronousFuture`, when `close()` is called in the same turn.
 > `guarded`, `CancellationToken.run` and `RestartableTask.runOutcome` are
 > `@useResult` since 0.4.0: a result that is awaited and dropped is reported.
 
