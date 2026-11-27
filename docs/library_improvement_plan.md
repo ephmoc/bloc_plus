@@ -176,16 +176,16 @@ to an app.
 The second review found that the async helpers for Cubits and the effects
 carry the package, that the `BuildContext` helpers repeat what provider
 documents, and that some signatures can only be tightened before a freeze.
-So 0.4.0 tightens and shrinks the API, and 1.0 follows four weeks after it
-is published.
+So 0.4.0 tightens and shrinks the API, and 1.0 follows no earlier than four
+weeks after it is published.
 
 ### 0.4.0, planned as the last 0.x minor
 
 It makes every change of shape that 1.0 will freeze and deprecates everything
 that 1.0 removes, so that 1.0 itself only removes what 0.4.0 marked. Code
-that compiles on 0.4.0 without deprecation warnings needs one kind of edit
-for 1.0: names that 1.0 removes have to leave the `hide` lists of its imports
-(see below).
+that compiles on 0.4.0 without deprecation warnings can still name what 1.0
+removes: in the `hide` lists of its imports, and where the analyzer does not
+report a deprecated use (see below).
 
 It lands on `develop` as separate pull requests: one for each breaking
 change, one for the deprecations, one for the new docs and the rest of the
@@ -212,6 +212,15 @@ with several `await`s, returns the future instead:
 itself depends on it, and Flutter 3.10 pins 1.9.1). A trial migration of an
 existing application, planned here on 2026-11-23, was dropped on
 2026-11-25: the work stays on the library.
+
+Before it is published, three findings of a review are fixed as well
+(decided on 2026-11-27). `BlocListenerWithBloc` without a `child` renders
+`SizedBox.shrink()`, as `BlocEffectListener` does: its assertion copied the
+one of `BlocListener`, which `flutter_bloc` 9.1.2 dropped.
+`BlocSelectorWithBloc` follows a replaced provided bloc also when its element
+was already dirty. `guarded` completes with `null` for a future that
+calls back synchronously, such as a `SynchronousFuture`, when `close()` is
+called in the same turn.
 
 Breaking changes, allowed inside 0.x, each with its migration in the
 CHANGELOG:
@@ -492,20 +501,30 @@ Released when both conditions hold:
 
 - at least four weeks have passed since 0.4.0 was published. A 0.4.x release
   that changes code under `lib/` (anything but comments) restarts them, a bug
-  fix included; a release that changes only documentation, the example or
-  tests does not;
-- no change is open that would need a major after 1.0: a removed or renamed
-  export, an incompatible signature, a changed documented behaviour, or an
-  annotation that makes the analyzer report code that was clean before (such
-  as `@protected`).
+  fix included, and so does one that changes a constraint under
+  `dependencies` or `environment` in `pubspec.yaml`; a release that changes
+  only documentation, the example or tests does not, and the other
+  `pubspec.yaml` fields, `dev_dependencies` included, count as documentation.
+  A change of `lib/` that 1.0.0 would publish for the first time is released
+  in a 0.4.x first: `lib/` of 1.0.0 differs from the last published 0.4.x
+  only by the removals below;
+- no change is open that would need a major under "Versioning from 1.0"
+  below: none is planned in this file, and none is asked for in an open issue
+  or pull request of the repository.
 
 Such a change is released in 0.5.0 first, and then this section reads 0.5
 wherever it says 0.4: the four weeks count from the publication of 0.5.0. A
 change that only adds API comes in a 0.4.x patch, which restarts the four
 weeks as any change of `lib/` does, or in a 1.x minor.
 
+Before the release, upstream is checked once more for a built-in cancelable
+API (bloc issue 3069, open since 2021) and for a new major of a dependency.
+Either would change what 1.0 freezes: if one exists, 1.0 waits until this
+section says what it changes.
+
 There is no `-dev` prerelease: releases are cut from `main`, so a prerelease
-there would close the 0.4.x line for fixes. The removals wait on their own
+there would close the 0.4.x line for fixes. 1.0.0 closes it for the same
+reason: no 0.4.x fix is published after it. The removals wait on their own
 branch, open as a draft pull request into `develop` so that CI runs on them
 and updated after every 0.4.x release. They are merged into `develop` only
 for the release.
@@ -519,24 +538,50 @@ for the release.
   `BlocSelectedCondition`.
 - The `context_extensions` module then has no API: its export, its PRD
   section and its task spec go, and AGENTS.md section 4 drops it from the
-  module sequence.
+  module sequence. `docs/tasks/effect_filtering.md`,
+  `docs/tasks/multi_effect_listener.md` and `docs/tasks/policy_composition.md`
+  describe only removed API and go as well, with their entries under "Related
+  task specs" above. `docs/tasks/policies.md` keeps only `BlocCondition` and
+  `whenChanged`: the `policies` module stays.
 - Nothing else changes: the bounds, the class modifiers and the widget types
   are those of 0.4.0. The mixins stay plain mixins. The widgets are not marked
   `final`, but subclassing them is outside the versioning policy. The minimum
   SDK stays at Dart 3.0 / Flutter 3.10.
 - The dartdoc that still mentions a removed name is corrected in the same
-  change, because no CI gate reports it: for example `effectWhen` in
-  `BlocEffectListener` and "complete with `null` or" in
-  `RestartableTask.dispose`. `dart doc --dry-run` prints no warning.
-- Migration notes: "upgrade to 0.4.0 and clear every warning first", plus the
-  one kind of edit that clean 0.4.0 code still needs: a name that 1.0 removes
-  has to be deleted from the `hide` list of an import, where it becomes an
-  `undefined_hidden_name` warning (the code still compiles). The usual case
-  is the `hide whenListen` that the README asked for next to `bloc_test`. The
-  README keeps a short "Upgrading from 0.x" section with the replacement
-  tables, because a project on `^0.2.x` never saw the deprecation warnings.
-- The API freeze table in the PRD and the task specs are updated, and the
-  statements that 1.0 makes false are removed.
+  change, because no CI gate reports it: `effectWhen` in
+  `BlocEffectListener.onEffect` and "complete with `null` or" in
+  `RestartableTask.dispose`. `dart doc --dry-run` prints no warning. The two
+  `ignore_for_file: deprecated_member_use_from_same_package` headers go with
+  their comments (`bloc_effect_listener.dart`,
+  `bloc_consumer_with_effects.dart`): the analyzer does not report an ignore
+  that has become unnecessary.
+- Migration notes: "upgrade to 0.4.0 and clear every warning first, then
+  search for the removed names and compile", because clean 0.4.0 code can
+  still name them. A name that 1.0 removes has to be deleted from the `hide`
+  list of an import, where it becomes an `undefined_hidden_name` warning (the
+  code still compiles). The usual case is the `hide whenListen` that the
+  README asked for next to `bloc_test`. The analyzer also does not report a
+  deprecated use inside the app's own `@Deprecated` declarations, under an
+  ignore comment, where `analysis_options.yaml` turns `deprecated_member_use`
+  off, in files excluded from analysis, or through a `dynamic` receiver,
+  which fails only at run time. A short "Upgrading from 0.x" section of the
+  README gathers every replacement, because a constraint such as `^0.2.0` or
+  `^0.3.1` does not admit 0.4.0: such a project never saw all of the
+  deprecation warnings. The replacements stand today in two README tables
+  (under "Effects" and "Conditions"), in two README paragraphs
+  (`RestartableTask.run` under "Async helpers for Cubits", the lookups under
+  "Optional lookups"), in the CHANGELOG of 0.4.0 (`BlocSelectedCondition`
+  and `BlocEffectListenerWithBloc`) and, for `SingleChildEffectListener`,
+  only in its deprecation message (`BlocEffectListener`, a
+  `SingleChildWidget` inside `MultiBlocListener`). The install snippet
+  reads `^1.0.0`.
+- The API freeze table in the PRD and the task specs are updated. The
+  statements that speak of 1.0 as coming are removed or reworded in the
+  README (the list of deprecated APIs, the notes "removed in 1.0", the
+  `hide whenListen` paragraph, the introduction of "Versioning"), in the PRD
+  (the API freeze table with its heading "v0.x scope", the entry
+  "v1.0.0 - API Freeze", the version it says it describes) and in the task
+  specs that stay.
 
 ### Versioning from 1.0
 
@@ -545,20 +590,27 @@ Published in the README:
 - the public API is everything exported from
   `package:bloc_plus/bloc_plus.dart`;
 - a major version is needed to remove or rename an export, to change a
-  signature incompatibly, to change documented behaviour, or to add an
-  annotation that makes the analyzer report code that was clean before, such
-  as `@protected`. `@Deprecated` is the exception (next item);
+  signature incompatibly, to change the superclass of a widget, to change
+  documented behaviour, or to add an annotation that makes the analyzer
+  report code that was clean before, such as `@protected`. `@Deprecated` is
+  the exception (next item);
 - a minor version may add exports, members and optional parameters, support a
-  new major of `flutter_bloc`, `bloc` or `provider` when no signature here
-  changes, raise the minimum Dart or Flutter SDK, and deprecate an API, which
-  is then removed no earlier than the next major;
+  new major of a dependency when no signature here changes, raise the minimum
+  Dart or Flutter SDK or the minimum version of a dependency (a new major
+  included), and deprecate an API, which is then removed no earlier than the
+  next major;
 - not covered: classes that `implement` this package's classes or mixins by
-  hand (`EffectsSource` is the exception), subclasses of its classes and
-  widgets, and overriding members of its widgets. Applying the mixins with
-  `with`, or building on them with `mixin X on ...`, is covered;
+  hand (`EffectsSource` is the exception, and gets no new member without a
+  major), subclasses of its classes and widgets, and overriding members of
+  its widgets. Applying the mixins with `with`, or building on them with
+  `mixin X on ...`, is covered. Where a widget is documented as a
+  `flutter_bloc` widget with something added, the rest of its behaviour is
+  that of the `flutter_bloc` version the app resolves; a change there is not
+  a change of this package;
 - a member added in a minor may clash with a member of the same name in a
-  class that applies a mixin or extends a class of this package. That is not
-  treated as a breaking change.
+  class that applies a mixin or extends a class of this package, and an
+  optional parameter added to a method of a mixin breaks an override of that
+  method. Neither is treated as a breaking change.
 
 ### Reviewed and kept
 
@@ -566,9 +618,10 @@ The second review proposed to cut or reshape these as well. Each one stays as
 it is, for a reason that a replacement would have to match:
 
 - `guarded` makes the closed check part of the type. Its result is `T?`, so
-  where the result is used (an exhaustive `switch` over a sealed result,
-  `.match` on an `Either`, a member, a non-nullable parameter) a forgotten
-  check is a compile error. The manual
+  where the result is used as a non-null value (an exhaustive `switch` over a
+  sealed result, `.match` on an `Either`, a member, a non-nullable parameter)
+  a forgotten check is a compile error; an `else`, a `default` branch or `?.`
+  still compiles, which the dartdoc warns about. The manual
   `final r = await op(); if (isClosed) return;` compiles without its check
   and then throws or runs on after `close()`. `guarded` also does not start
   the operation on a closed cubit and drops a failure that arrives after
@@ -578,10 +631,12 @@ it is, for a reason that a replacement would have to match:
   manual guard.
 - `BlocConsumerWithEffects` resolves the bloc once for the builder, the
   listener and the effects. In the composed form a `bloc:` that is forgotten
-  on one of the three widgets listens to another instance without an error.
+  on one of the widgets makes that widget look the bloc up: it listens to the
+  provided instance without an error, or throws `ProviderNotFoundException`
+  when none is provided.
 - The `*WithBloc` widgets hand the callback the bloc that the widget listens
-  to. With an explicit `bloc:`, `context.read<B>()` in the callback throws or
-  returns another instance.
+  to. With an explicit `bloc:` that is not the provided one,
+  `context.read<B>()` in the callback throws or returns another instance.
 - `BlocSelectorWithBloc.selectorShouldRebuild` is a custom comparison with
   the value that is shown. `BlocSelector` compares with `!=` only, and
   `buildWhen` compares with the previous state, whether it was built or not.
@@ -590,8 +645,10 @@ it is, for a reason that a replacement would have to match:
   parallel. `RestartableTask` stays public, as the engine of the mixin and
   for "latest wins" outside a bloc.
 - `TaskOutcome` stays a `final class` with `isCompleted` and `value`. A
-  sealed pair of subclasses, which would make the compiler force the check,
-  can be added in a 1.x minor without breaking it.
+  sealed pair of subclasses can be added in a 1.x minor without breaking it.
+  It does not make the compiler force the check, because `value` stays on
+  the base type: it offers a checked path, a `switch` over the two subtypes.
+  Forcing the check needs a major.
 - `BlocEffectListener.onEffect` stays `(context, effect)`, although
   `BlocConsumerWithEffects` hands the bloc to its callbacks. A third argument
   would let `E` be inferred from `bloc:` in code at language version 3.7 or
@@ -615,6 +672,10 @@ it is, for a reason that a replacement would have to match:
 - Renaming the `BlocEffectListenerWithBloc` typedef: it is removed instead.
 - Raising the minimum SDK to Dart 3.7: type inference depends on the language
   version of the app, so the package gains nothing.
+- Replaying or buffering an effect for a listener that subscribes later: an
+  effect that nothing listens to stays lost, as the README and the dartdoc of
+  `emitEffect` say. If replay is ever needed, it comes as a separate mixin in
+  a 1.x minor.
 
 ## Guardrails
 

@@ -23,7 +23,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SearchCubit extends Cubit<int>
-    with SafeEmitMixin<int>, RestartableTasksMixin<int> {
+    with SafeEmitMixin<int>, RestartableTasksMixin<int>, HasEffects<int, int> {
   SearchCubit() : super(0);
 
   Future<void> search() async {
@@ -34,6 +34,8 @@ class SearchCubit extends Cubit<int>
     if (await guarded(() async => 1) == null) return;
     cancelLatest('search');
     cancelAllLatest();
+    safeEmit(1);
+    emitEffect(1);
   }
 }
 
@@ -62,6 +64,8 @@ Widget status(SearchCubit cubit) {
   cubit.cancelLatest('search'); // rejected
   cubit.cancelAllLatest(); // rejected
   unawaited(cubit.guarded(() async => 1)); // rejected
+  cubit.safeEmit(1); // rejected
+  cubit.emitEffect(1); // rejected
   return Text('\$running');
 }
 
@@ -71,7 +75,7 @@ extension Status on SearchCubit {
 ''';
 
 void main() {
-  group('The protected members of RestartableTasksMixin and guarded', () {
+  group('The protected members of the bloc mixins', () {
     late List<String> diagnostics;
     late List<String> expected;
 

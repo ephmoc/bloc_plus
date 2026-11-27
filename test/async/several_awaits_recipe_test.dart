@@ -1,6 +1,7 @@
 // Runs the README recipe "A flow with several awaits": one runLatestOutcome
 // around the whole flow, whose future open returns, a check of
-// token.isCancelled after every await, and the emits inside the task.
+// token.isCancelled after every await and first in the catch, and the emits
+// inside the task.
 // OrderCubit.open is the README sample; keep them in sync.
 
 import 'dart:async';
@@ -20,18 +21,21 @@ class _Repository {
 }
 
 class _OrderState {
-  const _OrderState({this.order, this.invoice});
+  const _OrderState({this.order, this.invoice, this.failed = false});
 
   final String? order;
   final String? invoice;
+  final bool failed;
 
-  _OrderState copyWith({String? order, String? invoice}) => _OrderState(
+  _OrderState copyWith({String? order, String? invoice, bool? failed}) =>
+      _OrderState(
         order: order ?? this.order,
         invoice: invoice ?? this.invoice,
+        failed: failed ?? this.failed,
       );
 
   @override
-  String toString() => '$order, $invoice';
+  String toString() => '$order, $invoice${failed ? ', failed' : ''}';
 }
 
 class _OrderCubit extends Cubit<_OrderState>
@@ -52,13 +56,20 @@ class _OrderCubit extends Cubit<_OrderState>
 
   Future<void> open(String orderId) {
     return runLatestOutcome('open', (token) async {
-      final order = await repository.order(orderId);
-      if (token.isCancelled) return;
-      emit(_OrderState(order: order)); // a new order starts without an invoice
+      try {
+        final order = await repository.order(orderId);
+        if (token.isCancelled) return;
+        // A new order starts without an invoice.
+        emit(_OrderState(order: order));
 
-      final invoice = await repository.invoice(order);
-      if (token.isCancelled) return;
-      emit(state.copyWith(invoice: invoice));
+        final invoice = await repository.invoice(order);
+        if (token.isCancelled) return;
+        emit(state.copyWith(invoice: invoice));
+      } catch (_) {
+        // A superseded flow can fail after the newer one has emitted.
+        if (token.isCancelled) return;
+        emit(state.copyWith(failed: true));
+      }
     });
   }
 }
@@ -142,6 +153,56 @@ void main() {
     // When
     await cubit.close();
     repository.orders['a']!.complete('order a');
+    await flow;
+    await pumpEventQueue();
+
+    // Then
+    expect(cubit.errors, isEmpty);
+    expect(states, isEmpty);
+  });
+
+  test('the late failure of a superseded flow does not emit', () async {
+    // Given
+    final superseded = cubit.open('a');
+    final latest = cubit.open('b');
+    repository.orders['b']!.complete('order b');
+    await pumpEventQueue();
+
+    // When
+    repository.orders['a']!.completeError(StateError('boom'));
+    await superseded;
+    await pumpEventQueue();
+    repository.invoices['order b']!.complete('invoice b');
+    await latest;
+    await pumpEventQueue();
+
+    // Then
+    expect(states, ['order b, null', 'order b, invoice b']);
+  });
+
+  test('the failure of the latest flow emits the failed state', () async {
+    // Given
+    final flow = cubit.open('a');
+    repository.orders['a']!.complete('order a');
+    await pumpEventQueue();
+
+    // When
+    repository.invoices['order a']!.completeError(StateError('boom'));
+    await flow;
+    await pumpEventQueue();
+
+    // Then
+    expect(states, ['order a, null', 'order a, null, failed']);
+  });
+
+  test('a failure that arrives after close emits nothing and reports no error',
+      () async {
+    // Given
+    final flow = cubit.open('a');
+
+    // When
+    await cubit.close();
+    repository.orders['a']!.completeError(StateError('boom'));
     await flow;
     await pumpEventQueue();
 

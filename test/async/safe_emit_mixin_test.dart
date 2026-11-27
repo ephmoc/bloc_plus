@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:bloc_plus/bloc_plus.dart';
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter_test/flutter_test.dart';
 
 class _SafeEmitCubit extends Cubit<int> with SafeEmitMixin<int> {
@@ -102,6 +103,32 @@ void main() {
 
     // Then
     await expectLater(run, throwsStateError);
+  });
+
+  test('guarded drops a SynchronousFuture value on close in the same turn',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+
+    // When
+    final run = cubit.guarded(() => SynchronousFuture<int>(7));
+    await cubit.close();
+
+    // Then
+    expect(await run, isNull);
+  });
+
+  test('guarded returns a SynchronousFuture value while the cubit is open',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+    addTearDown(cubit.close);
+
+    // When
+    final result = await cubit.guarded(() => SynchronousFuture<int>(7));
+
+    // Then
+    expect(result, 7);
   });
 
   test('guarded does not start the operation on a closed cubit', () async {

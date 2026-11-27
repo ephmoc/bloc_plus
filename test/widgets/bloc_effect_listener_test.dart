@@ -260,6 +260,32 @@ void main() {
     expect(tester.takeException(), isA<ProviderNotFoundException>());
   });
 
+  testWidgets('without a child delivers effects and renders nothing',
+      (tester) async {
+    // Given
+    final cubit = _UiCubit();
+    addTearDown(cubit.close);
+    final effects = <String>[];
+    const key = Key('listener');
+    await tester.pumpWidget(
+      Center(
+        child: BlocEffectListener<_UiCubit, _UiEffect>(
+          key: key,
+          bloc: cubit,
+          onEffect: (context, effect) => effects.add(_describe(effect)),
+        ),
+      ),
+    );
+
+    // When
+    cubit.toast('saved');
+    await tester.pump();
+
+    // Then
+    expect(effects, ['toast:saved']);
+    expect(tester.getSize(find.byKey(key)), Size.zero);
+  });
+
   testWidgets('cancels its subscription when disposed', (tester) async {
     // Given
     final cubit = _ProbeCubit();

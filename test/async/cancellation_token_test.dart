@@ -66,4 +66,18 @@ void main() {
     // Then
     await expectLater(run, throwsStateError);
   });
+
+  test('run rethrows a failure with the stack trace of the task', () async {
+    // Given
+    final token = CancellationToken();
+    final thrown = StackTrace.fromString('thrown by the task');
+
+    // When
+    final caught = await token
+        .run<int>(() => Future<int>.error(Exception('boom'), thrown))
+        .then<StackTrace?>((_) => null, onError: (Object _, StackTrace s) => s);
+
+    // Then
+    expect('$caught', contains('thrown by the task'));
+  });
 }

@@ -24,6 +24,7 @@
 - Implement `BlocSelectorWithBloc`
 - Keep behavior parity with corresponding `flutter_bloc` widgets plus bloc instance in callbacks,
   except that they follow the provided bloc after `bloc:` becomes `null` (0.4.0)
+  and in the two other cases of 0.4.0 under Public Contract
 
 ## Signatures (0.4.0)
 
@@ -58,6 +59,15 @@
   the provided bloc at once, unlike `BlocBuilder` and `BlocListener`, which
   keep the previous instance; `buildWhen` and `listenWhen` then get their
   previous state from the new bloc
+- `BlocListenerWithBloc` without a `child`, outside a multi widget such as
+  `MultiBlocListener`, renders `SizedBox.shrink()` with every supported
+  `flutter_bloc` (0.4.0); `BlocListener` asserts on a missing child before
+  9.1.2
+- `BlocSelectorWithBloc` follows a replaced provided bloc also when its
+  element was already dirty (0.4.0): the old bloc emitted a state that
+  changed the selection, and the provided bloc was replaced before the next
+  frame while the widget instance was reused. `BlocSelector` stays on the
+  old bloc
 
 ## Target Files
 
@@ -93,6 +103,9 @@ Required cases:
   previous state for `buildWhen` / `listenWhen` from the new bloc, and do not
   create a lazily provided bloc while `bloc:` is set; the listener composes
   inside `MultiBlocListener` (0.4.0)
+- `BlocListenerWithBloc` without a `child` renders `SizedBox.shrink()`, and
+  `BlocSelectorWithBloc` follows a provided bloc that is replaced while its
+  element is already dirty (0.4.0)
 
 ## Example App Updates
 

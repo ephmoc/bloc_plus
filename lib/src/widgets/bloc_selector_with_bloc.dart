@@ -71,17 +71,7 @@ class _BlocSelectorWithBlocState<B extends StateStreamable<S>, S, T>
   void didUpdateWidget(BlocSelectorWithBloc<B, S, T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     final bloc = widget.bloc ?? context.read<B>();
-    if (!identical(_bloc, bloc) || oldWidget.selector != widget.selector) {
-      _bloc = bloc;
-      _selected = widget.selector(_bloc.state);
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final bloc = widget.bloc ?? context.read<B>();
-    if (!identical(_bloc, bloc)) {
+    if (oldWidget.selector != widget.selector) {
       _bloc = bloc;
       _selected = widget.selector(_bloc.state);
     }
@@ -89,9 +79,12 @@ class _BlocSelectorWithBlocState<B extends StateStreamable<S>, S, T>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.bloc == null) {
-      // Rebuild when the provided bloc instance is replaced.
-      context.select<B, bool>((bloc) => identical(_bloc, bloc));
+    // Rebuilds when a different instance is provided. The switch is here
+    // because provider does not notify an element that is already dirty.
+    final bloc = widget.bloc ?? context.select<B, B>((bloc) => bloc);
+    if (!identical(_bloc, bloc)) {
+      _bloc = bloc;
+      _selected = widget.selector(_bloc.state);
     }
     return BlocListener<B, S>(
       bloc: _bloc,

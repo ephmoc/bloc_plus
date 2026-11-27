@@ -10,8 +10,7 @@
     was discarded, which a `void`, nullable or `dynamic` result could not
     tell apart: `await runLatest('save', save); emit(saved);` compiled,
     emitted although the run was superseded, and threw after `close()`. Such
-    a call is now a compile error: `could_not_infer`, or
-    `type_argument_not_matching_bounds` with an explicit type argument.
+    a call is now a compile error.
   - `SafeEmitMixin` is declared `on Cubit<S>`: a `Bloc` and a direct
     subclass of `BlocBase` can no longer mix it in
     (`mixin_application_not_implemented_interface`). In a `Bloc`, the
@@ -27,6 +26,11 @@
     a `StatelessWidget` and a `SingleChildStatelessWidget` that return
     `BlocBuilder` and `BlocListener`; the constructors, `const`, the fields
     and the composition inside `MultiBlocListener` stay.
+  - `BlocListenerWithBloc` without a `child`, outside a multi widget such as
+    `MultiBlocListener`, renders `SizedBox.shrink()` with every supported
+    `flutter_bloc`, as `BlocEffectListener` does. Before, it did so only from
+    `flutter_bloc` 9.1.2, and with an earlier version it failed the assertion
+    of `BlocListener` (a null check in release builds).
   - `isTaskRunning`, `runLatest`, `runLatestOutcome`, `cancelLatest` and
     `cancelAllLatest` of `RestartableTasksMixin`, and `guarded` of
     `SafeEmitMixin`, are `@protected` and `@visibleForTesting`, like `emit`,
@@ -54,6 +58,21 @@
   - `guarded` drops an operation's synchronous throw, like its later failure,
     when `close()` follows in the same turn. Before, the throw reached the
     caller after `close()`.
+  - `guarded` completes with `null` when the operation returns a future that
+    calls back synchronously, such as Flutter's `SynchronousFuture` (a cached
+    `AssetBundle.loadStructuredData`, for example), and `close()` is called
+    in the same turn. Before, it returned the value on a closed cubit, and a
+    plain `emit` after the null check threw a `StateError`. For `dart:async`
+    futures the result and its timing do not change, with one exception: a
+    future that had already failed in another error zone now completes the
+    call like any other failure. Before, the call never completed.
+  - `BlocSelectorWithBloc` follows a replaced provided bloc also when its
+    element was already dirty: the old bloc emitted a state that changed the
+    selection, and the provided bloc was replaced before the next frame
+    while the widget instance was reused, for example a `const` child of
+    `BlocProvider.value`. Before, it kept showing and listening to the old
+    bloc, also after later replacements of the provided bloc. `BlocSelector`
+    itself still behaves the old way (`flutter_bloc` 9.0.0 and 9.1.2).
 - Deprecated, removed in 1.0:
   - the extension `BlocContextExtension` and its `readOrNull`, `watchOrNull`,
     `selectOrNull` and `withBloc`. The extension is annotated as well, so
@@ -83,6 +102,9 @@
     version 3.7 or later, which is the language version of the app.
   - The dartdoc of `emitEffect` says that a `Bloc` handler cancelled by a
     transformer still delivers its effect unless it checks `emit.isDone`.
+  - The dartdoc of `EffectsSource.effects` says what a hand-written
+    implementation must return: a broadcast stream that never emits an
+    error.
   - The example app models its effects as `sealed` classes.
   - pub.dev: the description mentions the effects, and the topic `effects`
     replaces `widgets`.
@@ -92,8 +114,8 @@ Migration impact:
 - A `catch` around `runOutcome`, `runLatestOutcome`, `runLatest` or
   `CancellationToken.run` no longer sees a failure whose run was cancelled
   before the caller resumed; that run takes the cancelled path instead.
-- Deprecated APIs keep working; each use is a `deprecated_member_use` info,
-  which fails `flutter analyze` until migrated:
+- Deprecated APIs keep working; the analyzer reports a use as a
+  `deprecated_member_use` info, which fails `flutter analyze` until migrated:
   - `context.readOrNull<B>()` -> `context.read<B?>()`;
     `watchOrNull<B>()` -> `watch<B?>()`;
     `selectOrNull<B, S, T>((state) => state.x)` ->
@@ -205,6 +227,8 @@ Migration impact:
   read `listener` as a `(context, state)` callback adapts: `build` takes only
   the context, and `listener` is the `(context, bloc, state)` callback. The
   callbacks get the context of the inner `BlocBuilder` or `BlocListener`.
+- None for `BlocListenerWithBloc` without a `child`, for the replaced bloc
+  of `BlocSelectorWithBloc` and for `guarded` with a synchronous future.
 - A call of those six methods from outside the bloc class, such as
   `isTaskRunning` read in `build`, `cancelLatest` called from a widget, or a
   call from an extension on the bloc or from a function outside the class,

@@ -285,9 +285,12 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | Symbol | Status | Contract Notes |
 | --- | --- | --- |
 | `BlocBuilderWithBloc` | stable | `B extends StateStreamable<S>`; `builder(context, bloc, state)`; composes `BlocBuilder` and follows the provided bloc after `bloc` becomes `null` (since 0.4.0) |
+| `BlocWidgetBuilderWithBloc` | stable | Typedef `Widget Function(BuildContext context, B bloc, S state)`: the `builder` of `BlocBuilderWithBloc`, `BlocConsumerWithBloc` and `BlocConsumerWithEffects` |
 | `BlocListenerWithBloc` | stable | `B extends StateStreamable<S>`; `const`; `listener(context, bloc, state)`; composes `BlocListener` and follows the provided bloc after `bloc` becomes `null` (since 0.4.0) |
+| `BlocWidgetListenerWithBloc` | stable | Typedef `void Function(BuildContext context, B bloc, S state)`: the `listener` of `BlocListenerWithBloc`, `BlocConsumerWithBloc` and `BlocConsumerWithEffects` |
 | `BlocConsumerWithBloc` | stable | Combines builder/listener with independent conditions; resolves the bloc once per build |
-| `BlocSelectorWithBloc` | stable | Selects `T` and rebuilds on selected value inequality by default; parity with `BlocSelector`; `selectorShouldRebuild` is a `BlocCondition<T>` since 0.4.0 |
+| `BlocSelectorWithBloc` | stable | Selects `T` and rebuilds on selected value inequality by default; keeps the selection like `BlocSelector` (differences under its Behavior); `selectorShouldRebuild` is a `BlocCondition<T>` since 0.4.0 |
+| `BlocSelectorBuilderWithBloc` | stable | Typedef `Widget Function(BuildContext context, B bloc, T selected)`: the `builder` of `BlocSelectorWithBloc` |
 | `BlocSelectedCondition` | deprecated (0.4.0, removed in 1.0) | Replaced by `BlocCondition<T>`, the same function type |
 | `BlocCondition` + `whenChanged` | stable (0.3.0) | Plain `bool Function(S previous, S current)`, passed directly as `buildWhen` / `listenWhen` / `selectorShouldRebuild` |
 | `RebuildPolicy` | deprecated (0.3.0, removed in 1.0) | Replaced by `whenChanged` and plain predicates |
@@ -295,7 +298,7 @@ The coding agent MUST treat this section as binding over illustrative snippets i
 | `BlocContextExtension` (`readOrNull`, `watchOrNull`, `selectOrNull`, `withBloc`) | deprecated (0.4.0, removed in 1.0) | Replaced by provider's nullable lookups `read<B?>()`, `watch<B?>()` and `select<B?, T?>()`, which return the same values with the same rebuilds; `package:flutter_bloc/flutter_bloc.dart` exports them, `bloc_plus` does not |
 | `SafeEmitMixin` | stable | Silent no-op on closed bloc for `safeEmit` (`@protected`, `@visibleForTesting`); `guarded` takes a non-null `T` and is `@protected`, `@visibleForTesting` and `@useResult` since 0.4.0; `on Cubit<S>` since 0.4.0 |
 | `CancellationToken` | stable | Cooperative cancellation marker (does not force interrupt); `whenCancelled`; `final class` since 0.4.0; `run` takes a non-null `T` and is `@useResult` since 0.4.0 |
-| `TaskOutcome` | stable (0.3.0) | Completed value or cancelled; tells a cancelled run apart from a `null` value |
+| `TaskOutcome` | stable (0.3.0) | `final class` with `isCompleted` and `value`: completed value or cancelled; tells a cancelled run apart from a `null` value |
 | `RestartableTask` | stable | New run invalidates previous result and releases its caller at once; does not interrupt the underlying `Future`; `final class` since 0.4.0; `runOutcome` is `@useResult` since 0.4.0 |
 | `RestartableTask.run` | deprecated (0.4.0, removed in 1.0) | Replaced by `runOutcome`: its `T` belongs to the class and cannot take the bound `T extends Object` |
 | `RestartableTasksMixin` | stable | Keyed latest-result-wins helper for Cubits/Blocs with cooperative cancellation; `runLatest` takes a non-null `T` since 0.4.0; its members except `close` are `@protected`, `@visibleForTesting` since 0.4.0; `runLatest` and `runLatestOutcome` are `@useResult` since 0.4.0 |
@@ -456,7 +459,7 @@ class BlocListenerWithBloc<B extends StateStreamable<S>, S>
 - `bloc` (optional): The bloc instance to use. If not provided, the nearest provided bloc is used
 - `listenWhen` (optional): Condition function to determine if listener should be called
 - `listener`: Required listener function with signature `(context, bloc, state) -> void`
-- `child` (optional): Child widget to render; required unless a multi widget such as `MultiBlocListener` supplies it, and a missing child fails an assertion that names `BlocListenerWithBloc`
+- `child` (optional): Child widget to render; since 0.4.0, without one and outside a multi widget such as `MultiBlocListener`, the listener renders `SizedBox.shrink()`, with every supported `flutter_bloc` (`BlocListener` asserts on a missing child before 9.1.2)
 
 #### Behavior
 
@@ -601,7 +604,12 @@ Since 0.4.0 `selectorShouldRebuild` is a `BlocCondition<T>`. The typedef
 - Optimized for performance when only part of state is needed
 - Behaves like `BlocSelector` (since 0.2.2): it keeps the last built
     selection, `selector` runs once per state change, and the selection is
-    recomputed when `selector` or the bloc changes
+    recomputed when `selector` or the bloc changes. Unlike `BlocSelector`,
+    it follows the provided bloc after `bloc` becomes `null`, and since
+    0.4.0 also a replaced provided bloc when its element was already dirty
+    (the old bloc emitted a state that changed the selection, and the
+    provided bloc was replaced before the next frame while the widget
+    instance was reused)
 - `selectorShouldRebuild` receives the last built selection as `previous`
     and the selection of the new state as `current`; the default is
     `previous != current`
@@ -1149,7 +1157,9 @@ open. It does not emit anything itself.
 **Behavior**:
 
 - Does not start `operation` on a closed bloc; returns `null`
-- If bloc is closed during operation, returns `null`
+- If bloc is closed during operation, returns `null`; since 0.4.0 also when
+    `operation` returns a future that calls back synchronously, such as
+    Flutter's `SynchronousFuture`, and `close()` is called in the same turn
 - If bloc is still open, returns operation result
 - A failure of `operation` after the bloc was closed is dropped like its
     result; a failure while the bloc is open is rethrown. Since 0.4.0 a
@@ -1597,7 +1607,9 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
     one, while a string or a record with the same content does
 - A key names a whole flow, not a step: a flow with several `await`s runs
     inside one `runLatestOutcome`, checks `token.isCancelled` after every
-    `await` and emits inside the task. Its method returns the future of
+    `await` and emits inside the task. A `catch` inside the task makes the
+    same check first: the abandoned flow keeps running and can fail after the
+    newer flow has emitted. Its method returns the future of
     `runLatestOutcome` (`Future<void> open() => runLatestOutcome(...)`)
     instead of awaiting it as a statement, which `@useResult` reports. With
     one run per step under the same key, a superseded flow that has any
@@ -1698,7 +1710,13 @@ Stream of effects emitted by the bloc.
 **Behavior**:
 
 - Read-only stream
-- Broadcast stream (supports multiple listeners)
+- Broadcast stream (supports multiple listeners). The same is required of a
+    hand-written `EffectsSource`, whose stream must also never emit an error:
+    every `BlocEffectListener` reads `effects` and listens, again after it
+    switched to another bloc and back, which a single-subscription stream
+    rejects with a `StateError`, and passes no `onError`, so an error on the
+    stream is uncaught. `asBroadcastStream()` called in the getter does not
+    help: it wraps the stream anew at every read
 - Emits effects as they occur
 - Effects are consumed once per listener subscription
 - Stream completes when bloc is closed
@@ -1834,7 +1852,9 @@ Until 1.0 it also implements the deprecated `SingleChildEffectListener`, so
 - `effectWhen` (optional, deprecated in 0.4.0, removed in 1.0): Predicate
     that decides whether `onEffect` runs. An `if` or an if-case at the top of
     `onEffect` does the same, and the if-case promotes the effect type
-- `child` (optional): Child widget to render
+- `child` (optional): Child widget to render; without one, and outside a
+    multi widget such as `MultiBlocListener`, the listener renders
+    `SizedBox.shrink()`
 
 #### Behavior
 
