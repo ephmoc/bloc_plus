@@ -246,44 +246,31 @@ void main() {
     expect(created, isFalse);
   });
 
-  testWidgets('asserts with its own name when it has no child', (tester) async {
-    // Given
-    final cubit = _CounterCubit();
-    addTearDown(cubit.close);
-
-    // When
-    await tester.pumpWidget(
-      BlocListenerWithBloc<_CounterCubit, int>(
-        bloc: cubit,
-        listener: (context, bloc, state) {},
-      ),
-    );
-
-    // Then
-    expect(
-      tester.takeException(),
-      isA<AssertionError>().having(
-        (error) => error.message,
-        'message',
-        'BlocListenerWithBloc<_CounterCubit, int> used outside of '
-            'MultiBlocListener must specify a child',
-      ),
-    );
-  });
-
-  testWidgets('reports a missing provider before a missing child', (
+  testWidgets('listens and renders nothing when it has no child', (
     tester,
   ) async {
     // Given
-    final widget = BlocListenerWithBloc<_CounterCubit, int>(
-      listener: (context, bloc, state) {},
+    final cubit = _CounterCubit();
+    addTearDown(cubit.close);
+    await tester.pumpWidget(
+      Center(
+        child: BlocListenerWithBloc<_CounterCubit, int>(
+          bloc: cubit,
+          listener: _recordOnBloc,
+        ),
+      ),
     );
 
     // When
-    await tester.pumpWidget(widget);
+    cubit.increment();
+    await tester.pump();
 
     // Then
-    expect(tester.takeException(), isA<ProviderNotFoundException>());
+    expect(cubit.listened, [1]);
+    expect(
+      tester.getSize(find.byType(BlocListenerWithBloc<_CounterCubit, int>)),
+      Size.zero,
+    );
   });
 
   testWidgets('composes inside MultiBlocListener', (tester) async {

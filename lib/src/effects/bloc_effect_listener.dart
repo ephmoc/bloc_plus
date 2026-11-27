@@ -33,9 +33,9 @@ import 'has_effects.dart';
 /// )
 /// ```
 ///
-/// Always write both type arguments. Without them [E] is not inferred, at
-/// any language version: the `effect` of [onEffect] is `Object?` and the
-/// `switch` loses its exhaustiveness check.
+/// Always write both type arguments: without them the `effect` parameter of
+/// [onEffect] is `Object?` at every language version, so a `switch` over it
+/// is not checked for exhaustiveness.
 ///
 /// To react to a single subtype, listen to the supertype and match it with an
 /// if-case pattern at the top of [onEffect], which promotes the effect type:
@@ -86,6 +86,9 @@ class BlocEffectListener<B extends EffectsSource<E>, E>
   final EffectCondition<E>? effectWhen;
 
   /// Optional subtree rendered by this listener.
+  ///
+  /// Without one, and outside a multi widget such as `MultiBlocListener`,
+  /// the listener renders `SizedBox.shrink()`.
   final Widget? child;
 
   @override

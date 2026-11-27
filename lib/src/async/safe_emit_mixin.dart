@@ -67,7 +67,9 @@ mixin SafeEmitMixin<S> on Cubit<S> {
     try {
       // A synchronous throw then reaches the catch after this turn, like the
       // failure of an async operation, so a close() in the same turn drops it.
-      final result = await Future.sync(operation);
+      // Future.value makes the value of a future that calls back synchronously,
+      // such as Flutter's SynchronousFuture, arrive after this turn as well.
+      final result = await Future<T>.value(Future<T>.sync(operation));
       return isClosed ? null : result;
     } catch (_) {
       if (isClosed) return null;

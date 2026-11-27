@@ -104,4 +104,21 @@ void main() {
     // Then
     expect(received, ['a', 'b', 'c']);
   });
+
+  test('drops an effect emitted after close was called', () async {
+    // Given
+    final cubit = _EffectCubit();
+    final received = <String>[];
+    final subscription = cubit.effects.listen(received.add);
+    addTearDown(subscription.cancel);
+    cubit.emitEffect('before');
+
+    // When
+    final closing = cubit.close();
+    cubit.emitEffect('after');
+    await closing;
+
+    // Then
+    expect(received, ['before']);
+  });
 }

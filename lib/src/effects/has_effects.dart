@@ -17,6 +17,13 @@ bool debugPrintUnheardEffects = false;
 /// Exposes a stream of one-off effects emitted outside the main bloc state.
 abstract interface class EffectsSource<E> {
   /// Stream of transient effects.
+  ///
+  /// An implementation must return a broadcast stream that never emits an
+  /// error: every listener widget reads this getter and listens to the
+  /// stream, again after a switch to another bloc and back, and passes no
+  /// `onError`. Calling `asBroadcastStream()` in the getter is not enough:
+  /// it wraps a single-subscription stream anew at every read, and the
+  /// second listener fails. Call it once and keep the result in a field.
   Stream<E> get effects;
 }
 

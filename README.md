@@ -117,11 +117,12 @@ it and the `catch` never runs on a closed cubit.
 (`cancelLatest`, `cancelAllLatest`, `RestartableTask.cancel`), disposed or the
 bloc closes. `outcome.value` throws on a cancelled outcome, so check
 `outcome.isCompleted` first, or match it with
-`if (outcome case TaskOutcome(isCompleted: true, :final value))`. Both methods
-are `@useResult`: the analyzer reports an outcome that is awaited and dropped,
-because the code after it would run for a cancelled run as well. Outcomes
-compare by value, so `expect(outcome, const TaskOutcome<int>.completed(2))`
-works in tests.
+`if (outcome case TaskOutcome(isCompleted: true, :final value))`, with
+`isCompleted: true` before `value`, because a pattern reads its fields in
+order. Both methods are `@useResult`: the analyzer reports an outcome that is
+awaited and dropped, because the code after it would run for a cancelled run
+as well. Outcomes compare by value, so
+`expect(outcome, const TaskOutcome<int>.completed(2))` works in tests.
 
 - **The abandoned task keeps running.** Cancellation releases the caller and
   drops the result, but does not stop the work. Check `token.isCancelled`
@@ -171,7 +172,9 @@ the work was superseded, cancelled or outlived the bloc, also when that work
 fails, so only the latest run can throw. Handle `null` first, with an early
 return: an `else` or a `default` branch would take discarded work for a failed
 result. Like the outcome methods, they are `@useResult`: the analyzer reports
-a result that is awaited and dropped.
+a result that is awaited and dropped. The task of `runLatest` gets no token:
+a task that checks `token.isCancelled` or passes `token.whenCancelled` to its
+I/O uses `runLatestOutcome`.
 
 For `void` work or a nullable result, `null` would be ambiguous, so
 `runLatest`, `CancellationToken.run` and `guarded` do not accept it
@@ -217,22 +220,32 @@ be extended, implemented or mocked. In tests, use real instances, for example
 #### A flow with several awaits
 
 Run the whole flow inside one `runLatestOutcome`, check `token.isCancelled`
-after every `await` and emit inside the task. The method returns the future
-of `runLatestOutcome` and is not `async`: awaiting the future as a statement
-would drop the outcome, which the analyzer reports. In a method that does
-more, such as one with a `try` around the call, keep `await` and check the
-outcome instead: a returned future escapes the `catch` and the `finally`.
+after every `await` and emit inside the task. A `catch` inside the task needs
+the same check first: the abandoned flow keeps running and can fail after the
+newer flow has emitted, and without the check its stale failure replaces the
+newer state. The method returns the future of `runLatestOutcome` and is not
+`async`: awaiting the future as a statement would drop the outcome, which the
+analyzer reports. In a method that does more, such as one with a `try` around
+the call, keep `await` and check the outcome instead: a returned future
+escapes the `catch` and the `finally`.
 
 ```dart
 Future<void> open(String orderId) {
   return runLatestOutcome('open', (token) async {
-    final order = await repository.order(orderId);
-    if (token.isCancelled) return;
-    emit(OrderState(order: order)); // a new order starts without an invoice
+    try {
+      final order = await repository.order(orderId);
+      if (token.isCancelled) return;
+      // A new order starts without an invoice.
+      emit(OrderState(order: order));
 
-    final invoice = await repository.invoice(order);
-    if (token.isCancelled) return;
-    emit(state.copyWith(invoice: invoice));
+      final invoice = await repository.invoice(order);
+      if (token.isCancelled) return;
+      emit(state.copyWith(invoice: invoice));
+    } catch (_) {
+      // A superseded flow can fail after the newer one has emitted.
+      if (token.isCancelled) return;
+      emit(state.copyWith(failed: true));
+    }
   });
 }
 ```
@@ -304,9 +317,9 @@ MultiBlocListener(
 )
 ```
 
-- Write both type arguments. Without them `E` is not inferred, at any
-  language version: `effect` is `Object?` and the `switch` is not checked for
-  exhaustiveness.
+- Write both type arguments. Without them the `effect` parameter of
+  `onEffect` is `Object?` at every language version, so the `switch` is not
+  checked for exhaustiveness.
 - To react to one subtype, listen to the supertype and use an if-case
   pattern at the top of `onEffect`, which also promotes the effect type:
   `if (effect case ShowError(:final message)) ...`.
@@ -581,7 +594,7 @@ Measured against the versions that were current in November 2026.
   In a Cubit it takes a field, a cancel, a wrap and a `close()` override per
   task, where `RestartableTasksMixin` takes a key and cancels every run at
   `close()`.
-- **`bloc_concurrency`** (0.3.0) has event transformers for the handlers of a
+- **`bloc_concurrency`** (0.3.1) has event transformers for the handlers of a
   `Bloc`: `restartable()`, `droppable()`, `sequential()` and `concurrent()`.
   It has nothing for a Cubit, which has no events. Inside a `Bloc`, prefer it
   to `RestartableTasksMixin`.
@@ -594,17 +607,24 @@ changes, as 0.4.0 does.
 - The public API is everything exported from
   `package:bloc_plus/bloc_plus.dart`.
 - A major version is needed to remove or rename an export, to change a
-  signature incompatibly, to change documented behaviour, or to add an
-  annotation that makes the analyzer report code that was clean before, such
-  as `@protected`. `@Deprecated` is the exception (next item).
+  signature incompatibly, to change the superclass of a widget, to change
+  documented behaviour, or to add an annotation that makes the analyzer
+  report code that was clean before, such as `@protected`. `@Deprecated` is
+  the exception (next item).
 - A minor version may add exports, members and optional parameters, support a
-  new major of `flutter_bloc`, `bloc` or `provider` when no signature here
-  changes, raise the minimum Dart or Flutter SDK, and deprecate an API, which
-  is then removed no earlier than the next major.
+  new major of a dependency when no signature here changes, raise the minimum
+  Dart or Flutter SDK or the minimum version of a dependency (a new major
+  included), and deprecate an API, which is then removed no earlier than the
+  next major.
 - Not covered: classes that `implement` this package's classes or mixins by
-  hand (`EffectsSource` is the exception), subclasses of its classes and
-  widgets, and overriding members of its widgets. Applying the mixins with
-  `with`, or building on them with `mixin X on ...`, is covered.
+  hand (`EffectsSource` is the exception, and gets no new member without a
+  major), subclasses of its classes and widgets, and overriding members of
+  its widgets. Applying the mixins with `with`, or building on them with
+  `mixin X on ...`, is covered. Where a widget is documented as a
+  `flutter_bloc` widget with something added, the rest of its behaviour is
+  that of the `flutter_bloc` version the app resolves; a change there is not
+  a change of this package.
 - A member added in a minor may clash with a member of the same name in a
-  class that applies a mixin or extends a class of this package. That is not
-  treated as a breaking change.
+  class that applies a mixin or extends a class of this package, and an
+  optional parameter added to a method of a mixin breaks an override of that
+  method. Neither is treated as a breaking change.
