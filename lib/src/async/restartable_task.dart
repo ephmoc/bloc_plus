@@ -23,23 +23,6 @@ final class RestartableTask<T> {
   /// Whether the latest scheduled task is still running.
   bool get isRunning => _isRunning;
 
-  /// Starts [task], cancelling any previous task result tracked by this
-  /// instance.
-  ///
-  /// Completes with `null` as soon as a newer run, [cancel] or [dispose]
-  /// supersedes this run, without waiting for [task], whose later success or
-  /// failure is dropped. The failure of the latest run is rethrown.
-  ///
-  /// When `T` is nullable or `void`, `null` is ambiguous: use [runOutcome].
-  @Deprecated(
-    'Use runOutcome and return early unless outcome.isCompleted. '
-    'Will be removed in 1.0.',
-  )
-  Future<T?> run(Future<T> Function() task) async {
-    final outcome = await runOutcome((_) => task());
-    return outcome.isCompleted ? outcome.value : null;
-  }
-
   /// Starts [task] with a token that is cancelled when a newer run, [cancel]
   /// or [dispose] supersedes this run before it completes, and tells a
   /// discarded run apart from a `null` value.
@@ -101,8 +84,7 @@ final class RestartableTask<T> {
   }
 
   /// Cancels any in-flight task result and releases its caller. Later runs do
-  /// not start their task and complete with `null` or
-  /// [TaskOutcome.cancelled].
+  /// not start their task and complete with [TaskOutcome.cancelled].
   Future<void> dispose() async {
     if (_isDisposed) return;
     _isDisposed = true;

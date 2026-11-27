@@ -559,32 +559,4 @@ void main() {
     expect(find.text('lost'), findsNothing);
     expect(find.text('kept'), findsOneWidget);
   });
-
-  testWidgets('still composes inside the deprecated MultiEffectListener',
-      (tester) async {
-    // Given
-    final cubit = _UiCubit();
-    addTearDown(cubit.close);
-    final effects = <String>[];
-    await tester.pumpWidget(
-      // ignore: deprecated_member_use_from_same_package
-      MultiEffectListener(
-        listeners: [
-          BlocEffectListener<_UiCubit, _UiEffect>(
-            bloc: cubit,
-            onEffect: (context, effect) => effects.add(_describe(effect)),
-          ),
-        ],
-        child: const Text('screen', textDirection: TextDirection.ltr),
-      ),
-    );
-
-    // When
-    cubit.toast('saved');
-    await tester.pump();
-
-    // Then
-    expect(effects, ['toast:saved']);
-    expect(find.text('screen'), findsOneWidget);
-  });
 }

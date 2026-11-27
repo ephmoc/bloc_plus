@@ -1,15 +1,9 @@
-// Implements the deprecated SingleChildEffectListener so MultiEffectListener
-// users can migrate one listener at a time, and reads the deprecated
-// effectWhen; drop both in 1.0.
-// ignore_for_file: deprecated_member_use_from_same_package
-
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/single_child_widget.dart';
 
-import 'effect_listener.dart';
 import 'has_effects.dart';
 
 /// Listens to the one-off effects of a bloc that implements [EffectsSource]
@@ -52,17 +46,12 @@ import 'has_effects.dart';
 /// `BlocListenerWithBloc`. `MultiBlocListener` asserts a non-empty list and
 /// ignores a [child] passed to a listener inside it.
 class BlocEffectListener<B extends EffectsSource<E>, E>
-    extends SingleChildStatefulWidget implements SingleChildEffectListener {
+    extends SingleChildStatefulWidget {
   /// Creates an effect listener for the bloc type [B].
   const BlocEffectListener({
     required this.onEffect,
     super.key,
     this.bloc,
-    @Deprecated(
-      'Use an if or an if-case at the top of onEffect, which also promotes '
-      'the effect type. Will be removed in 1.0.',
-    )
-    this.effectWhen,
     this.child,
   }) : super(child: child);
 
@@ -72,18 +61,11 @@ class BlocEffectListener<B extends EffectsSource<E>, E>
   /// throws a `ProviderNotFoundException` if there is none.
   final B? bloc;
 
-  /// Called for every effect, unless the deprecated [effectWhen] rejects it.
+  /// Called for every effect.
   ///
   /// `effect` has the type [E] only when the widget has both type arguments;
   /// without them it is `Object?`.
   final void Function(BuildContext context, E effect) onEffect;
-
-  /// Optional predicate that decides whether [onEffect] should run.
-  @Deprecated(
-    'Use an if or an if-case at the top of onEffect, which also promotes '
-    'the effect type. Will be removed in 1.0.',
-  )
-  final EffectCondition<E>? effectWhen;
 
   /// Optional subtree rendered by this listener.
   ///
@@ -94,19 +76,6 @@ class BlocEffectListener<B extends EffectsSource<E>, E>
   @override
   SingleChildState<BlocEffectListener<B, E>> createState() =>
       _BlocEffectListenerState<B, E>();
-
-  @Deprecated(
-    'Pass child: to the constructor, or list the listener in '
-    'MultiBlocListener, which supplies the child. Will be removed in 1.0.',
-  )
-  @override
-  Widget withChild(Widget child) => BlocEffectListener<B, E>(
-        key: key,
-        bloc: bloc,
-        effectWhen: effectWhen,
-        onEffect: onEffect,
-        child: child,
-      );
 }
 
 class _BlocEffectListenerState<B extends EffectsSource<E>, E>
@@ -159,9 +128,7 @@ class _BlocEffectListenerState<B extends EffectsSource<E>, E>
   void _subscribe() {
     _subscription = _bloc.effects.listen((effect) {
       if (!mounted) return;
-      if (widget.effectWhen?.call(effect) ?? true) {
-        widget.onEffect(context, effect);
-      }
+      widget.onEffect(context, effect);
     });
   }
 }

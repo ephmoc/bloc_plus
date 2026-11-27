@@ -7,13 +7,6 @@ import '../policies/conditions.dart';
 typedef BlocSelectorBuilderWithBloc<B extends StateStreamable<S>, S, T> = Widget
     Function(BuildContext context, B bloc, T selected);
 
-/// Signature for deciding whether a newly selected value should trigger a
-/// rebuild.
-@Deprecated(
-  'Use BlocCondition<T>, the same function type. Will be removed in 1.0.',
-)
-typedef BlocSelectedCondition<T> = bool Function(T previous, T current);
-
 /// A selector widget that exposes both the resolved bloc instance and selected
 /// value to [builder].
 ///

@@ -1,24 +1,11 @@
-// Forwards the deprecated effectWhen to BlocEffectListener; drop it in 1.0.
-// ignore_for_file: deprecated_member_use_from_same_package
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../effects/bloc_effect_listener.dart';
-import '../effects/effect_listener.dart';
 import '../effects/has_effects.dart';
 import 'bloc_builder_with_bloc.dart';
 import 'bloc_consumer_with_bloc.dart';
 import 'bloc_listener_with_bloc.dart';
-
-/// Signature for handling one-off effects with access to the resolved bloc.
-@Deprecated(
-  'Has no replacement: write the function type, '
-  'void Function(BuildContext context, B bloc, E effect). '
-  'Will be removed in 1.0.',
-)
-typedef BlocEffectListenerWithBloc<B extends StateStreamable<S>, S, E> = void
-    Function(BuildContext context, B bloc, E effect);
 
 /// Combines state building, optional state listening and one-off effect
 /// handling for a bloc that mixes in [HasEffects].
@@ -42,11 +29,6 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
     this.bloc,
     this.buildWhen,
     this.listenWhen,
-    @Deprecated(
-      'Use an if or an if-case at the top of onEffect, which also promotes '
-      'the effect type. Will be removed in 1.0.',
-    )
-    this.effectWhen,
   }) : assert(
           listener != null || listenWhen == null,
           'listenWhen has no effect without a listener; '
@@ -67,13 +49,6 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
   /// change. Requires [listener].
   final BlocListenerCondition<S>? listenWhen;
 
-  /// Optional predicate that controls whether [onEffect] runs for an effect.
-  @Deprecated(
-    'Use an if or an if-case at the top of onEffect, which also promotes '
-    'the effect type. Will be removed in 1.0.',
-  )
-  final EffectCondition<E>? effectWhen;
-
   /// Optional callback for state changes with the resolved bloc instance.
   ///
   /// When omitted, only [builder] and [onEffect] run.
@@ -91,7 +66,6 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
     final resolvedBloc = bloc ?? context.select<B, B>((bloc) => bloc);
     return BlocEffectListener<B, E>(
       bloc: resolvedBloc,
-      effectWhen: effectWhen,
       onEffect: (context, effect) => onEffect(context, resolvedBloc, effect),
       // One child type with or without a listener, so toggling [listener]
       // between null and a callback keeps the builder's subtree and state.
