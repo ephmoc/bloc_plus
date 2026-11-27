@@ -17,6 +17,13 @@ bool debugPrintUnheardEffects = false;
 /// Exposes a stream of one-off effects emitted outside the main bloc state.
 abstract interface class EffectsSource<E> {
   /// Stream of transient effects.
+  ///
+  /// An implementation must return a broadcast stream that never emits an
+  /// error: every listener widget reads this getter and listens to the
+  /// stream, again after a switch to another bloc and back, and passes no
+  /// `onError`. Calling `asBroadcastStream()` in the getter is not enough:
+  /// it wraps a single-subscription stream anew at every read, and the
+  /// second listener fails. Call it once and keep the result in a field.
   Stream<E> get effects;
 }
 
@@ -39,6 +46,9 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
   /// `mixin X on HasEffects<S, E>` that shares helpers between blocs).
   /// Calls from elsewhere, including extensions on the bloc and other
   /// libraries, get analyzer warnings; tests may call it.
+  ///
+  /// In a `Bloc` handler that a transformer such as `restartable()` has
+  /// cancelled, the effect is still delivered: check `emit.isDone` first.
   @protected
   @visibleForTesting
   void emitEffect(E effect) {
@@ -59,7 +69,7 @@ mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E> {
   /// the effects emitted before [close] and the done event.
   ///
   /// Like the bloc's own last states, effects emitted right before [close]
-  /// reach subscribers after the bloc is closed. A bloc method that a
+  /// reach subscribers after the bloc is closed. A cubit method that a
   /// subscriber calls in response should emit with `SafeEmitMixin.safeEmit`,
   /// and a subscriber that adds an event to a `Bloc` should check `isClosed`
   /// first, because `add` throws after [close]. The bloc is closed right away

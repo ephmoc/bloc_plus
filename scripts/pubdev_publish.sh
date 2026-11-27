@@ -47,9 +47,12 @@ if [[ -z "$version" ]]; then
 fi
 
 require_clean_tree() {
-  if ! git diff --quiet || ! git diff --cached --quiet; then
+  local status
+  # Explicit, because status.showUntrackedFiles=no hides untracked files.
+  status="$(git status --porcelain --untracked-files=normal)"
+  if [[ -n "$status" ]]; then
     echo "ERROR: working tree must be clean before publish."
-    git status --short
+    echo "$status"
     exit 1
   fi
 }
@@ -77,6 +80,21 @@ require_release_state() {
     echo "ERROR: tag $tag does not point to HEAD."
     echo "HEAD: $head_commit"
     echo "$tag: $tag_commit"
+    exit 1
+  fi
+
+  local remote_commit
+  # FETCH_HEAD and the full ref name: the fetch updates origin/main only when
+  # the fetch refspec of the clone covers main, and "main" also matches a tag.
+  if ! git fetch --quiet origin refs/heads/main; then
+    echo "ERROR: unable to fetch origin/main."
+    exit 1
+  fi
+  remote_commit="$(git rev-parse FETCH_HEAD)"
+  if [[ "$head_commit" != "$remote_commit" ]]; then
+    echo "ERROR: HEAD does not match origin/main."
+    echo "HEAD: $head_commit"
+    echo "origin/main: $remote_commit"
     exit 1
   fi
 }

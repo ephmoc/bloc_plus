@@ -1,5 +1,9 @@
-// Runs the "Testing effects" recipe from README.md. The two tests below are
-// the README samples; keep them in sync.
+// Runs the "Testing effects" recipe from README.md. The first two tests are
+// the README samples; keep them in sync. The README's mocked cubit comes from
+// bloc_test or mocktail, which are not dependencies here, so the last two tests
+// check what it says about such a mock with a mock written by hand.
+
+import 'dart:async';
 
 import 'package:bloc_plus/bloc_plus.dart';
 import 'package:flutter/widgets.dart';
@@ -63,6 +67,26 @@ class _AuthPageState extends State<AuthPage> {
   }
 }
 
+// Stands in for a MockCubit from bloc_test or a mocktail Mock: as with them,
+// every member that is not stubbed returns null.
+class _MockAuthCubit implements AuthCubit {
+  @override
+  AuthState get state => const AuthState();
+
+  @override
+  Stream<AuthState> get stream => const Stream.empty();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+class _MockAuthCubitWithEffects extends _MockAuthCubit {
+  _MockAuthCubitWithEffects(this.effects);
+
+  @override
+  final Stream<AuthEffect> effects;
+}
+
 void main() {
   test('signedIn sends GoHome', () async {
     // Given
@@ -89,6 +113,48 @@ void main() {
 
     // When
     cubit.emitEffect(ShowError('Wrong password'));
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(find.text('Wrong password'), findsOneWidget);
+  });
+
+  testWidgets('a mocked cubit without effects stubbed fails with a TypeError',
+      (tester) async {
+    // Given
+    final cubit = _MockAuthCubit();
+
+    // When
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider<AuthCubit>.value(
+          value: cubit,
+          child: const AuthPage(),
+        ),
+      ),
+    );
+
+    // Then
+    expect(tester.takeException(), isA<TypeError>());
+  });
+
+  testWidgets('AuthPage shows the error of a mocked cubit with effects stubbed',
+      (tester) async {
+    // Given
+    final effects = StreamController<AuthEffect>.broadcast();
+    addTearDown(effects.close);
+    final cubit = _MockAuthCubitWithEffects(effects.stream);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider<AuthCubit>.value(
+          value: cubit,
+          child: const AuthPage(),
+        ),
+      ),
+    );
+
+    // When
+    effects.add(ShowError('Wrong password'));
     await tester.pumpAndSettle();
 
     // Then

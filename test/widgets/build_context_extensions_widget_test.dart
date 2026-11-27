@@ -1,3 +1,6 @@
+// Exercises the deprecated BuildContext helpers until their removal in 1.0.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:bloc_plus/bloc_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

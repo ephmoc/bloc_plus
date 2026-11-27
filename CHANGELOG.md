@@ -1,3 +1,274 @@
+# Changelog
+
+## 0.4.0
+
+- Changed:
+  - `CancellationToken` and `RestartableTask` are `final` classes: they can
+    no longer be extended, implemented or mocked outside the package.
+  - `runLatest`, `guarded` and `CancellationToken.run` take a non-null result
+    type only (`T extends Object`). Their `null` result means that the run
+    was discarded, which a `void`, nullable or `dynamic` result could not
+    tell apart: `await runLatest('save', save); emit(saved);` compiled,
+    emitted although the run was superseded, and threw after `close()`. Such
+    a call is now a compile error.
+  - `SafeEmitMixin` is declared `on Cubit<S>`: a `Bloc` and a direct
+    subclass of `BlocBase` can no longer mix it in
+    (`mixin_application_not_implemented_interface`). In a `Bloc`, the
+    handler's `emit` also calls `onTransition` and does nothing in a handler
+    that a transformer has cancelled, while `safeEmit` skipped both: under
+    `restartable()` a superseded handler emitted its stale state.
+    `RestartableTasksMixin` and `HasEffects` still apply to a `Bloc`.
+  - `BlocBuilderWithBloc` and `BlocListenerWithBloc` follow the provided
+    bloc right after `bloc:` changes from an instance to `null`, like the
+    consumers and the selector, and `buildWhen` and `listenWhen` then get
+    their previous state from the new bloc. Before, they kept listening to
+    the old instance while their callback got the provided one. They are now
+    a `StatelessWidget` and a `SingleChildStatelessWidget` that return
+    `BlocBuilder` and `BlocListener`; the constructors, `const`, the fields
+    and the composition inside `MultiBlocListener` stay.
+  - `BlocListenerWithBloc` without a `child`, outside a multi widget such as
+    `MultiBlocListener`, renders `SizedBox.shrink()` with every supported
+    `flutter_bloc`, as `BlocEffectListener` does. Before, it did so only from
+    `flutter_bloc` 9.1.2, and with an earlier version it failed the assertion
+    of `BlocListener` (a null check in release builds).
+  - `isTaskRunning`, `runLatest`, `runLatestOutcome`, `cancelLatest` and
+    `cancelAllLatest` of `RestartableTasksMixin`, and `guarded` of
+    `SafeEmitMixin`, are `@protected` and `@visibleForTesting`, like `emit`,
+    `safeEmit` and `emitEffect`.
+  - `runLatest`, `runLatestOutcome`, `guarded`, `CancellationToken.run` and
+    `RestartableTask.runOutcome` are `@useResult`: the analyzer reports a
+    result that is awaited and dropped (`unused_result`). Their result says
+    whether the run counted, so the code after a dropped one ran for a
+    superseded, cancelled or closed run as well. The bound stops that only
+    for `void` and nullable work; with a task that returns a value, such as
+    `() => repository.save(item)`, it compiled without a warning.
+    `bloc_plus` depends on `meta` (`>=1.9.1 <2.0.0`) for the annotation;
+    Flutter itself depends on `meta`, so the resolved versions do not
+    change.
+  - `BlocConsumerWithEffects.onEffect` declares its function type inline,
+    and `BlocSelectorWithBloc.selectorShouldRebuild` is a `BlocCondition<T>`.
+    Both are the same function types as before.
+- Fixed:
+  - A failure that arrives just before the run is cancelled, superseded or
+    its bloc closed, while the caller has not resumed yet, is dropped like a
+    value: `runOutcome` and `runLatestOutcome` complete with a cancelled
+    outcome, and `runLatest` and `CancellationToken.run` with `null`. Before,
+    the failure was rethrown, so a `catch` that emitted ran on a closed cubit
+    and threw a `StateError`.
+  - `guarded` drops an operation's synchronous throw, like its later failure,
+    when `close()` follows in the same turn. Before, the throw reached the
+    caller after `close()`.
+  - `guarded` completes with `null` when the operation returns a future that
+    calls back synchronously, such as Flutter's `SynchronousFuture` (a cached
+    `AssetBundle.loadStructuredData`, for example), and `close()` is called
+    in the same turn. Before, it returned the value on a closed cubit, and a
+    plain `emit` after the null check threw a `StateError`. For `dart:async`
+    futures the result and its timing do not change, with one exception: a
+    future that had already failed in another error zone now completes the
+    call like any other failure. Before, the call never completed.
+  - `BlocSelectorWithBloc` follows a replaced provided bloc also when its
+    element was already dirty: the old bloc emitted a state that changed the
+    selection, and the provided bloc was replaced before the next frame
+    while the widget instance was reused, for example a `const` child of
+    `BlocProvider.value`. Before, it kept showing and listening to the old
+    bloc, also after later replacements of the provided bloc. `BlocSelector`
+    itself still behaves the old way (`flutter_bloc` 9.0.0 and 9.1.2).
+- Deprecated, removed in 1.0:
+  - the extension `BlocContextExtension` and its `readOrNull`, `watchOrNull`,
+    `selectOrNull` and `withBloc`. The extension is annotated as well, so
+    `show BlocContextExtension` in an import is reported too;
+  - `effectWhen` of `BlocEffectListener` and `BlocConsumerWithEffects`, and
+    the typedef `EffectCondition`;
+  - `RestartableTask.run`: its `T` belongs to the class and cannot take the
+    bound `T extends Object`, so its `null` stays ambiguous;
+  - `BlocEffectListener.withChild`, which only serves the deprecated
+    `MultiEffectListener`;
+  - the typedefs `BlocEffectListenerWithBloc`, which has an unused type
+    parameter and no replacement, and `BlocSelectedCondition`, the same
+    function type as `BlocCondition`.
+- Docs:
+  - The README leads with the async helpers for Cubits and the effects; the
+    "Policies" section is now "Conditions".
+  - New in the README: a table of which async helper to use; recipes for a
+    flow with several `await`s, for "ignore while running" and for widget
+    tests with a mocked cubit, whose `effects` has to be stubbed; "Compared
+    with" (`bloc_presentation`, `CancelableOperation`, `bloc_concurrency`);
+    and "Versioning", the policy from 1.0.0. The async sample uses
+    `RestartableTasksMixin` alone and clears its loading flag when the
+    latest run fails.
+  - Corrected: without type arguments, `BlocEffectListener` gives `onEffect`
+    an `Object?` effect at every language version, not only below 3.7.
+    `BlocConsumerWithEffects` infers `S` and `E` from `bloc:` at language
+    version 3.7 or later, which is the language version of the app.
+  - The dartdoc of `emitEffect` says that a `Bloc` handler cancelled by a
+    transformer still delivers its effect unless it checks `emit.isDone`.
+  - The dartdoc of `EffectsSource.effects` says what a hand-written
+    implementation must return: a broadcast stream that never emits an
+    error.
+  - The example app models its effects as `sealed` classes.
+  - pub.dev: the description mentions the effects, and the topic `effects`
+    replaces `widgets`.
+
+Migration impact:
+
+- A `catch` around `runOutcome`, `runLatestOutcome`, `runLatest` or
+  `CancellationToken.run` no longer sees a failure whose run was cancelled
+  before the caller resumed; that run takes the cancelled path instead.
+- Deprecated APIs keep working; the analyzer reports a use as a
+  `deprecated_member_use` info, which fails `flutter analyze` until migrated:
+  - `context.readOrNull<B>()` -> `context.read<B?>()`;
+    `watchOrNull<B>()` -> `watch<B?>()`;
+    `selectOrNull<B, S, T>((state) => state.x)` ->
+    `select<B?, T?>((bloc) => bloc?.state.x)`, or `bloc == null ? null : ...`
+    when the selector is not a member chain;
+    `withBloc((B bloc) => bloc.x)` -> `read<B?>()?.x`, or a local variable
+    and a null check when the callback is more than one member access. These
+    lookups of `provider` return the same values, with the same rebuilds.
+    `package:flutter_bloc/flutter_bloc.dart` exports them and `bloc_plus`
+    does not: a file without that import needs it, and drops the `bloc_plus`
+    import when it used `bloc_plus` only for the helpers.
+  - `effectWhen: (effect) => effect is Sub` -> `if (effect is! Sub) return;`
+    or `if (effect case Sub(...))` at the top of `onEffect`, which also
+    promotes the effect type.
+  - `RestartableTask.run(task)` -> `runOutcome((_) => task())`, and
+    `if (!outcome.isCompleted) return;` before `outcome.value`.
+  - `listener.withChild(child)` -> `child:` in the constructor, or the
+    listener in `MultiBlocListener`, which supplies the child.
+  - `BlocSelectedCondition<T>` -> `BlocCondition<T>`;
+    `BlocEffectListenerWithBloc<B, S, E>` ->
+    `void Function(BuildContext context, B bloc, E effect)`.
+
+- A class that extends or implements `CancellationToken` or
+  `RestartableTask`, a mock of either written by hand or with mocktail
+  (`implements`), and a `mixin X on` either of them no longer compile
+  (`invalid_use_of_type_outside_library`). mockito refuses to generate a mock
+  of a `final` class. Use real instances: a test creates `CancellationToken()`
+  and calls `cancel()`, or runs its work through a real `RestartableTask`.
+- Move `void` and nullable work off `runLatest`, `guarded` and
+  `CancellationToken.run`:
+  - instead of `runLatest`, use `runLatestOutcome` and check the outcome
+    before anything else. Without the check, the code after it runs for a
+    superseded run as well, so the analyzer reports an outcome that is
+    awaited and dropped:
+
+    ```dart
+    // Before
+    await runLatest('save', save);
+    emit(saved);
+
+    // After
+    final outcome = await runLatestOutcome('save', (_) => save());
+    if (!outcome.isCompleted) return; // superseded or closed
+    emit(saved);
+    ```
+
+  - `guarded` and `CancellationToken.run` have no outcome twin: await the
+    work plainly and then check what the method checked, before anything
+    else. For `guarded` that is `isClosed`, which `safeEmit` checks for you;
+    for `CancellationToken.run` it is `token.isCancelled`, which `safeEmit`
+    does not check. Return a non-null value, such as a record, only to keep
+    what the two methods add: the work does not start on a closed bloc or a
+    cancelled token, its later failure is dropped, and
+    `CancellationToken.run` releases its caller at `cancel()` instead of when
+    the work ends.
+- A generic helper that forwards its own type parameter needs the same bound
+  (`Future<T?> load<T extends Object>(...)`), and so do an override of
+  `runLatest` or `guarded` and a function type that names the old signature.
+- The analyzer does not report a helper that returns the call
+  (`=> runLatest(key, task)`, `=> guarded(task)`, `=> token.run(task)`):
+  `flutter analyze` stays clean, and the compiler fails with "Inferred type
+  argument 'T' doesn't conform to the bound 'Object' of the type variable
+  'T'". After upgrading, compile the app or run `flutter test`.
+- A `Bloc` drops `SafeEmitMixin` and checks `isClosed`, which is what
+  `safeEmit` and `guarded` checked. `isClosed` is `true` from the call of
+  `close()`, but `close()` cancels the handlers a few microtasks later, or,
+  while any handler of the bloc uses `sequential()`, only after the running
+  and the queued handlers have finished. Until then the handler's `emit`
+  still delivers. Inside a handler:
+  - `safeEmit(state)` becomes `if (!isClosed) emit(state);`, which now also
+    calls `onTransition`. In the `onData` and `onError` of `emit.onEach` that
+    is the same check. `emit.forEach` emits every state its callbacks return,
+    so a check there cannot stop the emit: where a value must not arrive
+    after `close()`, use `emit.onEach`;
+  - `await guarded(operation)` becomes `if (isClosed) return;` before
+    `await operation()` and again after it. The first check keeps the
+    operation from starting on a closed bloc, after an earlier `await` or
+    in an event that `sequential()` queued before `close()`;
+  - `guarded` also dropped a failure that arrives after `close()`: put
+    `if (isClosed) return;` first in the `catch`, and `rethrow` otherwise.
+
+    ```dart
+    on<Load>((event, emit) async {
+      if (isClosed) return;
+      try {
+        final item = await repository.load(event.id);
+        if (isClosed) return;
+        emit(state.copyWith(item: item));
+      } catch (_) {
+        if (isClosed) return;
+        rethrow;
+      }
+    });
+    ```
+
+  A public method of the `Bloc`, and a callback that outlives its handler,
+  such as a stream subscription, adds an event instead
+  (`if (!isClosed) add(event)`) with a handler that emits: the state then
+  changes when that handler runs, not during the call. Checking
+  `emit.isDone` as well stops a handler that a transformer cancelled, which
+  `guarded` never did.
+- A direct subclass of `BlocBase` extends `Cubit` instead, or checks
+  `isClosed` before `emit` by hand.
+- `BlocBuilderWithBloc` and `BlocListenerWithBloc` need no change in
+  ordinary use, and a `key` that was added only to switch between an
+  explicit and a provided bloc can go. Code that relied on them staying with
+  the old instance passes that instance as `bloc:`. Code that typed them as
+  `BlocBuilderBase` or `BlocListenerBase`, called `build(context, state)` or
+  read `listener` as a `(context, state)` callback adapts: `build` takes only
+  the context, and `listener` is the `(context, bloc, state)` callback. The
+  callbacks get the context of the inner `BlocBuilder` or `BlocListener`.
+- None for `BlocListenerWithBloc` without a `child`, for the replaced bloc
+  of `BlocSelectorWithBloc` and for `guarded` with a synchronous future.
+- A call of those six methods from outside the bloc class, such as
+  `isTaskRunning` read in `build`, `cancelLatest` called from a widget, or a
+  call from an extension on the bloc or from a function outside the class,
+  gets two analyzer warnings (`invalid_use_of_protected_member` and
+  `invalid_use_of_visible_for_testing_member`), so `flutter analyze` fails.
+  Move the call into a method of the bloc, and keep what the UI shows, such
+  as a loading flag, in the state, as the async example in the README does.
+  A method that cancels the run, such as `cancelPreview` in the example app,
+  clears that flag itself: the cancelled call completes with a cancelled
+  outcome, or `null` from `runLatest`, and leaves the state as it is. The
+  bloc, its subclasses, a `mixin X on RestartableTasksMixin<S>` or
+  `on SafeEmitMixin<S>`, and files under `test/`, `integration_test/` and
+  `test_driver/` may still call them; a test helper under `lib/` may not.
+- An `await` of `runLatest`, `runLatestOutcome`, `guarded`,
+  `CancellationToken.run` or `RestartableTask.runOutcome` as a statement,
+  which drops the result, gets an `unused_result` warning, so
+  `flutter analyze` fails. Check the result before acting on the run:
+  `if (!outcome.isCompleted) return;`, or `if (result == null) return;` for
+  the methods that complete with `null`. Only when the call is the last
+  thing in the method and the task emits itself, as in the README recipe for
+  a flow with several `await`s, return the future instead:
+  `Future<void> open() async => runLatestOutcome(...)`, or a method without
+  `async` that ends with `return runLatestOutcome(...);`. In a closure, such
+  as the handler of a `Bloc`, use `=>` or `async =>`: a block body that
+  returns the future gets the `void_checks` lint. In a method with a
+  `try` or an early `return;`, keep `await` and check the result: a returned
+  future escapes the `catch` and the `finally`, and `return;` does not
+  compile once `async` is gone. A future that is returned, assigned or
+  passed to a function such as `unawaited` is not reported.
+
+Release type rationale:
+
+- `minor`: breaking changes of the class hierarchy, of three method
+  signatures, of the classes that `SafeEmitMixin` applies to, of the
+  superclasses of two widgets, of where six methods may be called without
+  analyzer warnings and of five methods whose dropped result is now
+  reported, which a 0.x minor allows, and deprecations. A
+  constraint such as `^0.3.1` does not resolve to 0.4.0, so nothing changes
+  until a project raises it.
+
 ## 0.3.1
 
 - Added:

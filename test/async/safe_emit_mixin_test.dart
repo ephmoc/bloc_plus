@@ -2,20 +2,11 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:bloc_plus/bloc_plus.dart';
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter_test/flutter_test.dart';
 
 class _SafeEmitCubit extends Cubit<int> with SafeEmitMixin<int> {
   _SafeEmitCubit() : super(0);
-}
-
-class _Event {}
-
-class _SafeBloc extends Bloc<_Event, int> with SafeEmitMixin<int> {
-  _SafeBloc() : super(0) {
-    on<_Event>((event, emit) {});
-  }
-
-  void push(int value) => safeEmit(value);
 }
 
 void main() {
@@ -88,6 +79,58 @@ void main() {
     await expectLater(run, throwsStateError);
   });
 
+  test('guarded drops a synchronous failure when close follows in that turn',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+
+    // When
+    final run = cubit.guarded<int>(() => throw StateError('boom'));
+    await cubit.close();
+
+    // Then
+    expect(await run, isNull);
+  });
+
+  test('guarded rethrows a synchronous failure while the cubit is open',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+    addTearDown(cubit.close);
+
+    // When
+    final run = cubit.guarded<int>(() => throw StateError('boom'));
+
+    // Then
+    await expectLater(run, throwsStateError);
+  });
+
+  test('guarded drops a SynchronousFuture value on close in the same turn',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+
+    // When
+    final run = cubit.guarded(() => SynchronousFuture<int>(7));
+    await cubit.close();
+
+    // Then
+    expect(await run, isNull);
+  });
+
+  test('guarded returns a SynchronousFuture value while the cubit is open',
+      () async {
+    // Given
+    final cubit = _SafeEmitCubit();
+    addTearDown(cubit.close);
+
+    // When
+    final result = await cubit.guarded(() => SynchronousFuture<int>(7));
+
+    // Then
+    expect(result, 7);
+  });
+
   test('guarded does not start the operation on a closed cubit', () async {
     // Given
     final cubit = _SafeEmitCubit();
@@ -100,25 +143,5 @@ void main() {
     // Then
     expect(result, isNull);
     expect(calls, 0);
-  });
-
-  test('safeEmit drops states once close() has been called on a Bloc',
-      () async {
-    // Given
-    final bloc = _SafeBloc();
-    final states = <int>[];
-    final subscription = bloc.stream.listen(states.add);
-
-    // When
-    final closing = bloc.close();
-    bloc.push(1);
-    await Future<void>.microtask(() {});
-    bloc.push(2);
-    await closing;
-    await subscription.cancel();
-
-    // Then
-    expect(bloc.isClosed, isTrue);
-    expect(states, isEmpty);
   });
 }

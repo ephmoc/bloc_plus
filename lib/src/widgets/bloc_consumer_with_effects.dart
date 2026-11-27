@@ -1,3 +1,6 @@
+// Forwards the deprecated effectWhen to BlocEffectListener; drop it in 1.0.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -9,6 +12,11 @@ import 'bloc_consumer_with_bloc.dart';
 import 'bloc_listener_with_bloc.dart';
 
 /// Signature for handling one-off effects with access to the resolved bloc.
+@Deprecated(
+  'Has no replacement: write the function type, '
+  'void Function(BuildContext context, B bloc, E effect). '
+  'Will be removed in 1.0.',
+)
 typedef BlocEffectListenerWithBloc<B extends StateStreamable<S>, S, E> = void
     Function(BuildContext context, B bloc, E effect);
 
@@ -20,8 +28,9 @@ typedef BlocEffectListenerWithBloc<B extends StateStreamable<S>, S, E> = void
 /// `null`.
 ///
 /// Write all three type arguments, for example
-/// `BlocConsumerWithEffects<UiCubit, UiState, UiEffect>`: below language
-/// version 3.7 they are not inferred from [bloc].
+/// `BlocConsumerWithEffects<UiCubit, UiState, UiEffect>`: `S` and `E` are
+/// inferred from [bloc] only in code at language version 3.7 or later, which
+/// is the language version of the app, not of this package.
 class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
     extends StatelessWidget {
   /// Creates a widget that consumes state and effects from the same bloc.
@@ -33,6 +42,10 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
     this.bloc,
     this.buildWhen,
     this.listenWhen,
+    @Deprecated(
+      'Use an if or an if-case at the top of onEffect, which also promotes '
+      'the effect type. Will be removed in 1.0.',
+    )
     this.effectWhen,
   }) : assert(
           listener != null || listenWhen == null,
@@ -55,6 +68,10 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
   final BlocListenerCondition<S>? listenWhen;
 
   /// Optional predicate that controls whether [onEffect] runs for an effect.
+  @Deprecated(
+    'Use an if or an if-case at the top of onEffect, which also promotes '
+    'the effect type. Will be removed in 1.0.',
+  )
   final EffectCondition<E>? effectWhen;
 
   /// Optional callback for state changes with the resolved bloc instance.
@@ -63,7 +80,7 @@ class BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>
   final BlocWidgetListenerWithBloc<B, S>? listener;
 
   /// Called in response to one-off effects with the resolved bloc instance.
-  final BlocEffectListenerWithBloc<B, S, E> onEffect;
+  final void Function(BuildContext context, B bloc, E effect) onEffect;
 
   /// Builds the widget tree with the resolved bloc instance and current state.
   final BlocWidgetBuilderWithBloc<B, S> builder;

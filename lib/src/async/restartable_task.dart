@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart' show useResult;
+
 import 'cancellation_token.dart';
 import 'task_outcome.dart';
 
@@ -6,7 +8,10 @@ import 'task_outcome.dart';
 /// Cancellation is cooperative: a superseded run releases its caller at once,
 /// but its task keeps running. Use [runOutcome] to get the run's
 /// [CancellationToken] and check it before any side effect.
-class RestartableTask<T> {
+///
+/// It is a `final` class, so it cannot be extended, implemented or mocked. In
+/// tests, use a real instance.
+final class RestartableTask<T> {
   /// Creates a task runner that keeps only the latest task result.
   RestartableTask();
 
@@ -26,6 +31,10 @@ class RestartableTask<T> {
   /// failure is dropped. The failure of the latest run is rethrown.
   ///
   /// When `T` is nullable or `void`, `null` is ambiguous: use [runOutcome].
+  @Deprecated(
+    'Use runOutcome and return early unless outcome.isCompleted. '
+    'Will be removed in 1.0.',
+  )
   Future<T?> run(Future<T> Function() task) async {
     final outcome = await runOutcome((_) => task());
     return outcome.isCompleted ? outcome.value : null;
@@ -38,13 +47,21 @@ class RestartableTask<T> {
   /// Completes with [TaskOutcome.completed] for the latest run, and with
   /// [TaskOutcome.cancelled] as soon as the run is superseded, without waiting
   /// for [task]. [task] does not start after [dispose]. The failure of the
-  /// latest run is rethrown; a failure of a superseded run is dropped.
+  /// latest run is rethrown; a failure of a superseded run is dropped, also
+  /// one that arrived just before the run was superseded, while the caller
+  /// had not resumed yet.
   ///
   /// The abandoned task keeps running: check `token.isCancelled` before any
   /// side effect, or pass `token.whenCancelled` to the I/O so it can abort.
   /// Because a superseded caller resumes at once, while the newer run is still
   /// in flight, a `finally` block that resets state shared with the newer run
   /// must check the outcome first.
+  ///
+  /// The analyzer reports an outcome that is awaited and dropped
+  /// (`@useResult`): check it before acting on the run, or, when nothing
+  /// follows the run, return the future instead of awaiting it as a
+  /// statement.
+  @useResult
   Future<TaskOutcome<T>> runOutcome(
     Future<T> Function(CancellationToken token) task,
   ) async {
@@ -60,6 +77,11 @@ class RestartableTask<T> {
     try {
       final outcome = await runUntilCancelled(token, () => task(token));
       return token.isCancelled ? TaskOutcome<T>.cancelled() : outcome;
+    } catch (_) {
+      // A cancel after the failure, before the caller resumes, drops it as it
+      // drops a value.
+      if (token.isCancelled) return TaskOutcome<T>.cancelled();
+      rethrow;
     } finally {
       if (generation == _generation) {
         _isRunning = false;

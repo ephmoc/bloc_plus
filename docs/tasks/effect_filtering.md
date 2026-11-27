@@ -5,11 +5,14 @@
 > is deprecated, removed in 1.0; the same `effectWhen` is on
 > `BlocEffectListener<B, E>` and `BlocConsumerWithEffects`. `effectWhen` does
 > not promote the effect type: to react to one subtype, listen to the
-> supertype and use `if (effect case Sub(...))` in `onEffect`. Change
-> filtering in `BlocEffectListener`; do not extend the deprecated
-> `EffectListener`.
+> supertype and use `if (effect case Sub(...))` in `onEffect`. In 0.4.0
+> `effectWhen` and `EffectCondition` are deprecated as well, removed in 1.0:
+> an `if` or an if-case at the top of `onEffect` does the same, and the
+> if-case promotes the effect type. This spec is historical; do not extend
+> `effectWhen`.
 
 ## Preconditions
+
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - Baseline `effects` module is already implemented and exported
 - If scaffold is missing, bootstrap first with:
@@ -18,6 +21,7 @@
 - In this repository, prefer `flutter create --template=package .` to avoid `bloc_plus/bloc_plus`.
 
 ## Scope
+
 - Extend `EffectListener` with optional effect filtering (now also on
   `BlocEffectListener`)
 - Add an explicit predicate API for deciding whether an emitted effect should
@@ -25,11 +29,13 @@
 - Preserve existing subscription, provider lookup, and disposal semantics
 
 ## Out Of Scope
+
 - Replacing state with effects
 - Effect replay, buffering, or persistence
 - Runtime type reflection beyond normal Dart generic checks
 
 ## Public Contract
+
 - `EffectListener` remains compatible with existing usage
 - New filtering is optional; when omitted, current behavior is preserved
 - Filtered-out effects must not invoke `onEffect`
@@ -39,6 +45,7 @@
 - Late emits after bloc close remain a no-op from the consumer perspective
 
 ## Target Files
+
 - `lib/src/effects/effect_listener.dart`
 - `lib/src/effects/bloc_effect_listener.dart` (0.3.0)
 - `lib/src/widgets/bloc_consumer_with_effects.dart` (0.3.0)
@@ -46,10 +53,14 @@
 - `lib/bloc_plus.dart` (exports, if required)
 
 ## Tests (Contract)
+
 - `test/widgets/effect_listener_test.dart`
 - `test/widgets/bloc_effect_listener_test.dart` (0.3.0)
+- `test/widgets/effect_when_test.dart` (0.4.0: the deprecated `effectWhen` of
+  `BlocEffectListener` and `BlocConsumerWithEffects`, until 1.0)
 
 Required cases:
+
 - listener still receives all effects when no filter is provided
 - predicate allows matching effects through
 - predicate blocks non-matching effects
@@ -59,23 +70,28 @@ Required cases:
 - widget dispose still cancels the subscription
 
 ## Example App Updates
+
 - Add one example using effect filtering for navigation vs snackbar effects
   (historical: the example app at 0.3.0 filters dialog, snackbar and info
-  effects with `effectWhen`; it has no navigation effect)
+  effects with `effectWhen`; it has no navigation effect. Since 0.4.0 it
+  matches `sealed` effect classes with a `switch` or an if-case instead)
 
 ## Acceptance Criteria (DoD)
+
 - Existing `EffectListener` usage remains source-compatible
 - Filtering behavior is explicit and documented
 - Widget tests cover positive and negative filter paths
 - No extra rebuild behavior is introduced by filtering support
 
 ## Validation Commands
+
 - `dart format .`
 - `flutter analyze`
 - `flutter test test/widgets/effect_listener_test.dart`
 - `flutter test test/widgets/bloc_effect_listener_test.dart`
 
 ## Agent Constraints
+
 - Keep filtering API explicit; avoid hidden type-based dispatch unless it is a
   separately documented API
 - Do not change the broadcast effect stream contract

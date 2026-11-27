@@ -246,6 +246,66 @@ void main() {
     // Then
     expect(find.text('3'), findsOneWidget);
   });
+
+  testWidgets('follows a new provided bloc when the old one just emitted', (
+    tester,
+  ) async {
+    // Given
+    final first = _SelectorCubit();
+    final second = _SelectorCubit()
+      ..increment()
+      ..increment();
+    addTearDown(first.close);
+    addTearDown(second.close);
+    final built = <(_SelectorCubit, int)>[];
+    // The same instance in both pumps, as a const child of the provider is.
+    final selectorWidget = _recordingSelector(built);
+    await tester.pumpWidget(
+      BlocProvider.value(value: first, child: selectorWidget),
+    );
+
+    // When
+    first.increment();
+    // Delivers the state, so the element is dirty when the provider changes.
+    await tester.idle();
+    await tester.pumpWidget(
+      BlocProvider.value(value: second, child: selectorWidget),
+    );
+    second.increment();
+    await tester.pumpAndSettle();
+
+    // Then
+    expect(built, [(first, 0), (second, 2), (second, 3)]);
+  });
+
+  testWidgets('follows bloc changes when the selector stays the same', (
+    tester,
+  ) async {
+    // Given
+    final first = _SelectorCubit();
+    final second = _SelectorCubit()
+      ..increment()
+      ..increment();
+    final provided = _SelectorCubit()..increment();
+    addTearDown(first.close);
+    addTearDown(second.close);
+    addTearDown(provided.close);
+    final built = <(_SelectorCubit, int)>[];
+    Widget host({required _SelectorCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: _recordingSelector(built, bloc: bloc),
+        );
+    await tester.pumpWidget(host(bloc: first));
+
+    // When
+    await tester.pumpWidget(host(bloc: second));
+    second.increment();
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(host(bloc: null));
+
+    // Then
+    expect(built, [(first, 0), (second, 2), (second, 3), (provided, 1)]);
+  });
 }
 
 class _MapCubit extends Cubit<Map<String, int>> {
@@ -269,5 +329,23 @@ Widget _mapSelector(
       },
       builder: (context, bloc, selected) => Text('$key=$selected'),
     ),
+  );
+}
+
+// A top-level function, so the selector is the same in every build.
+int _count(_SelectorState state) => state.count;
+
+// Records the bloc and the selection of every build.
+Widget _recordingSelector(
+  List<(_SelectorCubit, int)> built, {
+  _SelectorCubit? bloc,
+}) {
+  return BlocSelectorWithBloc<_SelectorCubit, _SelectorState, int>(
+    bloc: bloc,
+    selector: _count,
+    builder: (context, bloc, count) {
+      built.add((bloc, count));
+      return const SizedBox.shrink();
+    },
   );
 }

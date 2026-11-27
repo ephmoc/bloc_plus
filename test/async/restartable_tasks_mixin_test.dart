@@ -43,6 +43,21 @@ class _ReentrantCloseObserver extends BlocObserver {
   }
 }
 
+// Every key has the same hash code, so a map that still holds one of them
+// has to compare it with any other key that is looked up.
+class _CollidingKey {
+  static int comparisons = 0;
+
+  @override
+  int get hashCode => 0;
+
+  @override
+  bool operator ==(Object other) {
+    comparisons++;
+    return identical(this, other);
+  }
+}
+
 void main() {
   test('runLatest invalidates stale result for the same key', () async {
     // Given
@@ -219,6 +234,69 @@ void main() {
     // Then
     await expectLater(run, throwsStateError);
     expect(cubit.isTaskRunning('search'), isFalse);
+  });
+
+  test('runLatest rethrows a failure with the stack trace of the task',
+      () async {
+    // Given
+    final cubit = _TrackedCubit();
+    addTearDown(cubit.close);
+    final thrown = StackTrace.fromString('thrown by the task');
+
+    // When
+    final caught = await cubit
+        .runLatest<int>(
+          'search',
+          () => Future<int>.error(Exception('boom'), thrown),
+        )
+        .then<StackTrace?>((_) => null, onError: (Object _, StackTrace s) => s);
+
+    // Then
+    expect('$caught', contains('thrown by the task'));
+  });
+
+  test('a run that has ended leaves no key to compare later keys with',
+      () async {
+    // Given
+    final cubit = _TrackedCubit();
+    addTearDown(cubit.close);
+    final value = await cubit.runLatest(_CollidingKey(), () async => 1);
+    final failure = cubit.runLatest<int>(
+      _CollidingKey(),
+      () async => throw StateError('boom'),
+    );
+    await expectLater(failure, throwsStateError);
+    _CollidingKey.comparisons = 0;
+
+    // When
+    final running = cubit.isTaskRunning(_CollidingKey());
+
+    // Then
+    expect(value, 1);
+    expect(running, isFalse);
+    expect(_CollidingKey.comparisons, 0);
+  });
+
+  test('a run made while close is in progress does not start its task',
+      () async {
+    // Given
+    final cubit = _SlowTrackedCubit();
+    final closing = cubit.close();
+    final closedBeforeRun = cubit.isClosed;
+    var started = false;
+
+    // When
+    final outcome = await cubit.runLatestOutcome('search', (_) async {
+      started = true;
+      return 1;
+    });
+    cubit.release.complete();
+    await closing;
+
+    // Then
+    expect(closedBeforeRun, isFalse);
+    expect(started, isFalse);
+    expect(outcome.isCompleted, isFalse);
   });
 
   test('a second close waits until the first one has finished', () async {

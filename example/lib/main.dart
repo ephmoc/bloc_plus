@@ -38,8 +38,31 @@ class SearchState {
   }
 }
 
+// Effects are sealed classes, so a switch over them is checked for
+// exhaustiveness.
+sealed class CounterEffect {}
+
+final class CounterMessage extends CounterEffect {
+  CounterMessage(this.text);
+  final String text;
+}
+
+final class EvenHistoryDialog extends CounterEffect {
+  EvenHistoryDialog(this.length);
+  final int length;
+}
+
+sealed class SearchEffect {}
+
+final class PreviewLoaded extends SearchEffect {
+  PreviewLoaded(this.result);
+  final String result;
+}
+
+final class PreviewCancelled extends SearchEffect {}
+
 class CounterCubit extends Cubit<CounterState>
-    with HasEffects<CounterState, String> {
+    with HasEffects<CounterState, CounterEffect> {
   CounterCubit() : super(const CounterState());
 
   void increment() {
@@ -49,18 +72,16 @@ class CounterCubit extends Cubit<CounterState>
         : state.evenHistory;
 
     emit(state.copyWith(count: nextCount, evenHistory: nextHistory));
-    emitEffect('snack:Count moved to $nextCount');
+    emitEffect(CounterMessage('Count moved to $nextCount'));
   }
 
   void cloneHistory() {
     emit(state.copyWith(evenHistory: List<int>.of(state.evenHistory)));
-    emitEffect('snack:Cloned the history list');
+    emitEffect(CounterMessage('Cloned the history list'));
   }
 
   void showDialogEffect() {
-    emitEffect(
-      'dialog:Current even history length is ${state.evenHistory.length}',
-    );
+    emitEffect(EvenHistoryDialog(state.evenHistory.length));
   }
 }
 
@@ -68,10 +89,11 @@ class SearchCubit extends Cubit<SearchState>
     with
         SafeEmitMixin<SearchState>,
         RestartableTasksMixin<SearchState>,
-        HasEffects<SearchState, String> {
+        HasEffects<SearchState, SearchEffect> {
   SearchCubit() : super(const SearchState());
 
   Future<void> loadPreview(String label, Duration delay) async {
+    // Before the first await the cubit may be closed already.
     safeEmit(state.copyWith(isLoading: true, result: 'Loading $label...'));
 
     final outcome = await runLatestOutcome('preview', (_) async {
@@ -79,15 +101,13 @@ class SearchCubit extends Cubit<SearchState>
       return label;
     });
 
-    // A superseded or cancelled request resumes at once; only the latest one
-    // updates the state.
+    // A superseded or cancelled request resumes at once, and close() cancels
+    // the run: only the latest completed one updates the state.
     if (!outcome.isCompleted) return;
     final result = outcome.value;
 
-    safeEmit(
-      state.copyWith(isLoading: false, result: 'Latest result: $result'),
-    );
-    emitEffect('info:Loaded $result');
+    emit(state.copyWith(isLoading: false, result: 'Latest result: $result'));
+    emitEffect(PreviewLoaded(result));
   }
 
   void cancelPreview() {
@@ -95,7 +115,7 @@ class SearchCubit extends Cubit<SearchState>
     safeEmit(
       state.copyWith(isLoading: false, result: 'Cancelled latest preview'),
     );
-    emitEffect('info:Cancelled preview');
+    emitEffect(PreviewCancelled());
   }
 }
 
@@ -125,15 +145,18 @@ class ExamplePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: [
-        BlocEffectListener<CounterCubit, String>(
-          effectWhen: (effect) => effect.startsWith('dialog:'),
+        BlocEffectListener<CounterCubit, CounterEffect>(
           onEffect: (context, effect) {
+            // One subtype only: the consumer below shows the messages.
+            if (effect is! EvenHistoryDialog) return;
             showDialog<void>(
               context: context,
               builder: (dialogContext) {
                 return AlertDialog(
                   title: const Text('Counter effect'),
-                  content: Text(_stripEffectPrefix(effect)),
+                  content: Text(
+                    'Current even history length is ${effect.length}',
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
@@ -145,12 +168,15 @@ class ExamplePage extends StatelessWidget {
             );
           },
         ),
-        BlocEffectListener<SearchCubit, String>(
-          effectWhen: (effect) => effect.startsWith('info:'),
+        BlocEffectListener<SearchCubit, SearchEffect>(
           onEffect: (context, effect) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(_stripEffectPrefix(effect))));
+            // Every subtype: the switch fails to compile when one is missing.
+            final message = switch (effect) {
+              PreviewLoaded(:final result) => 'Loaded $result',
+              PreviewCancelled() => 'Cancelled preview',
+            };
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(message)));
           },
         ),
       ],
@@ -160,10 +186,10 @@ class ExamplePage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: const [
             Text(
-              'This example shows whenChanged conditions, effect filtering, '
-              'effect listeners in a MultiBlocListener, restartable async '
-              'helpers with TaskOutcome, and the combined state-and-effect '
-              'consumer.',
+              'This example shows sealed effects handled with a switch or an '
+              'if-case, effect listeners in a MultiBlocListener, restartable '
+              'async helpers with TaskOutcome, whenChanged conditions, and '
+              'the combined state-and-effect consumer.',
             ),
             SizedBox(height: 16),
             CounterSection(),
@@ -198,12 +224,14 @@ class CounterSection extends StatelessWidget {
               'and whenChanged conditions for targeted rebuilds.',
             ),
             const SizedBox(height: 16),
-            BlocConsumerWithEffects<CounterCubit, CounterState, String>(
-              effectWhen: (effect) => effect.startsWith('snack:'),
+            BlocConsumerWithEffects<CounterCubit, CounterState, CounterEffect>(
               onEffect: (context, bloc, effect) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(_stripEffectPrefix(effect))),
-                );
+                // One subtype only: the listener above the page shows the
+                // dialog.
+                if (effect case CounterMessage(:final text)) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(text)));
+                }
               },
               builder: (context, bloc, state) {
                 return Column(
@@ -298,7 +326,7 @@ class SearchSection extends StatelessWidget {
                 Text(state.result),
                 const SizedBox(height: 4),
                 Text(
-                  bloc.isTaskRunning('preview')
+                  state.isLoading
                       ? 'Task status: running'
                       : 'Task status: idle',
                 ),
@@ -326,9 +354,7 @@ class SearchSection extends StatelessWidget {
                       child: const Text('Run slow then fast'),
                     ),
                     OutlinedButton(
-                      onPressed: bloc.isTaskRunning('preview')
-                          ? bloc.cancelPreview
-                          : null,
+                      onPressed: state.isLoading ? bloc.cancelPreview : null,
                       child: const Text('Cancel latest'),
                     ),
                   ],
@@ -340,12 +366,6 @@ class SearchSection extends StatelessWidget {
       ),
     );
   }
-}
-
-String _stripEffectPrefix(String effect) {
-  final separatorIndex = effect.indexOf(':');
-  if (separatorIndex == -1) return effect;
-  return effect.substring(separatorIndex + 1).trimLeft();
 }
 
 bool _listEquals(List<int> previous, List<int> current) {

@@ -134,53 +134,26 @@ void main() {
     expect(toasts, ['hi']);
   });
 
-  testWidgets('skips effects rejected by effectWhen', (tester) async {
+  testWidgets('uses the latest onEffect after a rebuild', (tester) async {
     // Given
     final cubit = _UiCubit();
     addTearDown(cubit.close);
     final effects = <String>[];
-    await tester.pumpWidget(
-      BlocEffectListener<_UiCubit, _UiEffect>(
-        bloc: cubit,
-        effectWhen: (effect) => effect is _Navigate,
-        onEffect: (context, effect) => effects.add(_describe(effect)),
-      ),
-    );
-
-    // When
-    cubit
-      ..toast('ignored')
-      ..navigate('/home');
-    await tester.pump();
-
-    // Then
-    expect(effects, ['go:/home']);
-  });
-
-  testWidgets('uses the latest onEffect and effectWhen after a rebuild',
-      (tester) async {
-    // Given
-    final cubit = _UiCubit();
-    addTearDown(cubit.close);
-    final effects = <String>[];
-    Widget build(String tag, {required String blocked}) {
+    Widget build(String tag) {
       return BlocProvider.value(
         value: cubit,
         child: BlocEffectListener<_UiCubit, _UiEffect>(
-          effectWhen: (effect) => _describe(effect) != blocked,
           onEffect: (context, effect) =>
               effects.add('$tag:${_describe(effect)}'),
         ),
       );
     }
 
-    await tester.pumpWidget(build('v1', blocked: 'toast:a'));
+    await tester.pumpWidget(build('v1'));
 
     // When
-    await tester.pumpWidget(build('v2', blocked: 'toast:b'));
-    cubit
-      ..toast('a')
-      ..toast('b');
+    await tester.pumpWidget(build('v2'));
+    cubit.toast('a');
     await tester.pump();
 
     // Then
@@ -213,6 +186,66 @@ void main() {
     expect(effects, ['toast:explicit']);
   });
 
+  testWidgets('follows the provided bloc after bloc changes to null',
+      (tester) async {
+    // Given
+    final provided = _UiCubit();
+    final explicit = _UiCubit();
+    addTearDown(provided.close);
+    addTearDown(explicit.close);
+    final effects = <String>[];
+    Widget tree({required _UiCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: BlocEffectListener<_UiCubit, _UiEffect>(
+            bloc: bloc,
+            onEffect: (context, effect) => effects.add(_describe(effect)),
+          ),
+        );
+    await tester.pumpWidget(tree(bloc: explicit));
+    explicit.toast('explicit');
+    provided.toast('provided-before');
+    await tester.pump();
+
+    // When
+    await tester.pumpWidget(tree(bloc: null));
+    provided.toast('provided-after');
+    explicit.toast('explicit-after');
+    await tester.pump();
+
+    // Then
+    expect(effects, ['toast:explicit', 'toast:provided-after']);
+  });
+
+  testWidgets('switches from the provided bloc to an explicit one',
+      (tester) async {
+    // Given
+    final provided = _UiCubit();
+    final explicit = _UiCubit();
+    addTearDown(provided.close);
+    addTearDown(explicit.close);
+    final effects = <String>[];
+    Widget tree({required _UiCubit? bloc}) => BlocProvider.value(
+          value: provided,
+          child: BlocEffectListener<_UiCubit, _UiEffect>(
+            bloc: bloc,
+            onEffect: (context, effect) => effects.add(_describe(effect)),
+          ),
+        );
+    await tester.pumpWidget(tree(bloc: null));
+    provided.toast('provided');
+    explicit.toast('explicit-before');
+    await tester.pump();
+
+    // When
+    await tester.pumpWidget(tree(bloc: explicit));
+    explicit.toast('explicit-after');
+    provided.toast('provided-after');
+    await tester.pump();
+
+    // Then
+    expect(effects, ['toast:provided', 'toast:explicit-after']);
+  });
+
   testWidgets('throws ProviderNotFoundException without bloc or provider',
       (tester) async {
     // Given
@@ -225,6 +258,32 @@ void main() {
 
     // Then
     expect(tester.takeException(), isA<ProviderNotFoundException>());
+  });
+
+  testWidgets('without a child delivers effects and renders nothing',
+      (tester) async {
+    // Given
+    final cubit = _UiCubit();
+    addTearDown(cubit.close);
+    final effects = <String>[];
+    const key = Key('listener');
+    await tester.pumpWidget(
+      Center(
+        child: BlocEffectListener<_UiCubit, _UiEffect>(
+          key: key,
+          bloc: cubit,
+          onEffect: (context, effect) => effects.add(_describe(effect)),
+        ),
+      ),
+    );
+
+    // When
+    cubit.toast('saved');
+    await tester.pump();
+
+    // Then
+    expect(effects, ['toast:saved']);
+    expect(tester.getSize(find.byKey(key)), Size.zero);
   });
 
   testWidgets('cancels its subscription when disposed', (tester) async {
@@ -245,6 +304,28 @@ void main() {
     // Then
     expect(listeningWhileMounted, isTrue);
     expect(cubit.controller.hasListener, isFalse);
+  });
+
+  testWidgets('survives the bloc being closed while mounted', (tester) async {
+    // Given
+    final cubit = _UiCubit();
+    final effects = <String>[];
+    await tester.pumpWidget(
+      BlocEffectListener<_UiCubit, _UiEffect>(
+        bloc: cubit,
+        onEffect: (context, effect) => effects.add(_describe(effect)),
+      ),
+    );
+
+    // When
+    await tester.runAsync(cubit.close);
+    cubit.toast('late');
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    // Then
+    expect(effects, isEmpty);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('composes inside MultiBlocListener with state listeners',
@@ -281,6 +362,39 @@ void main() {
 
     // Then
     expect(calls, ['state:1', 'withBloc:1', 'toast:saved']);
+  });
+
+  testWidgets('MultiBlocListener: calls listeners of one bloc in order',
+      (tester) async {
+    // Given
+    final cubit = _UiCubit();
+    addTearDown(cubit.close);
+    final log = <String>[];
+    await tester.pumpWidget(
+      BlocProvider.value(
+        value: cubit,
+        child: MultiBlocListener(
+          listeners: [
+            BlocEffectListener<_UiCubit, _UiEffect>(
+              onEffect: (context, effect) =>
+                  log.add('first:${_describe(effect)}'),
+            ),
+            BlocEffectListener<_UiCubit, _UiEffect>(
+              onEffect: (context, effect) =>
+                  log.add('second:${_describe(effect)}'),
+            ),
+          ],
+          child: const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    // When
+    cubit.toast('ordered');
+    await tester.pump();
+
+    // Then
+    expect(log, ['first:toast:ordered', 'second:toast:ordered']);
   });
 
   testWidgets(

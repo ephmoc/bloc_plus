@@ -34,7 +34,8 @@ final class TaskOutcome<T> {
   /// The value the run completed with.
   ///
   /// Throws a [StateError] when the run was cancelled; check [isCompleted]
-  /// first.
+  /// first. An object pattern reads its fields in order, so write
+  /// `isCompleted: true` before `:final value` there.
   T get value {
     if (!isCompleted) {
       throw StateError('A cancelled TaskOutcome has no value.');

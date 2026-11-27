@@ -1,5 +1,6 @@
 // Implements the deprecated SingleChildEffectListener so MultiEffectListener
-// users can migrate one listener at a time; drop it in 1.0.
+// users can migrate one listener at a time, and reads the deprecated
+// effectWhen; drop both in 1.0.
 // ignore_for_file: deprecated_member_use_from_same_package
 
 import 'dart:async';
@@ -32,12 +33,12 @@ import 'has_effects.dart';
 /// )
 /// ```
 ///
-/// Always write both type arguments. Below language version 3.7, [E] is not
-/// inferred from [bloc]: it becomes `Object?` and the `switch` loses its
-/// exhaustiveness check.
+/// Always write both type arguments: without them the `effect` parameter of
+/// [onEffect] is `Object?` at every language version, so a `switch` over it
+/// is not checked for exhaustiveness.
 ///
 /// To react to a single subtype, listen to the supertype and match it with an
-/// if-case pattern; [effectWhen] does not promote the effect type:
+/// if-case pattern at the top of [onEffect], which promotes the effect type:
 ///
 /// ```dart
 /// BlocEffectListener<UiCubit, UiEffect>(
@@ -57,6 +58,10 @@ class BlocEffectListener<B extends EffectsSource<E>, E>
     required this.onEffect,
     super.key,
     this.bloc,
+    @Deprecated(
+      'Use an if or an if-case at the top of onEffect, which also promotes '
+      'the effect type. Will be removed in 1.0.',
+    )
     this.effectWhen,
     this.child,
   }) : super(child: child);
@@ -67,19 +72,33 @@ class BlocEffectListener<B extends EffectsSource<E>, E>
   /// throws a `ProviderNotFoundException` if there is none.
   final B? bloc;
 
-  /// Called for every effect that passes [effectWhen].
+  /// Called for every effect, unless the deprecated [effectWhen] rejects it.
+  ///
+  /// `effect` has the type [E] only when the widget has both type arguments;
+  /// without them it is `Object?`.
   final void Function(BuildContext context, E effect) onEffect;
 
   /// Optional predicate that decides whether [onEffect] should run.
+  @Deprecated(
+    'Use an if or an if-case at the top of onEffect, which also promotes '
+    'the effect type. Will be removed in 1.0.',
+  )
   final EffectCondition<E>? effectWhen;
 
   /// Optional subtree rendered by this listener.
+  ///
+  /// Without one, and outside a multi widget such as `MultiBlocListener`,
+  /// the listener renders `SizedBox.shrink()`.
   final Widget? child;
 
   @override
   SingleChildState<BlocEffectListener<B, E>> createState() =>
       _BlocEffectListenerState<B, E>();
 
+  @Deprecated(
+    'Pass child: to the constructor, or list the listener in '
+    'MultiBlocListener, which supplies the child. Will be removed in 1.0.',
+  )
   @override
   Widget withChild(Widget child) => BlocEffectListener<B, E>(
         key: key,

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart' show protected, visibleForTesting;
+import 'package:meta/meta.dart' show useResult;
 
 import 'cancellation_token.dart';
 import 'restartable_task.dart';
@@ -18,11 +20,18 @@ import 'task_outcome.dart';
 /// handler's `emit` must check `emit.isDone` first: a cancelled handler
 /// completes before its abandoned task, and bloc rejects the late `emit` only
 /// with an assert, so release builds would emit the stale state.
+///
+/// Like `emit`, its methods other than [close] are meant to be called from
+/// inside the bloc and from tests: they are `@protected` and
+/// `@visibleForTesting`. Keep what the UI shows, such as a loading flag, in
+/// the state rather than reading [isTaskRunning] in `build`.
 mixin RestartableTasksMixin<S> on BlocBase<S> {
   final Map<Object, RestartableTask<Object?>> _tasks = {};
   Future<void>? _closing;
 
   /// Returns `true` when the latest task for [key] is still running.
+  @protected
+  @visibleForTesting
   bool isTaskRunning(Object key) => _tasks[key]?.isRunning ?? false;
 
   /// Runs [task] as the latest task for [key], invalidating older results for
@@ -31,14 +40,36 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// Completes with `null` as soon as a newer run for [key], [cancelLatest],
   /// [cancelAllLatest] or [close] supersedes this run, without waiting for
   /// [task], whose later success or failure is dropped. The failure of the
-  /// latest run is rethrown.
+  /// latest run is rethrown, unless the run is superseded before its caller
+  /// resumes. Handle `null` first, with an early return: an `else` or a
+  /// `default` branch would take a superseded run for a failed one. The
+  /// analyzer reports a result that is awaited and dropped (`@useResult`),
+  /// because the code after it would run for a superseded run as well.
   ///
-  /// When `T` is nullable or `void`, `null` is ambiguous: use
-  /// [runLatestOutcome].
+  /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
+  /// would be ambiguous. For such work use [runLatestOutcome] and return early
+  /// unless the outcome is completed. Without the check, the code after it
+  /// runs for a superseded run as well, so the analyzer reports an outcome
+  /// that is awaited and dropped:
+  ///
+  /// ```dart
+  /// final outcome = await runLatestOutcome('save', (_) => save(item));
+  /// if (!outcome.isCompleted) return; // superseded or closed
+  /// emit(state.copyWith(saved: true));
+  /// ```
   ///
   /// Keys are compared with `==`: a new `List` key never matches an earlier
-  /// one, while a string or a record with the same content does.
-  Future<T?> runLatest<T>(Object key, Future<T> Function() task) async {
+  /// one, while a string or a record with the same content does. A key names
+  /// a whole flow, not one of its steps: run a flow with several `await`s
+  /// inside one [runLatestOutcome] and check `token.isCancelled` after every
+  /// `await`.
+  @protected
+  @visibleForTesting
+  @useResult
+  Future<T?> runLatest<T extends Object>(
+    Object key,
+    Future<T> Function() task,
+  ) async {
     final outcome = await runLatestOutcome<T>(key, (_) => task());
     return outcome.isCompleted ? outcome.value : null;
   }
@@ -51,7 +82,9 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// [TaskOutcome.cancelled] as soon as a newer run for [key], [cancelLatest],
   /// [cancelAllLatest] or [close] supersedes this run, without waiting for
   /// [task]. [task] does not start once [close] was called. The failure of the
-  /// latest run is rethrown; a failure of a superseded run is dropped.
+  /// latest run is rethrown; a failure of a superseded run is dropped, also
+  /// one that arrived just before the run was superseded, while the caller
+  /// had not resumed yet.
   ///
   /// The abandoned task keeps running: check `token.isCancelled` before any
   /// side effect, or pass `token.whenCancelled` to the I/O so it can abort.
@@ -68,7 +101,16 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   /// }
   /// ```
   ///
-  /// Keys are compared as in [runLatest].
+  /// The analyzer reports an outcome that is awaited and dropped
+  /// (`@useResult`). When [task] emits itself, as a flow with several
+  /// `await`s does, return the future instead of awaiting it as a statement:
+  /// `Future<void> open() => runLatestOutcome('open', (token) async {...});`.
+  ///
+  /// Keys are compared as in [runLatest], and a key names a whole flow, not
+  /// one of its steps.
+  @protected
+  @visibleForTesting
+  @useResult
   Future<TaskOutcome<T>> runLatestOutcome<T>(
     Object key,
     Future<T> Function(CancellationToken token) task,
@@ -93,12 +135,16 @@ mixin RestartableTasksMixin<S> on BlocBase<S> {
   }
 
   /// Cancels the latest tracked result for [key], if any.
+  @protected
+  @visibleForTesting
   void cancelLatest(Object key) {
     final task = _tasks.remove(key);
     task?.cancel();
   }
 
   /// Cancels and clears all tracked task results.
+  @protected
+  @visibleForTesting
   void cancelAllLatest() {
     for (final task in _tasks.values) {
       task.cancel();

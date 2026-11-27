@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart' show useResult;
+
 import 'task_outcome.dart';
 
 /// Tracks cancellation for async work that may become stale.
@@ -12,7 +14,10 @@ import 'task_outcome.dart';
 /// The `cancellation_token` package also exports a `CancellationToken`; when
 /// both are imported, add `hide CancellationToken` to one of the imports or
 /// use a prefix.
-class CancellationToken {
+///
+/// It is a `final` class, so it cannot be extended, implemented or mocked. In
+/// tests, use a real token and call [cancel].
+final class CancellationToken {
   /// Creates a token that can invalidate stale async work.
   CancellationToken();
 
@@ -53,20 +58,43 @@ class CancellationToken {
   ///
   /// [task] does not start on a cancelled token. The call completes with
   /// `null` as soon as the token is cancelled, without waiting for [task],
-  /// which keeps running; a later failure of [task] is dropped. A failure of a
-  /// task that was not cancelled is rethrown.
+  /// which keeps running; a later failure of [task] is dropped. A failure is
+  /// rethrown unless the token is cancelled before the caller resumes. Handle
+  /// `null` first, with an early return: an `else` or a `default` branch would
+  /// take a cancelled run for a failed one. The analyzer reports a result that
+  /// is awaited and dropped (`@useResult`), because the code after it would
+  /// run for a cancelled run as well.
   ///
-  /// When `T` is nullable or `void`, `null` is ambiguous: check [isCancelled]
-  /// after the call, or wrap the result in a record so that `null` only means
-  /// cancelled:
+  /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
+  /// would be ambiguous. Await such work plainly and check [isCancelled]
+  /// before anything else:
+  ///
+  /// ```dart
+  /// final item = await find(query); // may be null: not found
+  /// if (token.isCancelled) return;
+  /// show(item);
+  /// ```
+  ///
+  /// Wrap the result in a record only to keep what `run` adds: [task] does
+  /// not start on a cancelled token, its later failure is dropped, and the
+  /// caller is released at [cancel] instead of when [task] ends:
   ///
   /// ```dart
   /// final result = await token.run(() async => (item: await find(query)));
   /// if (result == null) return; // cancelled
   /// show(result.item); // may be null: not found
   /// ```
-  Future<T?> run<T>(Future<T> Function() task) async {
-    final outcome = await runUntilCancelled(this, task);
+  @useResult
+  Future<T?> run<T extends Object>(Future<T> Function() task) async {
+    final TaskOutcome<T> outcome;
+    try {
+      outcome = await runUntilCancelled(this, task);
+    } catch (_) {
+      // A cancel after the failure, before the caller resumes, drops it as it
+      // drops a value.
+      if (isCancelled) return null;
+      rethrow;
+    }
     return outcome.isCompleted && !isCancelled ? outcome.value : null;
   }
 }

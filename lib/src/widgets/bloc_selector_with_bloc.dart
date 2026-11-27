@@ -1,12 +1,17 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../policies/conditions.dart';
+
 /// Signature for building a widget from a selected value and the resolved bloc.
 typedef BlocSelectorBuilderWithBloc<B extends StateStreamable<S>, S, T> = Widget
     Function(BuildContext context, B bloc, T selected);
 
 /// Signature for deciding whether a newly selected value should trigger a
 /// rebuild.
+@Deprecated(
+  'Use BlocCondition<T>, the same function type. Will be removed in 1.0.',
+)
 typedef BlocSelectedCondition<T> = bool Function(T previous, T current);
 
 /// A selector widget that exposes both the resolved bloc instance and selected
@@ -39,7 +44,7 @@ class BlocSelectorWithBloc<B extends StateStreamable<S>, S, T>
   ///
   /// Receives the last built selection as `previous` and the selection of the
   /// new state as `current`. Defaults to `previous != current`.
-  final BlocSelectedCondition<T>? selectorShouldRebuild;
+  final BlocCondition<T>? selectorShouldRebuild;
 
   /// Builds a widget with the selected value and resolved bloc instance.
   final BlocSelectorBuilderWithBloc<B, S, T> builder;
@@ -66,17 +71,7 @@ class _BlocSelectorWithBlocState<B extends StateStreamable<S>, S, T>
   void didUpdateWidget(BlocSelectorWithBloc<B, S, T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     final bloc = widget.bloc ?? context.read<B>();
-    if (!identical(_bloc, bloc) || oldWidget.selector != widget.selector) {
-      _bloc = bloc;
-      _selected = widget.selector(_bloc.state);
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final bloc = widget.bloc ?? context.read<B>();
-    if (!identical(_bloc, bloc)) {
+    if (oldWidget.selector != widget.selector) {
       _bloc = bloc;
       _selected = widget.selector(_bloc.state);
     }
@@ -84,9 +79,12 @@ class _BlocSelectorWithBlocState<B extends StateStreamable<S>, S, T>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.bloc == null) {
-      // Rebuild when the provided bloc instance is replaced.
-      context.select<B, bool>((bloc) => identical(_bloc, bloc));
+    // Rebuilds when a different instance is provided. The switch is here
+    // because provider does not notify an element that is already dirty.
+    final bloc = widget.bloc ?? context.select<B, B>((bloc) => bloc);
+    if (!identical(_bloc, bloc)) {
+      _bloc = bloc;
+      _selected = widget.selector(_bloc.state);
     }
     return BlocListener<B, S>(
       bloc: _bloc,

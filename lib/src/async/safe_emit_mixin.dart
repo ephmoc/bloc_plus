@@ -1,11 +1,22 @@
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
+import 'package:meta/meta.dart' show useResult;
 
-/// Adds guarded emit helpers that no-op after a bloc has been closed.
-mixin SafeEmitMixin<S> on BlocBase<S> {
-  /// Emits [state] only when the bloc is still open.
+/// Adds guarded emit helpers that no-op after a cubit has been closed.
+///
+/// It applies to Cubits only. In a `Bloc`, use the handler's `emit`, which
+/// also calls `onTransition` and does nothing in a handler that a transformer
+/// such as `restartable()` has cancelled. Check `isClosed` first in the
+/// handler and again after every `await`: the handler's `emit` still delivers
+/// for a while after `close()` is called, also in a handler that starts
+/// afterwards for an event queued before it. With `emit.onEach`, check it in
+/// `onData` and `onError` too. `emit.forEach` emits every state its callbacks
+/// return, so a check there cannot stop the emit: where a value must not
+/// arrive after `close()`, use `emit.onEach`.
+mixin SafeEmitMixin<S> on Cubit<S> {
+  /// Emits [state] only when the cubit is still open.
   ///
-  /// Like `emit`, it is meant to be called from inside the bloc, and from
+  /// Like `emit`, it is meant to be called from inside the cubit, and from
   /// tests.
   @protected
   @visibleForTesting
@@ -14,26 +25,51 @@ mixin SafeEmitMixin<S> on BlocBase<S> {
     emit(state);
   }
 
-  /// Runs [operation] and returns its result only if the bloc is still open
+  /// Runs [operation] and returns its result only if the cubit is still open
   /// after completion.
   ///
-  /// [operation] does not start on a closed bloc. A failure of [operation]
-  /// after the bloc was closed is dropped like its result, so the call
-  /// completes with `null`; a failure while the bloc is open is rethrown.
+  /// Like `emit`, it is meant to be called from inside the cubit, and from
+  /// tests.
   ///
-  /// When `T` is nullable or `void`, `null` is ambiguous: check `isClosed`
-  /// after the call, or wrap the result in a record so that `null` only means
-  /// the bloc was closed:
+  /// [operation] does not start on a closed cubit. A failure of [operation]
+  /// is rethrown while the cubit is open and dropped like its result once the
+  /// cubit is closed, so the call then completes with `null`. A synchronous
+  /// throw counts as arriving after the current turn, so a `close()` in the
+  /// same turn drops it.
+  /// Handle `null` first, with an early return: an `else` or a `default`
+  /// branch would take a closed cubit for a failed result. The analyzer
+  /// reports a result that is awaited and dropped (`@useResult`), because the
+  /// code after it would run on a closed cubit as well.
+  ///
+  /// `T` cannot be `void` or nullable (`T extends Object`), because `null`
+  /// would be ambiguous. Await such work plainly and emit with [safeEmit], or
+  /// check `isClosed` before anything else:
+  ///
+  /// ```dart
+  /// final item = await find(query); // may be null: not found
+  /// safeEmit(state.copyWith(item: item));
+  /// ```
+  ///
+  /// Wrap the result in a record only to keep what `guarded` adds: the
+  /// operation does not start on a closed cubit, and its failure after close
+  /// is dropped:
   ///
   /// ```dart
   /// final result = await guarded(() async => (item: await find(query)));
   /// if (result == null) return; // closed
   /// emit(state.copyWith(item: result.item)); // may be null: not found
   /// ```
-  Future<T?> guarded<T>(Future<T> Function() operation) async {
+  @protected
+  @visibleForTesting
+  @useResult
+  Future<T?> guarded<T extends Object>(Future<T> Function() operation) async {
     if (isClosed) return null;
     try {
-      final result = await operation();
+      // A synchronous throw then reaches the catch after this turn, like the
+      // failure of an async operation, so a close() in the same turn drops it.
+      // Future.value makes the value of a future that calls back synchronously,
+      // such as Flutter's SynchronousFuture, arrive after this turn as well.
+      final result = await Future<T>.value(Future<T>.sync(operation));
       return isClosed ? null : result;
     } catch (_) {
       if (isClosed) return null;

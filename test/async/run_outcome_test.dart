@@ -54,6 +54,7 @@ class _EmitInTaskBloc extends Bloc<_Event, String>
     with RestartableTasksMixin<String> {
   _EmitInTaskBloc() : super('initial') {
     on<_Load>((event, emit) async {
+      // ignore: unused_result
       await runLatest('load', () async {
         await event.gate;
         emitDoneWhenTaskResumed = emit.isDone;
@@ -133,6 +134,23 @@ void main() {
       // Then
       expect(await run, isNull);
     });
+
+    test('run drops a failure when cancel lands before the caller resumes',
+        () async {
+      // Given
+      final token = CancellationToken();
+      // Delivers the failure at once, so the cancel below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = token.run(() => work.future);
+
+      // When
+      work.completeError(StateError('late'));
+      token.cancel();
+
+      // Then
+      expect(await run, isNull);
+    });
   });
 
   group('RestartableTask.runOutcome', () {
@@ -198,11 +216,29 @@ void main() {
       expect(await run, const TaskOutcome<int>.cancelled());
     });
 
+    test('cancel between the failure and the caller resuming cancels the run',
+        () async {
+      // Given
+      final task = RestartableTask<int>();
+      // Delivers the failure at once, so the cancel below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = task.runOutcome((_) => work.future);
+
+      // When
+      work.completeError(StateError('late'));
+      task.cancel();
+
+      // Then
+      expect(await run, const TaskOutcome<int>.cancelled());
+    });
+
     test('does not cancel the token of a finished run', () async {
       // Given
       final task = RestartableTask<int>();
       late CancellationToken succeeded;
       late CancellationToken failed;
+      // ignore: unused_result
       await task.runOutcome((token) async {
         succeeded = token;
         return 1;
@@ -216,6 +252,7 @@ void main() {
       );
 
       // When
+      // ignore: unused_result
       await task.runOutcome((_) async => 2);
       task.cancel();
       await task.dispose();
@@ -266,6 +303,7 @@ void main() {
       final task = RestartableTask<int>();
       final stale = Completer<int>();
       final first = task.runOutcome((_) => stale.future);
+      // ignore: unused_result
       await task.runOutcome((_) async => 2);
 
       // When
@@ -286,19 +324,6 @@ void main() {
       // Then
       await expectLater(run, throwsStateError);
       expect(task.isRunning, isFalse);
-    });
-
-    test('run still completes with null when cancelled', () async {
-      // Given
-      final task = RestartableTask<int>();
-      final run = task.run(() => Completer<int>().future);
-
-      // When
-      task.cancel();
-
-      // Then
-      expect(await _isReleased(run), isTrue);
-      expect(await run, isNull);
     });
   });
 
@@ -420,6 +445,23 @@ void main() {
       expect(await run, const TaskOutcome<int>.cancelled());
     });
 
+    test('close between the failure and the caller resuming cancels the run',
+        () async {
+      // Given
+      final cubit = _TrackedCubit();
+      // Delivers the failure at once, so the close below lands after it has
+      // arrived but before the caller resumes.
+      final work = Completer<int>.sync();
+      final run = cubit.runLatestOutcome<int>('k', (_) => work.future);
+
+      // When
+      work.completeError(StateError('late'));
+      await cubit.close();
+
+      // Then
+      expect(await run, const TaskOutcome<int>.cancelled());
+    });
+
     test('does not start the task on a closed cubit', () async {
       // Given
       final cubit = _TrackedCubit();
@@ -456,6 +498,7 @@ void main() {
       addTearDown(cubit.close);
       final stale = Completer<int>();
       final first = cubit.runLatestOutcome<int>('k', (_) => stale.future);
+      // ignore: unused_result
       await cubit.runLatestOutcome<int>('k', (_) async => 2);
 
       // When

@@ -65,6 +65,31 @@ void main() {
       // Then
       expect(builtStates, [0, 2]);
     });
+
+    testWidgets('stops listening when disposed', (tester) async {
+      // Given
+      final cubit = _CounterCubit();
+      addTearDown(cubit.close);
+      final builtStates = <int>[];
+      await tester.pumpWidget(
+        BlocBuilderWithBloc<_CounterCubit, int>(
+          bloc: cubit,
+          builder: (context, bloc, state) {
+            builtStates.add(state);
+            return _text(state);
+          },
+        ),
+      );
+
+      // When
+      await tester.pumpWidget(const SizedBox.shrink());
+      cubit.increment();
+      await tester.pump();
+
+      // Then
+      expect(builtStates, [0]);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('BlocListenerWithBloc', () {
