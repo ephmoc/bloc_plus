@@ -564,11 +564,17 @@ for the release.
   deprecated use inside the app's own `@Deprecated` declarations, under an
   ignore comment, where `analysis_options.yaml` turns `deprecated_member_use`
   off, in files excluded from analysis, or through a `dynamic` receiver,
-  which fails only at run time. The README gathers its three replacement
-  tables (now under "Effects", "Conditions" and "Optional lookups") in a
-  short "Upgrading from 0.x" section, because a constraint such as `^0.2.0`
-  or `^0.3.1` does not admit 0.4.0: such a project never saw all of the
-  deprecation warnings. The install snippet reads `^1.0.0`.
+  which fails only at run time. A short "Upgrading from 0.x" section of the
+  README gathers every replacement, because a constraint such as `^0.2.0` or
+  `^0.3.1` does not admit 0.4.0: such a project never saw all of the
+  deprecation warnings. The replacements stand today in two README tables
+  (under "Effects" and "Conditions"), in two README paragraphs
+  (`RestartableTask.run` under "Async helpers for Cubits", the lookups under
+  "Optional lookups"), in the CHANGELOG of 0.4.0 (`BlocSelectedCondition`
+  and `BlocEffectListenerWithBloc`) and, for `SingleChildEffectListener`,
+  only in its deprecation message (`BlocEffectListener`, a
+  `SingleChildWidget` inside `MultiBlocListener`). The install snippet
+  reads `^1.0.0`.
 - The API freeze table in the PRD and the task specs are updated. The
   statements that speak of 1.0 as coming are removed or reworded in the
   README (the list of deprecated APIs, the notes "removed in 1.0", the
