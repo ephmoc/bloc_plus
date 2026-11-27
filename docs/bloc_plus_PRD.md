@@ -2174,6 +2174,7 @@ docs/
 ├── usage_guide.md
 ├── widgets.md (ui_with_bloc)
 ├── policies.md (policies)
+├── extensions.md (context_extensions)
 ├── async_safety.md (async_safety)
 ├── effects.md (effects)
 └── examples/
