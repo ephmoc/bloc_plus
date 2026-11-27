@@ -607,6 +607,7 @@ Conditions:
 
 | Removed | Replacement |
 | --- | --- |
+| `RebuildPolicy<S>`, `ListenPolicy<S>` as a type or a base class (0.3.0) | `BlocCondition<S>`: the body of a subclass's `shouldRebuild` / `shouldListen` becomes a `(previous, current) => ...` passed as `buildWhen` / `listenWhen` |
 | `onChange(sel).shouldRebuild`, `onChangeListen(sel).shouldListen` (0.3.0) | `whenChanged(sel)` |
 | `onChangeBy(sel, equals: eq)`, `onChangeListenBy(sel, equals: eq)` (0.3.0) | `whenChanged(sel, equals: eq)` |
 | `whenRebuild(p).shouldRebuild`, `whenListen(p).shouldListen` (0.3.0) | `p` |
