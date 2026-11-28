@@ -611,7 +611,7 @@ Conditions:
 | `onChange(sel).shouldRebuild`, `onChangeListen(sel).shouldListen` (0.3.0) | `whenChanged(sel)` |
 | `onChangeBy(sel, equals: eq)`, `onChangeListenBy(sel, equals: eq)` (0.3.0) | `whenChanged(sel, equals: eq)` |
 | `whenRebuild(p).shouldRebuild`, `whenListen(p).shouldListen` (0.3.0) | `p` |
-| `always()`, `alwaysListen()` (0.3.0) | omit `buildWhen` / `listenWhen` |
+| `always()`, `alwaysListen()` (0.3.0) | omit `buildWhen` / `listenWhen`; as `selectorShouldRebuild`, write `(previous, current) => true` |
 | `never()`, `neverListen()` (0.3.0) | `(previous, current) => false` |
 | `distinct()`, `distinctListen()` (0.3.0) | `(previous, current) => previous != current` (omitting the parameter differs only for a first emitted state equal to the initial one, which `emit` does not skip) |
 | `a.and(b)`, `a.or(b)`, `a.not()` on `RebuildPolicy` and `ListenPolicy` (0.3.0) | `(p, c) => a(p, c) && b(p, c)`, `\|\|`, `!` |
@@ -628,7 +628,7 @@ Effects:
 | `EffectListener` on a subtype of the declared effect type (0.3.0) | `BlocEffectListener` on the supertype with an if-case pattern |
 | `MultiEffectListener` (0.3.0) | `MultiBlocListener`, which asserts that `listeners` is not empty |
 | `SingleChildEffectListener` (0.3.0) | `BlocEffectListener`, a `SingleChildWidget`, inside `MultiBlocListener` |
-| `effectWhen: (effect) => effect is ShowError` and the typedef `EffectCondition` (0.4.0) | `if (effect case ShowError(...))` or `if (effect is! ShowError) return;` at the top of `onEffect`; the if-case also promotes the effect type |
+| `effectWhen: (effect) => effect is ShowError` and the typedef `EffectCondition` (0.4.0) | `if (effect case ShowError(...))` or `if (effect is! ShowError) return;` at the top of `onEffect`; the if-case also promotes the effect type; a stored predicate has the type `bool Function(E effect)` |
 | `listener.withChild(child)` (0.4.0) | `child:` in the constructor, or the listener in `MultiBlocListener` |
 | `BlocEffectListenerWithBloc<B, S, E>` (0.4.0) | no replacement: `void Function(BuildContext context, B bloc, E effect)` |
 
@@ -652,4 +652,4 @@ Async helpers:
 
 | Removed | Replacement |
 | --- | --- |
-| `RestartableTask.run(task)` (0.4.0) | `runOutcome((_) => task())`, and `if (!outcome.isCompleted) return;` before `outcome.value` |
+| `RestartableTask.run(task)` (0.4.0) | `runOutcome((_) => task())`, and `if (!outcome.isCompleted) return;` before `outcome.value`, which throws a `StateError` on a cancelled outcome |

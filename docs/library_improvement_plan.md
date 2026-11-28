@@ -356,7 +356,10 @@ it is, for a reason that a replacement would have to match:
 - `CancellationToken` keeps its constructor, `cancel()` and `run`: tests need
   a real token, and one token can cover several operations that run in
   parallel. `RestartableTask` stays public, as the engine of the mixin and
-  for "latest wins" outside a bloc.
+  for "latest wins" outside a bloc. Its `run` is removed because the bound
+  `T extends Object` cannot go on the class; an extension with that bound
+  can bring `run` back for a non-null `T` in a 1.x minor, and resolves only
+  once the member is gone.
 - `TaskOutcome` stays a `final class` with `isCompleted` and `value`. A
   sealed pair of subclasses can be added in a 1.x minor without breaking it.
   It does not make the compiler force the check, because `value` stays on
