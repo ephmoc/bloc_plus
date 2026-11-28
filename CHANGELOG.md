@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.0.0
+
+- Removed, everything that 0.3.0 and 0.4.0 deprecated:
+  - `RebuildPolicy` and `ListenPolicy` with their 12 factories and their
+    `and`, `or` and `not` (deprecated in 0.3.0), and the typedef
+    `BlocSelectedCondition` (0.4.0);
+  - `EffectListener`, `MultiEffectListener` and `SingleChildEffectListener`
+    (0.3.0); `BlocEffectListener` no longer implements
+    `SingleChildEffectListener`;
+  - `BlocEffectListener.withChild`, `effectWhen` of `BlocEffectListener` and
+    `BlocConsumerWithEffects`, the typedef `EffectCondition` and the typedef
+    `BlocEffectListenerWithBloc` (0.4.0);
+  - the extension `BlocContextExtension` with `readOrNull`, `watchOrNull`,
+    `selectOrNull` and `withBloc` (0.4.0);
+  - `RestartableTask.run` (0.4.0).
+- Docs:
+  - New in the README: "Upgrading from 0.x", with every replacement.
+  - The versioning policy in the README applies from 1.0.0.
+
+Migration impact:
+
+- Upgrade to 0.4.0 first and clear every deprecation warning, then move to
+  `^1.0.0`, search for the removed names and compile, because clean 0.4.0
+  code can still name them:
+  - a removed name in the `hide` list of an import becomes an
+    `undefined_hidden_name` warning, and the code still compiles. The usual
+    case is `hide whenListen` next to `bloc_test`: delete it;
+  - the analyzer does not report a deprecated use inside the app's own
+    `@Deprecated` declarations, under an ignore comment, where
+    `analysis_options.yaml` turns `deprecated_member_use` off, or in files
+    excluded from analysis. Such a use no longer compiles. A use through a
+    `dynamic` receiver fails only at run time.
+- A constraint such as `^0.2.0` or `^0.3.1` does not admit 0.4.0, so such a
+  project never saw all of the deprecation warnings. "Upgrading from 0.x" in
+  the README lists every replacement; the 0.3.0 and 0.4.0 entries below have
+  the same mapping.
+
+Release type rationale:
+
+- `major`: it removes public API. Nothing else changes: the type bounds, the
+  class modifiers, the widget types and the minimum SDK (Dart 3.0 /
+  Flutter 3.10) are those of 0.4.0.
+
 ## 0.4.0
 
 - Changed:

@@ -1,6 +1,6 @@
 name: bloc_plus
 description: "Async helpers for Cubits, one-off effects kept out of the state, rebuild conditions and widgets that hand the bloc to callbacks, for flutter_bloc."
-version: 0.4.0
+version: 1.0.0
 repository: "https://github.com/ephmoc/bloc_plus"
 topics:
   - flutter

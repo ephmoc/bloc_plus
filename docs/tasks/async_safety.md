@@ -9,8 +9,8 @@
 > `final` classes, `guarded` and `CancellationToken.run` take a non-null `T`
 > only (`T extends Object`), `guarded` is `@protected` and
 > `@visibleForTesting`, and `SafeEmitMixin` applies to Cubits only. It also
-> deprecates `RestartableTask.run`, removed in 1.0: its `T` belongs to the
-> class and cannot take the bound, so `runOutcome` replaces it. A failure is
+> deprecates `RestartableTask.run`, which 1.0.0 removes: its `T` belongs to
+> the class and cannot take the bound, so `runOutcome` replaces it. A failure is
 > dropped like a value when the cancel lands after it, before the caller
 > resumes (`runOutcome`, `CancellationToken.run`), and `guarded` drops a
 > synchronous throw followed by `close()` in the same turn, and the value of
@@ -38,7 +38,6 @@
   `run<T extends Object>(Future<T> Function() task)` (bound and `@useResult`
   since 0.4.0)
 - Implement `RestartableTask<T>`, a `final class` since 0.4.0: `isRunning`,
-  `run(Future<T> Function() task)` (deprecated in 0.4.0, removed in 1.0),
   `runOutcome(Future<T> Function(CancellationToken token) task)` returning
   `Future<TaskOutcome<T>>` (0.3.0, `@useResult` since 0.4.0), `cancel()`,
   `dispose()`
@@ -62,9 +61,8 @@
   `dynamic` result at compile time (0.4.0), so `null` only means discarded
 - `guarded`, `CancellationToken.run` and `RestartableTask.runOutcome` are
   `@useResult` (0.4.0): a result that is awaited and dropped is reported
-- `RestartableTask.runOutcome` (and the deprecated `run`) invalidates previous
-  in-flight result and releases its caller at once; only the latest run's
-  failure is rethrown
+- `RestartableTask.runOutcome` invalidates previous in-flight result and
+  releases its caller at once; only the latest run's failure is rethrown
 - `RestartableTask.dispose` prevents future runs and cancels current token/result flow
 
 ## Target Files
@@ -80,8 +78,6 @@
 
 - `test/async/safe_emit_mixin_test.dart`
 - `test/async/cancellation_token_test.dart`
-- `test/async/restartable_task_test.dart` (since 0.4.0 only the deprecated
-  `RestartableTask.run`, until 1.0)
 - `test/async/run_outcome_test.dart`, `test/async/task_outcome_test.dart` (0.3.0)
 - `test/async/final_classes_test.dart`, `test/async/object_bound_test.dart`,
   `test/async/safe_emit_cubit_only_test.dart`,

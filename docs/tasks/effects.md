@@ -1,13 +1,13 @@
 # Task Spec - effects
 
-> Status: delivered in 0.1.0 as `EffectsSource<E>`, `HasEffects<S, E>` and
-> `EffectListener<B extends BlocBase<S>, S, E>`. In 0.3.0 `EffectListener`
-> is deprecated, removed in 1.0. Replacement:
-> `BlocEffectListener<B extends EffectsSource<E>, E>`, which checks the effect
-> type at compile time and composes inside `MultiBlocListener`. 0.3.0 also
-> makes `emitEffect` `@protected` and `@visibleForTesting`. 0.3.1 adds the
-> opt-in `debugPrintUnheardEffects` debug warning for effects that nothing
-> listens to.
+> Status: delivered. `EffectsSource<E>` and `HasEffects<S, E>` since 0.1.0;
+> `BlocEffectListener<B extends EffectsSource<E>, E>` since 0.3.0, which checks
+> the effect type at compile time and composes inside `MultiBlocListener`.
+> 0.3.0 also makes `emitEffect` `@protected` and `@visibleForTesting`. 0.3.1
+> adds the opt-in `debugPrintUnheardEffects` debug warning for effects that
+> nothing listens to. Historical: 0.1.0 shipped the listener as
+> `EffectListener<B extends BlocBase<S>, S, E>`; 0.3.0 deprecated it and
+> 1.0.0 removed it.
 
 ## Preconditions
 
@@ -22,10 +22,9 @@
 - Implement the `EffectsSource<E>` interface (`Stream<E> get effects`) and
   `mixin HasEffects<S, E> on BlocBase<S> implements EffectsSource<E>` with
   `emitEffect(E effect)` for one-shot effects
-- Implement an effect listener widget: shipped as `EffectListener<B, S, E>`
-  (deprecated in 0.3.0); use `BlocEffectListener<B, E>` with
-  `onEffect(context, effect)`, `bloc`, `child` (`effectWhen` is deprecated
-  since 0.4.0)
+- Implement an effect listener widget: `BlocEffectListener<B, E>` with
+  `onEffect(context, effect)`, `bloc`, `child`; a single effect subtype is
+  matched with an if-case at the top of `onEffect`
 - Define and enforce lifecycle behavior for effect stream ownership/closing:
   the stream is broadcast, and `close()` closes the bloc, then waits until
   subscribers got the effects emitted before it
@@ -41,7 +40,7 @@
 - Effects do not trigger rebuild by themselves
 - Effects are not replayed: a listener gets only effects emitted while it is
   subscribed
-- The listener (`BlocEffectListener`, formerly `EffectListener`) subscribes once and invokes callback once per effect event
+- `BlocEffectListener` subscribes once and invokes the callback once per effect event
 - Listener unsubscribes on dispose
 - Missing provider follows provider-not-found semantics (same as widget family)
 - Late emits after bloc close must not crash consumer code (well-defined no-op or handled close path)
@@ -52,7 +51,6 @@
 ## Target Files
 
 - `lib/src/effects/has_effects.dart`
-- `lib/src/effects/effect_listener.dart` (deprecated widget)
 - `lib/src/effects/bloc_effect_listener.dart` (0.3.0)
 - `lib/src/effects/effects.dart` (barrel)
 - `lib/bloc_plus.dart` (exports)
@@ -60,7 +58,6 @@
 ## Tests (Contract)
 
 - `test/effects/has_effects_test.dart`
-- `test/widgets/effect_listener_test.dart`
 - `test/widgets/bloc_effect_listener_test.dart` (0.3.0)
 - `test/effects/testing_recipe_test.dart` (0.3.1: the README testing recipes;
   0.4.0: a mocked bloc needs `effects` stubbed with a stream)
@@ -82,7 +79,6 @@ Required cases:
   Since 0.4.0 its effects are `sealed` classes, handled with an exhaustive
   `switch` or an if-case for one subtype.
 - Auth/navigation example using effect types and `BlocEffectListener`
-  (originally `EffectListener`)
 - Multiple listeners example for different effect categories
 
 ## Acceptance Criteria (DoD)

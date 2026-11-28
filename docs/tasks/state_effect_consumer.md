@@ -3,15 +3,14 @@
 > Status: delivered in 0.2.0 as `BlocConsumerWithEffects`. In 0.3.0 it
 > requires `B extends HasEffects<S, E>`, `listener` is optional, it resolves
 > the bloc once per build, and its effect path is built on
-> `BlocEffectListener` instead of the deprecated `EffectListener`.
+> `BlocEffectListener`. Historical: 0.4.0 deprecated `effectWhen` and the
+> typedef `BlocEffectListenerWithBloc`; 1.0.0 removed them.
 
 ## Preconditions
 
 - Flutter package scaffold exists in repo root (`pubspec.yaml`, `lib/`, `test/`, `example/`)
 - Baseline `ui_with_bloc` and `effects` modules are already implemented and
   exported
-- `effect_filtering` should be implemented first if the new consumer is expected
-  to support effect predicates
 - If scaffold is missing, bootstrap first with:
   - `flutter create --template=package bloc_plus` (from parent directory), or
   - `flutter create --template=package .` (from package root)
@@ -25,15 +24,14 @@
 - Keep the API explicit about the separation between state changes and effect
   events
 
-## Signature (0.3.0)
+## Signature
 
-- `const BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>({required onEffect, required builder, listener, bloc, buildWhen, listenWhen, effectWhen})`
+- `const BlocConsumerWithEffects<B extends HasEffects<S, E>, S, E>({required onEffect, required builder, listener, bloc, buildWhen, listenWhen})`
 - `onEffect(context, bloc, effect)`, `builder(context, bloc, state)`, optional
   `listener(context, bloc, state)`
-- Since 0.4.0 `effectWhen` is deprecated, removed in 1.0 (an `if` at the top
-  of `onEffect` does the same), and `onEffect` declares its function type
-  inline: the typedef `BlocEffectListenerWithBloc<B, S, E>` is deprecated
-  without a replacement
+- `onEffect` has the type
+  `void Function(BuildContext context, B bloc, E effect)`, declared inline
+  since 0.4.0; an `if` or an if-case at the top of `onEffect` filters effects
 - `listenWhen` without `listener` fails an assert
 - Write all three type arguments: `S` and `E` are inferred from `bloc:` only
   in code at language version 3.7 or later, which is the language version of
@@ -42,8 +40,7 @@
 ## Out Of Scope
 
 - Merging state and effects into one stream
-- Replacing `BlocConsumerWithBloc` or `BlocEffectListener` (originally
-  `EffectListener`)
+- Replacing `BlocConsumerWithBloc` or `BlocEffectListener`
 - Hidden buffering or replay of effect events
 
 ## Public Contract

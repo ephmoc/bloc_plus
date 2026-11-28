@@ -30,13 +30,6 @@ listen conditions, and widgets that hand the bloc to their callbacks.
   `BlocCondition`, `whenChanged`
 - Widgets that hand the bloc to their callbacks: `BlocBuilderWithBloc`,
   `BlocListenerWithBloc`, `BlocConsumerWithBloc`, `BlocSelectorWithBloc`
-- Deprecated, removed in 1.0: `RebuildPolicy`, `ListenPolicy` and their
-  factories, `EffectListener`, `MultiEffectListener`,
-  `SingleChildEffectListener` (since 0.3.0); the `BuildContext` helpers
-  `readOrNull`, `watchOrNull`, `selectOrNull` and `withBloc`, `effectWhen`
-  with `EffectCondition`, `RestartableTask.run`, `BlocEffectListener.withChild`,
-  and the typedefs `BlocEffectListenerWithBloc` and `BlocSelectedCondition`
-  (since 0.4.0)
 
 Delivery notes, next steps and guardrails are tracked in
 [`docs/library_improvement_plan.md`](docs/library_improvement_plan.md).
@@ -47,7 +40,7 @@ Add dependency:
 
 ```yaml
 dependencies:
-  bloc_plus: ^0.4.0
+  bloc_plus: ^1.0.0
 ```
 
 Run the example app:
@@ -178,15 +171,13 @@ I/O uses `runLatestOutcome`.
 
 For `void` work or a nullable result, `null` would be ambiguous, so
 `runLatest`, `CancellationToken.run` and `guarded` do not accept it
-(`T extends Object`). `RestartableTask.run` cannot take that bound, because
-its `T` belongs to the class, so it is deprecated and will be removed in 1.0.
-Instead of `runLatest` or `RestartableTask.run`, use `runLatestOutcome` as
-above or `RestartableTask.runOutcome`, and check the outcome before anything
-else. Instead of `guarded` or `CancellationToken.run`, await such work plainly
-and then check what the method checked, before anything else: `isClosed` for
-`guarded`, which
-`safeEmit` checks for you, and `token.isCancelled` for
-`CancellationToken.run`, which `safeEmit` does not check:
+(`T extends Object`). Instead of `runLatest`, use `runLatestOutcome` as above,
+or `RestartableTask.runOutcome` outside a bloc, and check the outcome before
+anything else. Instead of `guarded` or `CancellationToken.run`, await such
+work plainly and then check what the method checked, before anything else:
+`isClosed` for `guarded`, which `safeEmit` checks for you, and
+`token.isCancelled` for `CancellationToken.run`, which `safeEmit` does not
+check:
 
 ```dart
 // Instead of guarded:
@@ -332,16 +323,6 @@ MultiBlocListener(
 - In a `Bloc` handler that a transformer such as `restartable()` has
   cancelled, `emitEffect` still delivers its effect: check `emit.isDone`
   first.
-
-Migrating from the deprecated APIs (removed in 1.0):
-
-| Before | After |
-| --- | --- |
-| `EffectListener<B, S, E>` | `BlocEffectListener<B, E>` |
-| `MultiEffectListener` | `MultiBlocListener` |
-| `EffectListener` on a subtype of the declared effect type | `BlocEffectListener` on the supertype with an if-case pattern |
-| `effectWhen: (effect) => effect is ShowError` (deprecated in 0.4.0) | `if (effect case ShowError(...))` or `if (effect is! ShowError) return;` at the top of `onEffect` |
-| `listener.withChild(child)` (deprecated in 0.4.0) | `child:` in the constructor, or the listener in `MultiBlocListener` |
 
 ### Combined state and effects
 
@@ -493,29 +474,6 @@ compared by identity, so pass `equals:` (for example `listEquals` from
 `package:flutter/foundation.dart`). Never build a new list in the selector,
 such as `(state) => [state.a]`: it is then always "changed".
 
-`RebuildPolicy`, `ListenPolicy` and their factories are deprecated and will
-be removed in 1.0:
-
-| Deprecated | Replacement |
-| --- | --- |
-| `onChange(sel).shouldRebuild`, `onChangeListen(sel).shouldListen` | `whenChanged(sel)` |
-| `onChangeBy(sel, equals: eq)`, `onChangeListenBy(sel, equals: eq)` | `whenChanged(sel, equals: eq)` |
-| `whenRebuild(p).shouldRebuild`, `whenListen(p).shouldListen` | `p` |
-| `always()`, `alwaysListen()` | omit `buildWhen` / `listenWhen` |
-| `never()`, `neverListen()` | `(previous, current) => false` |
-| `distinct()`, `distinctListen()` | `(previous, current) => previous != current` (omitting the parameter differs only for a first emitted state equal to the initial one, which `emit` does not skip) |
-| `a.and(b)`, `a.or(b)`, `a.not()` | `(p, c) => a(p, c) && b(p, c)`, `\|\|`, `!` |
-
-Where the widget has no type arguments, keep them on the condition:
-`onChange<S, T>(sel).shouldRebuild` becomes `whenChanged<S, T>(sel)`.
-
-Until 1.0, `whenListen` clashes with `whenListen` from `bloc_test`. In tests
-that import both, hide this package's one:
-
-```dart
-import 'package:bloc_plus/bloc_plus.dart' hide whenListen;
-```
-
 ### UI widgets with bloc in callback
 
 ```dart
@@ -559,15 +517,11 @@ may not be provided: `context.read<CounterCubit?>()`,
 `context.select<CounterCubit?, int?>((cubit) => cubit?.state.count)` return
 `null` when there is no provider of `CounterCubit`, rethrow any other error,
 such as one thrown while the provider creates the bloc, and rebuild as their
-non-null forms do. They replace the deprecated `readOrNull`, `watchOrNull`
-and `selectOrNull`, which return the same values, while
-`context.withBloc((CounterCubit cubit) => cubit.state.count)` becomes
+non-null forms do. To read a member of a bloc that may not be provided, write
 `context.read<CounterCubit?>()?.state.count`. When the selector is not a
-member chain, write `cubit == null ? null : ...`; when the callback of
-`withBloc` does more than one member access, use a local variable and a null
-check. `bloc_plus` does not export these lookups: a file without the
-`flutter_bloc` import needs it, and drops the `bloc_plus` import when it used
-`bloc_plus` only for the helpers.
+member chain, write `cubit == null ? null : ...`; for more than one member
+access, use a local variable and a null check. `bloc_plus` does not export
+these lookups: a file that uses them needs the `flutter_bloc` import.
 
 ## Compared with
 
@@ -601,8 +555,7 @@ Measured against the versions that were current in November 2026.
 
 ## Versioning
 
-These rules apply from 1.0.0. Until then a 0.x minor may contain breaking
-changes, as 0.4.0 does.
+These rules apply from 1.0.0:
 
 - The public API is everything exported from
   `package:bloc_plus/bloc_plus.dart`.
@@ -628,3 +581,75 @@ changes, as 0.4.0 does.
   class that applies a mixin or extends a class of this package, and an
   optional parameter added to a method of a mixin breaks an override of that
   method. Neither is treated as a breaking change.
+
+## Upgrading from 0.x
+
+1.0.0 removes the APIs that 0.3.0 and 0.4.0 deprecated and changes nothing
+else. A constraint such as `^0.2.0` or `^0.3.1` does not admit 0.4.0, so a
+project on it never saw all of the deprecation warnings. This section gathers
+every replacement; the version in parentheses is the one that deprecated the
+API.
+
+1. Upgrade to `^0.4.0` first and clear every deprecation warning that
+   `flutter analyze` reports.
+2. Move to `^1.0.0`, search the code for the removed names below and compile
+   the app or run `flutter test`. Clean 0.4.0 code can still name them:
+   - A removed name in the `hide` list of an import becomes an
+     `undefined_hidden_name` warning; the code still compiles. The usual case
+     is `hide whenListen` next to the `bloc_test` import: delete it.
+   - The analyzer does not report a deprecated use inside the app's own
+     `@Deprecated` declarations, under an ignore comment, where
+     `analysis_options.yaml` turns `deprecated_member_use` off, or in files
+     excluded from analysis. With 1.0.0 such a use no longer compiles. A use
+     through a `dynamic` receiver fails only at run time.
+
+Conditions:
+
+| Removed | Replacement |
+| --- | --- |
+| `RebuildPolicy<S>`, `ListenPolicy<S>` as a type or a base class (0.3.0) | `BlocCondition<S>`: the body of a subclass's `shouldRebuild` / `shouldListen` becomes a `(previous, current) => ...` passed as `buildWhen` / `listenWhen` |
+| `onChange(sel).shouldRebuild`, `onChangeListen(sel).shouldListen` (0.3.0) | `whenChanged(sel)` |
+| `onChangeBy(sel, equals: eq)`, `onChangeListenBy(sel, equals: eq)` (0.3.0) | `whenChanged(sel, equals: eq)` |
+| `whenRebuild(p).shouldRebuild`, `whenListen(p).shouldListen` (0.3.0) | `p` |
+| `always()`, `alwaysListen()` (0.3.0) | omit `buildWhen` / `listenWhen`; as `selectorShouldRebuild`, write `(previous, current) => true` |
+| `never()`, `neverListen()` (0.3.0) | `(previous, current) => false` |
+| `distinct()`, `distinctListen()` (0.3.0) | `(previous, current) => previous != current` (omitting the parameter differs only for a first emitted state equal to the initial one, which `emit` does not skip) |
+| `a.and(b)`, `a.or(b)`, `a.not()` on `RebuildPolicy` and `ListenPolicy` (0.3.0) | `(p, c) => a(p, c) && b(p, c)`, `\|\|`, `!` |
+| `BlocSelectedCondition<T>` (0.4.0) | `BlocCondition<T>`, the same function type |
+
+Where the widget has no type arguments, keep them on the condition:
+`onChange<S, T>(sel).shouldRebuild` becomes `whenChanged<S, T>(sel)`.
+
+Effects:
+
+| Removed | Replacement |
+| --- | --- |
+| `EffectListener<B, S, E>` (0.3.0) | `BlocEffectListener<B, E>` |
+| `EffectListener` on a subtype of the declared effect type (0.3.0) | `BlocEffectListener` on the supertype with an if-case pattern |
+| `MultiEffectListener` (0.3.0) | `MultiBlocListener`, which asserts that `listeners` is not empty |
+| `SingleChildEffectListener` (0.3.0) | `BlocEffectListener`, a `SingleChildWidget`, inside `MultiBlocListener` |
+| `effectWhen: (effect) => effect is ShowError` and the typedef `EffectCondition` (0.4.0) | `if (effect case ShowError(...))` or `if (effect is! ShowError) return;` at the top of `onEffect`; the if-case also promotes the effect type; a stored predicate has the type `bool Function(E effect)` |
+| `listener.withChild(child)` (0.4.0) | `child:` in the constructor, or the listener in `MultiBlocListener` |
+| `BlocEffectListenerWithBloc<B, S, E>` (0.4.0) | no replacement: `void Function(BuildContext context, B bloc, E effect)` |
+
+`BlocEffectListener` no longer implements `SingleChildEffectListener`.
+
+Lookups, the extension `BlocContextExtension` (0.4.0):
+
+| Removed | Replacement |
+| --- | --- |
+| `context.readOrNull<B>()` | `context.read<B?>()` |
+| `context.watchOrNull<B>()` | `context.watch<B?>()` |
+| `context.selectOrNull<B, S, T>((state) => state.x)` | `context.select<B?, T?>((bloc) => bloc?.state.x)` |
+| `context.withBloc((B bloc) => bloc.x)` | `context.read<B?>()?.x` |
+
+These lookups of `provider` return the same values, with the same rebuilds
+(see "Optional lookups"). `package:flutter_bloc/flutter_bloc.dart` exports
+them and `bloc_plus` does not: a file without that import needs it, and drops
+the `bloc_plus` import when it used `bloc_plus` only for the helpers.
+
+Async helpers:
+
+| Removed | Replacement |
+| --- | --- |
+| `RestartableTask.run(task)` (0.4.0) | `runOutcome((_) => task())`, and `if (!outcome.isCompleted) return;` before `outcome.value`, which throws a `StateError` on a cancelled outcome |

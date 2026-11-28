@@ -50,7 +50,7 @@
 - `runLatest` and `runLatestOutcome` are `@useResult` (0.4.0): a result that
   is awaited and dropped is reported
 
-## Signatures (0.4.0)
+## Signatures
 
 - `mixin RestartableTasksMixin<S> on BlocBase<S>`
 - `bool isTaskRunning(Object key)`

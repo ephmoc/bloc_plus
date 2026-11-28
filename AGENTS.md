@@ -49,10 +49,9 @@ Do not run `flutter create` in a populated repository just to restore optional a
 Default sequence (follow unless user instruction or explicit task dependency requires a different order):
 
 1. `ui_with_bloc`
-2. `context_extensions`
-3. `policies`
-4. `async_safety`
-5. `effects`
+2. `policies`
+3. `async_safety`
+4. `effects`
 
 ## 5. Public API Safety
 
